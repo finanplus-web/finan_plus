@@ -19,12 +19,16 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a branch `main`, o GitHub instala, gera o bundle, **roda os 74 testes** (se algum falhar, nada é publicado), monta o site e publica. A versão do service worker é carimbada com o commit, então os aparelhos recebem a atualização sozinhos.
 
 1. Crie um repositório no GitHub (ex.: `finan-plus-web`), público ou privado (Pages em repositório privado exige plano pago).
-2. Nesta pasta:
+2. Nesta pasta (use o seu e-mail "noreply" do GitHub, em Settings › Emails, para não deixar seu e-mail pessoal público no histórico):
    ```sh
+   git init -b main
+   git config user.name "Seu nome ou apelido"
+   git config user.email "SEU-ID+usuario@users.noreply.github.com"
+   git add .
+   git commit -m "Finan+ web 1.1.0"
    git remote add origin https://github.com/SEU-USUARIO/finan-plus-web.git
    git push -u origin main
    ```
-   (A pasta já vem com o repositório Git iniciado e o primeiro commit feito. Se preferir começar do zero: `git init -b main && git add . && git commit -m "Finan+ web 1.1.0"`.)
 3. No GitHub: **Settings › Pages › Build and deployment › Source: GitHub Actions**.
 4. Abra a aba **Actions** e espere o "Publicar no GitHub Pages" ficar verde (1–2 min). O endereço aparece lá e em Settings › Pages: `https://SEU-USUARIO.github.io/finan-plus-web/`.
 
