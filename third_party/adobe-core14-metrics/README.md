@@ -1,0 +1,6 @@
+# Métricas das fontes padrão do PDF (Helvetica)
+
+- **O que é:** `js/pdf-metrics.js` traz só as **larguras dos caracteres** (números) de Helvetica e Helvetica-Bold para os códigos 32–255 da codificação WinAnsi. Elas servem para medir o texto do relatório em PDF (alinhar valores à direita, centralizar, cortar com "…"). Nenhuma fonte é embutida: o PDF usa as fontes padrão que todo leitor de PDF já tem.
+- **Origem:** arquivos AFM públicos da Adobe para as 14 fontes padrão do PDF (*Core 14 AFM Files*), lidos com a biblioteca ReportLab apenas para gerar a tabela.
+- **Licença dos AFM:** "This file and the 14 PostScript(R) AFM files it accompanies may be used, copied, and distributed for any purpose and without charge, with or without modification, provided that all copyright notices are retained; that the AFM files are not distributed without this file; that all modifications to this file or any of the AFM files are prominently noted in the modified file(s); and that this paragraph is not modified. Adobe Systems has no responsibility or obligation to support the use of the AFM files." — Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems Incorporated.
+- **Modificação (aviso exigido):** os arquivos AFM não são distribuídos; foi extraída apenas a coluna de larguras, convertida para uma lista de números em JavaScript.

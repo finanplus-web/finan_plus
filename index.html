@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  Finan+ — Copyright (C) 2026 Juscelino Be
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#d9e5ff">
+<meta name="description" content="Finan+: controle financeiro pessoal simples, privado e offline. Seus dados ficam neste aparelho.">
+<title>Finan+</title>
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Ir para o conteúdo</a>
+<div class="shell" id="shell">
+  <!-- barra lateral (computador e notebook) -->
+  <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+    <div class="brand"><img src="icons/icon-192.png" alt="" width="40" height="40"><div><b>Finan+</b><small>Controle financeiro</small></div></div>
+    <nav class="sideNav" id="sideNav"></nav>
+    <div class="sideFoot" id="sideFoot"></div>
+  </aside>
+
+  <main class="app" id="main" tabindex="-1">
+    <!-- barra superior (computador) -->
+    <div class="topbar" id="topbar"></div>
+    <!-- cabeçalho (celular) -->
+    <header id="appHeader" class="mobileHeader"></header>
+
+    <section id="homeView" class="view" aria-labelledby="homeTitle"></section>
+    <section id="movesView" class="view" aria-labelledby="movesTitle"></section>
+    <section id="reportsView" class="view" aria-labelledby="reportsTitle"></section>
+    <section id="assistView" class="view" aria-labelledby="assistTitle"></section>
+    <section id="prefsView" class="view" aria-labelledby="prefsTitle"></section>
+  </main>
+
+  <!-- navegação inferior (celular) -->
+  <nav class="bottomNav" id="bottomNav" aria-label="Navegação"></nav>
+</div>
+
+<dialog id="sheet" class="sheet" aria-labelledby="sheetTitle"></dialog>
+<dialog id="appDialog" class="appDialog" aria-labelledby="appDialogTitle"></dialog>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+<div id="lock" class="lock" hidden></div>
+<div id="problem" class="lock" hidden></div>
+<noscript><div class="noscript">O Finan+ precisa de JavaScript ativado para funcionar. Nenhum dado sai do seu aparelho.</div></noscript>
+<script src="js/app.bundle.js" defer></script>
+</body>
+</html>

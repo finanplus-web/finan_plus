@@ -1,0 +1,117 @@
+# Finan+ — Copyright (C) 2026 Juscelino Be
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ============================================================================
+#  Finan+ · Dicionário inicial do assistente
+#  Este arquivo é lido pelo app para sugerir categorias pela descrição.
+#  Qualquer pessoa pode ler, corrigir ou ampliar. Formato:
+#
+#    [despesa: Categoria preferida | alternativa | outra alternativa]
+#    termo, outro termo, termo com várias palavras
+#
+#  - Vale o PRIMEIRO nome da seção que existir nas categorias do usuário.
+#    Se nenhum existir, a seção é ignorada.
+#  - Termos são comparados sem acento e sem diferenciar maiúsculas.
+#  - Termos de 5+ letras também casam com plurais simples (supermercado → supermercados).
+#  - Quando duas categorias empatam, o assistente NÃO sugere (prefere não errar).
+#  - O que o usuário já lançou sempre tem prioridade sobre este dicionário.
+# ============================================================================
+
+# ---------------------------------------------------------------- DESPESAS
+
+[despesa: Mercado | Supermercado | Alimentação]
+supermercado, mercado, mercadinho, mercearia, hortifruti, sacolao, atacadao, atacado, assai, carrefour,
+pao de acucar, extra, bompreco, zaffari, angeloni, condor, muffato, savegnago, sonda, supermercado dia,
+oba hortifruti, mambo, hirota, makro, sams club, fort atacadista, mart minas, super nosso, verdemar,
+guanabara, prezunic, st marche, comper, giassi, bistek, coop, festval, feira, acougue
+
+[despesa: Delivery | Restaurante | Alimentação]
+ifood, rappi, uber eats, eats, 99food, ze delivery, aiqfome, delivery
+
+[despesa: Restaurante | Alimentação]
+restaurante, lanchonete, lanche, pizzaria, pizza, hamburgueria, burger, mcdonalds, mc donalds, bk,
+burger king, subway, habibs, giraffas, outback, madero, spoleto, china in box, kfc, popeyes, starbucks,
+cafeteria, cafe, padaria, panificadora, confeitaria, doceria, sorveteria, acai, pastelaria, churrascaria,
+self service, marmita, marmitex, almoco, jantar, bar, boteco, cervejaria, kopenhagen, cacau show
+
+[despesa: Combustível | Transporte]
+posto, combustivel, gasolina, etanol, alcool, diesel, gnv, ipiranga, shell, petrobras, br mania, raizen
+
+[despesa: Transporte]
+uber, 99 pop, 99app, 99 taxi, taxi, cabify, indriver, onibus, metro, trem, cptm, bilhete unico, brt, vlt,
+passagem, estacionamento, estapar, zona azul, pedagio, sem parar, conectcar, veloe, move mais, autopass,
+recarga transporte, ipva, licenciamento, detran, multa transito, oficina, mecanico, borracharia,
+lava jato, lavagem, pneu, revisao carro, seguro auto, bike itau, tembici, patinete
+
+[despesa: Moradia | Casa | Contas]
+aluguel, condominio, iptu, imobiliaria, quintoandar, quinto andar, financiamento imovel, prestacao casa,
+diarista, faxina, reforma, material de construcao, leroy merlin, telhanorte, madeira madeira,
+tok stok, etna, camicado, mobly
+
+[despesa: Contas | Moradia | Casa]
+luz, energia, conta de luz, enel, cemig, copel, cpfl, light energia, celesc, coelba, celpe, cosern, equatorial,
+energisa, neoenergia, rge, agua, conta de agua, sabesp, copasa, sanepar, cedae, caesb, embasa, compesa,
+cagece, saneago, corsan, casan, gas, comgas, naturgy, ultragaz, liquigas, supergasbras, internet,
+banda larga, vivo fibra, claro net, net virtua, oi fibra, tim live, telefone, celular, recarga celular,
+vivo, claro, tim, oi fibra, oi celular
+
+[despesa: Assinaturas | Lazer]
+netflix, spotify, disney, disney plus, hbo, hbo max, prime video, amazon prime, globoplay, paramount,
+star plus, apple tv, apple music, deezer, youtube premium, youtube music, crunchyroll, mubi, telecine,
+xbox game pass, game pass, playstation plus, psn, nintendo, steam, icloud, google one, dropbox,
+microsoft 365, office 365, chatgpt, canva, assinatura, mensalidade app
+
+[despesa: Saúde]
+farmacia, drogaria, drogasil, droga raia, raia, pague menos, panvel, pacheco, sao joao, venancio,
+araujo, nissei, onofre, ultrafarma, remedio, medicamento, consulta, medico, dentista, odonto,
+odontologia, exame, laboratorio, fleury, dasa, hermes pardini, sabin, clinica, hospital, pronto socorro,
+psicologo, terapia, fisioterapia, plano de saude, unimed, amil, bradesco saude, sulamerica, hapvida,
+notredame, intermedica, prevent senior, porto saude, otica, oculos, lente
+
+[despesa: Academia | Saúde | Lazer]
+academia, smart fit, smartfit, bluefit, bodytech, selfit, crossfit, pilates, yoga, gympass, wellhub, totalpass
+
+[despesa: Educação]
+escola, colegio, faculdade, universidade, mensalidade escolar, curso, cursinho, matricula, material escolar,
+livraria, livro, apostila, udemy, alura, coursera, duolingo, ingles, idiomas, wizard, ccaa, fisk, cna,
+kumon, rematricula, uniforme escolar
+
+[despesa: Pets | Animais | Outros]
+petshop, pet shop, petz, cobasi, petlove, racao, veterinario, vet, banho e tosa
+
+[despesa: Vestuário | Compras | Outros]
+roupa, roupas, calcado, calcados, sapato, tenis, renner, riachuelo, marisa, zara, hering,
+centauro, decathlon, netshoes, shein, havaianas, arezzo, youcom
+
+[despesa: Compras | Outros]
+amazon, mercado livre, mercadolivre, magalu, magazine luiza, americanas, casas bahia, shopee,
+aliexpress, kabum, fast shop, ponto frio
+
+[despesa: Beleza | Cuidados pessoais | Saúde]
+salao, cabeleireiro, barbearia, barbeiro, manicure, depilacao, estetica, boticario, o boticario,
+natura, sephora, avon, eudora, perfumaria
+
+[despesa: Lazer]
+cinema, cinemark, cinepolis, kinoplex, uci, teatro, show, ingresso, ingressos, sympla, eventim,
+ticketmaster, parque, clube, viagem, hotel, pousada, airbnb, booking, decolar, passagem aerea, latam,
+gol linhas aereas, azul linhas aereas, cvc, hurb, jogo, game, praia, passeio, festa, balada
+
+[despesa: Impostos | Taxas | Outros]
+imposto, irpf, darf, das mei, inss, iof, tarifa bancaria, tarifa, anuidade, taxa, juros,
+cartorio, despachante
+
+[despesa: Presentes | Doações | Outros]
+presente, doacao, dizimo, oferta, vaquinha
+
+# ---------------------------------------------------------------- RECEITAS
+
+[receita: Salário]
+salario, salario mensal, folha, folha de pagamento, holerite, adiantamento salarial, vale, 13o, decimo terceiro,
+ferias, plr, participacao nos lucros, pro labore, prolabore
+
+[receita: Investimentos]
+rendimento, rendimentos, dividendo, dividendos, jcp, juros sobre capital, cdb, lci, lca, tesouro direto,
+tesouro, poupanca, resgate, fii, fundo imobiliario, cashback
+
+[receita: Extra | Outros]
+freela, freelance, bico, venda, vendi, comissao, gorjeta, reembolso, premio, restituicao, aluguel recebido,
+servico prestado, uber motorista, 99 motorista, ifood entregador
