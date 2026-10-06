@@ -3104,7 +3104,7 @@ Public License instead of this License.  But first, please read
     if (max <= 0) return 1e4;
     const raw = max / ticks, mag = 10 ** Math.floor(Math.log10(raw)), n = raw / mag;
     const f = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
-    return Math.round(f * mag);
+    return Math.max(Math.round(f * mag), 100);
   }
   var reportFileName = (from, to) => `relatorio-finan-plus-${from}-a-${to}.pdf`;
   var PRESETS = [["mes", "Este mês"], ["anterior", "Mês passado"], ["ano", "Este ano"], ["12m", "12 meses"], ["tudo", "Tudo"]];

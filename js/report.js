@@ -79,7 +79,7 @@ export function niceStep(max, ticks = 4) {
   if (max <= 0) return 10000;
   const raw = max / ticks, mag = 10 ** Math.floor(Math.log10(raw)), n = raw / mag;
   const f = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
-  return Math.round(f * mag);
+  return Math.max(Math.round(f * mag), 100); // nunca zero: com 1 ou 2 centavos o passo arredondava para 0 e o gráfico do PDF travava
 }
 export const reportFileName = (from, to) => `relatorio-finan-plus-${from}-a-${to}.pdf`;
 

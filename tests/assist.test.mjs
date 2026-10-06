@@ -317,5 +317,6 @@ test('relatório: formatos', () => {
   assert.equal(compact(250000000), 'R$ 2,5 mi');
   assert.equal(niceStep(320000, 4), 100000);
   assert.equal(niceStep(100000, 4), 25000);
+  for (let v = 0; v < 500; v++) assert.ok(niceStep(v, 4) >= 100, `passo zero para ${v}`);
   assert.equal(reportFileName('2026-10-01', '2026-10-31'), 'relatorio-finan-plus-2026-10-01-a-2026-10-31.pdf');
 });
