@@ -29,6 +29,7 @@
     DEFAULT_INCOME: () => DEFAULT_INCOME,
     Finance: () => Finance,
     MAIN_ACCOUNT: () => MAIN_ACCOUNT,
+    MAX_ABS_CENTS: () => MAX_ABS_CENTS,
     MONTHS: () => MONTHS,
     MONTHS_SHORT: () => MONTHS_SHORT,
     Money: () => Money,
@@ -452,7 +453,10 @@
       const ids = /* @__PURE__ */ new Set([id, ...withLater ? Ops.laterParcels(s, id).map((x) => x.id) : []]);
       return { ...s, txs: s.txs.filter((x) => !ids.has(x.id)) };
     },
-    togglePaid: (s, id) => ({ ...s, txs: s.txs.map((x) => x.id === id && !isCard(x) ? { ...x, paid: !x.paid } : x) }),
+    /** Compra no cartão e pagamento de fatura não alternam pago/pendente: desmarcar um pagamento de fatura reabria
+     *  a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes (igual ao app Android 1.1.1). */
+    canTogglePaid: (t) => !isCard(t) && isFlow(t),
+    togglePaid: (s, id) => ({ ...s, txs: s.txs.map((x) => x.id === id && Ops.canTogglePaid(x) ? { ...x, paid: !x.paid } : x) }),
     saveGoal(s, id, name, target, move, deadline, monthly) {
       const n = clean(name, 60), t = Money.parse(target), m = blank(monthly) ? 0 : Money.parse(monthly);
       if (!n) return err("Informe o nome da meta.");
@@ -518,8 +522,25 @@
       if (id == null) {
         if (!validDate(start)) return err("Informe a data de início.");
         next = { ...s, recurring: [...s.recurring, { id: newId(), kind, desc: ds, value: v, category: cat, accountId: acc, cardId: cd, day: dd, active: true, start, last: null }] };
-      } else next = { ...s, recurring: s.recurring.map((r) => r.id === id ? { ...r, kind, desc: ds, value: v, day: dd, category: cat, accountId: acc, cardId: cd, active } : r) };
+      } else next = { ...s, recurring: s.recurring.map((r) => r.id === id ? {
+        ...r,
+        kind,
+        desc: ds,
+        value: v,
+        day: dd,
+        category: cat,
+        accountId: acc,
+        cardId: cd,
+        active,
+        last: !r.active && active ? Ops.resumedLast(r.last, today2) : r.last
+      } : r) };
       return ok(Finance.generateRecurring(next, today2)[0]);
+    },
+    /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
+     *  (Antes, reativar em outubro uma recorrência pausada em março criava 7 lançamentos pendentes de uma vez.) */
+    resumedLast: (last, today2) => {
+      const prev = ymOf(today2) - 1;
+      return last != null && last > prev ? last : prev;
     },
     deleteRecurring: (s, id) => ({ ...s, recurring: s.recurring.filter((r) => r.id !== id) }),
     saveLimit(s, old, category, value) {
@@ -597,9 +618,11 @@
     if (typeof v === "boolean") return v ? 1 : 0;
     return null;
   }
+  var MAX_ABS_CENTS = 999999999999999;
   var cents = (v) => {
+    if (typeof v === "boolean") return 0;
     const n = num(v);
-    return n == null ? 0 : Money.fromReais(n);
+    return n == null || Math.abs(n) > MAX_ABS_CENTS / 100 ? 0 : Money.fromReais(n);
   };
   var intIn = (v, a, b, def) => {
     const n = num(v);
@@ -2956,7 +2979,7 @@ Public License instead of this License.  But first, please read
   var why = (text) => `<details class="why"><summary>${icon("help", 16)}<span>Por quê?</span></summary><p>${esc(text)}</p></details>`;
 
   // js/ctx.js
-  var APP_VERSION = "1.1.1";
+  var APP_VERSION = "1.1.2";
   var ctx = {
     state: null,
     // dados (AppState do core)
@@ -4560,6 +4583,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   function whatsNew() {
     const items = [
+      "1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.",
       "1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.",
       "Novo nome: Finan+, com o ícone do app Android.",
       "Layout para computador e notebook: barra lateral com saldo, telas em 2 ou 3 colunas, atalhos de teclado e janelas centrais.",

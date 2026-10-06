@@ -1,5 +1,14 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.1.2 — correções da auditoria do app Android (06/10/2026)
+
+A auditoria do Finan+ Android encontrou três erros nas regras financeiras que as três versões compartilham. Esta versão aplica as mesmas correções do Android 1.1.1 e do Linux 1.1.7, para os resultados continuarem iguais.
+
+- **Recorrência reativada:** ao reativar uma recorrência pausada, os meses em que ela ficou parada não geram mais lançamentos de uma vez (reativar em outubro uma recorrência pausada em março criava 7 pendentes). Ela retoma a partir do mês atual (`Ops.resumedLast`). Uma recorrência que já estava ativa continua recuperando os meses atrasados, como antes.
+- **Pagamento de fatura:** a regra `Ops.canTogglePaid` impede alternar pago/pendente em compra no cartão e em pagamento de fatura (desmarcar o pagamento descontava o mesmo valor duas vezes). A tela já não mostrava o botão nesses casos; agora o núcleo também garante.
+- **Backup com valores gigantes ou booleanos:** valores acima de R$ 9.999.999.999.999,99 (o limite da digitação) e `true`/`false` em campos de dinheiro são recusados e o item é descartado na revisão; antes, somas perdiam precisão e o saldo podia trocar de sinal.
+- 3 testes novos: 77 no total.
+
 ## 1.1.1 — links para o código e a versão Linux (06/10/2026)
 
 - **Ajustes › Sobre › Código-fonte e outras versões:** três links que abrem em nova aba — o repositório desta versão web (`github.com/finanplus-web/finan_plus`), o download da versão Linux (página da Release mais recente, com o `.deb`) e o repositório da versão Linux (`github.com/finanplus-web/finan_plus_linux`). Os links usam `rel="noopener noreferrer"`: a página aberta não recebe o endereço de origem nem acesso a esta aba.

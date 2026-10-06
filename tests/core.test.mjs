@@ -320,3 +320,38 @@ test('estado: clone não compartilha listas', () => {
   assert.equal(a.txs.length, 0); assert.equal(a.limits.size, 1);
   assert.equal(ymOf('2026-10-01'), ym(2026, 10));
 });
+
+// ------------------------------------------------------------------ correções da auditoria (06/10/2026), iguais ao Android 1.1.1
+test('auditoria: reativar recorrência pausada não gera os meses parados', () => {
+  const s0 = newState({ recurring: [rec({ start: '2026-01-05', last: ym(2026, 3), active: false })] });
+  const s = okState(Ops.saveRecurring(s0, 'r', 'expense', 'x', '10,00', '5', 'Lazer', 'main', '', true, null, '2026-10-06'));
+  assert.equal(s.txs.length, 1, 'só o mês atual');
+  assert.equal(s.txs[0].date, '2026-10-05');
+  assert.equal(s.recurring[0].last, ym(2026, 10));
+  // editar uma recorrência que já estava ativa não muda o "last"
+  const s2 = okState(Ops.saveRecurring(newState({ recurring: [rec({ start: '2026-01-05', last: ym(2026, 3) })] }), 'r', 'expense', 'x', '10,00', '5', 'Lazer', 'main', '', true, null, '2026-10-06'));
+  assert.equal(s2.txs.length, 7, 'ativa: recupera os meses atrasados como antes');
+});
+
+test('auditoria: pagamento de fatura e compra no cartão não alternam pago', () => {
+  const s0 = withCard(100000);
+  const pay = mk('p', 'expense', 30000, '2026-10-12', true, '', 'c', CARD_PAYMENT_CAT);
+  const buy = mk('b', 'expense', 5000, '2026-10-01', true, 'c');
+  const bill = mk('l', 'expense', 2000, '2026-10-10', false);
+  const s = { ...s0, txs: [pay, buy, bill] };
+  assert.equal(Ops.canTogglePaid(pay), false);
+  assert.equal(Ops.canTogglePaid(buy), false);
+  assert.equal(Ops.canTogglePaid(bill), true);
+  assert.equal(Ops.togglePaid(s, 'p').txs[0].paid, true);
+  assert.equal(Ops.togglePaid(s, 'l').txs[2].paid, true);
+});
+
+test('auditoria: valores gigantes e booleanos no backup viram 0 (descartados)', () => {
+  const r = parseBackup('{"accounts":[{"id":"main","name":"C","initial":-1e300}],"txs":[' +
+    '{"id":"a","kind":"income","value":1e300,"date":"2026-10-01","desc":"x","category":"Salário","paid":true},' +
+    '{"id":"b","kind":"expense","value":true,"date":"2026-10-01","desc":"y","category":"Lazer","paid":true},' +
+    '{"id":"c","kind":"expense","value":9999999999999.99,"date":"2026-10-01","desc":"z","category":"Lazer","paid":true}]}');
+  assert.equal(r.state.accounts[0].initial, 0);
+  assert.deepEqual(r.state.txs.map(t => t.id), ['c'], 'valor inválido descarta o lançamento; o limite exato ainda vale');
+  assert.equal(r.state.txs[0].value, 999999999999999);
+});

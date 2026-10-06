@@ -343,6 +343,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.',
     '1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.',
     'Novo nome: Finan+, com o ícone do app Android.',
     'Layout para computador e notebook: barra lateral com saldo, telas em 2 ou 3 colunas, atalhos de teclado e janelas centrais.',

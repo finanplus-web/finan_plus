@@ -334,7 +334,10 @@ export const Ops = {
     const ids = new Set([id, ...(withLater ? Ops.laterParcels(s, id).map(x => x.id) : [])]);
     return { ...s, txs: s.txs.filter(x => !ids.has(x.id)) };
   },
-  togglePaid: (s, id) => ({ ...s, txs: s.txs.map(x => x.id === id && !isCard(x) ? { ...x, paid: !x.paid } : x) }),
+  /** Compra no cartão e pagamento de fatura não alternam pago/pendente: desmarcar um pagamento de fatura reabria
+   *  a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes (igual ao app Android 1.1.1). */
+  canTogglePaid: t => !isCard(t) && isFlow(t),
+  togglePaid: (s, id) => ({ ...s, txs: s.txs.map(x => x.id === id && Ops.canTogglePaid(x) ? { ...x, paid: !x.paid } : x) }),
 
   saveGoal(s, id, name, target, move, deadline, monthly) {
     const n = clean(name, 60), t = Money.parse(target), m = blank(monthly) ? 0 : Money.parse(monthly);
@@ -400,9 +403,13 @@ export const Ops = {
     if (id == null) {
       if (!validDate(start)) return err('Informe a data de início.');
       next = { ...s, recurring: [...s.recurring, { id: newId(), kind, desc: ds, value: v, category: cat, accountId: acc, cardId: cd, day: dd, active: true, start, last: null }] };
-    } else next = { ...s, recurring: s.recurring.map(r => r.id === id ? { ...r, kind, desc: ds, value: v, day: dd, category: cat, accountId: acc, cardId: cd, active } : r) };
+    } else next = { ...s, recurring: s.recurring.map(r => r.id === id ? { ...r, kind, desc: ds, value: v, day: dd, category: cat, accountId: acc, cardId: cd, active,
+      last: !r.active && active ? Ops.resumedLast(r.last, today) : r.last } : r) };
     return ok(Finance.generateRecurring(next, today)[0]);
   },
+  /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
+   *  (Antes, reativar em outubro uma recorrência pausada em março criava 7 lançamentos pendentes de uma vez.) */
+  resumedLast: (last, today) => { const prev = ymOf(today) - 1; return last != null && last > prev ? last : prev; },
   deleteRecurring: (s, id) => ({ ...s, recurring: s.recurring.filter(r => r.id !== id) }),
 
   saveLimit(s, old, category, value) {
@@ -466,7 +473,14 @@ function num(v) {
   if (typeof v === 'boolean') return v ? 1 : 0;
   return null;
 }
-const cents = v => { const n = num(v); return n == null ? 0 : Money.fromReais(n); };
+/** Maior valor aceito: 13 dígitos de reais, o mesmo limite da digitação (somas maiores perdiam precisão e trocavam de sinal). */
+export const MAX_ABS_CENTS = 999_999_999_999_999;
+/** Dinheiro do backup: número ou texto numérico; booleano não vale (true virava R$ 1,00) e valor acima do limite vira 0. */
+const cents = v => {
+  if (typeof v === 'boolean') return 0;
+  const n = num(v);
+  return n == null || Math.abs(n) > MAX_ABS_CENTS / 100 ? 0 : Money.fromReais(n);
+};
 const intIn = (v, a, b, def) => { const n = num(v); if (n == null) return def; const r = Math.round(n); return r >= a && r <= b ? r : def; };
 const safeId = v => { const s = typeof v === 'number' && Number.isFinite(v) ? numToString(v) : typeof v === 'string' ? v : ''; return ID_RE.test(s) ? s : ''; };
 const parseDate = v => validDate(v) ? v : null;
