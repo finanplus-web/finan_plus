@@ -14,6 +14,8 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - O que foi feito nesta versão: [CHANGELOG.md](CHANGELOG.md)
 
+**Usar agora:** https://finanplus-web.github.io/finan_plus/ · **Versão para Linux:** [baixar o .deb](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código-fonte](https://github.com/finanplus-web/finan_plus_linux))
+
 ## Publicar no GitHub Pages
 
 Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a branch `main`, o GitHub instala, gera o bundle, **roda os 74 testes** (se algum falhar, nada é publicado), monta o site e publica. A versão do service worker é carimbada com o commit, então os aparelhos recebem a atualização sozinhos.

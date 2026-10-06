@@ -438,3 +438,14 @@ dialog{color:var(--text)}
 
 /* impressão: só o conteúdo */
 @media print{.sidebar,.topbar,.bottomNav,.mobileHeader,.toasts{display:none!important}.shell{display:block}.app{padding:0;max-width:none}.glass{box-shadow:none;backdrop-filter:none}}
+
+/* Sobre › Código-fonte e outras versões: links externos (abrem em nova aba) */
+.linkList{display:grid;gap:8px;margin:10px 0}
+.extLink{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--accent2);color:var(--text);text-decoration:none;min-height:56px}
+.extLink>svg:first-child{color:var(--accent);flex:none}
+.extLink>svg:last-child{color:var(--muted);flex:none;margin-left:auto}
+.extLink span{display:flex;flex-direction:column;min-width:0}
+.extLink b{font-weight:700;font-size:14px}
+.extLink small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.extLink:hover{filter:brightness(1.04)}
+.extLink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

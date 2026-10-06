@@ -402,6 +402,12 @@ function learnedHtml() {
     <p class="muted small">Dicionário inicial: ${ctx.dict ? ctx.dict.sections.length : 0} seções, arquivo aberto assistente/dicionario.txt. As regras de cada função estão descritas em ASSISTENTE.md no código-fonte.</p>`;
 }
 
+// links do Sobre: abrem em nova aba, sem enviar a página de origem (rel noreferrer)
+const REPO_WEB = 'https://github.com/finanplus-web/finan_plus';
+const REPO_LINUX = 'https://github.com/finanplus-web/finan_plus_linux';
+const LINUX_DOWNLOAD = 'https://github.com/finanplus-web/finan_plus_linux/releases/latest';
+const extLink = (href, ic, title, sub) => `<a class="extLink" href="${attr(href)}" target="_blank" rel="noopener noreferrer">${icon(ic, 22)}<span><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon('open-in-new', 18)}</a>`;
+
 function aboutHtml(env) {
   const paras = [
     'Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.',
@@ -425,7 +431,14 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     <details class="license" data-src="licenca/LICENSE.txt"><summary>${icon('expand-more', 18)}Ver licença completa (GNU GPL v3)</summary><pre class="licenseText">Carregando…</pre></details>
     <p class="muted">Ícones: Material Symbols, © Google, sob a Licença Apache 2.0 (compatível com a GPL v3).</p>
     <details class="license" data-src="licenca/APACHE-2.0.txt"><summary>${icon('expand-more', 18)}Ver licença dos ícones (Apache 2.0)</summary><pre class="licenseText">Carregando…</pre></details>
-    <p class="muted small">Código-fonte: publicado junto com o app, na pasta js/ (módulos legíveis; js/app.bundle.js é a junção deles, sem minificar). ${env.storageNote || ''}</p>
+    <h4 class="subhead">Código-fonte e outras versões</h4>
+    <p class="muted">O código do Finan+ é aberto. Aqui estão o repositório desta versão web e a versão para computadores Linux, com os mesmos recursos e backup compatível.</p>
+    <div class="linkList">
+      ${extLink(REPO_WEB, 'code', 'Código-fonte do Finan+ web (PWA)', 'github.com/finanplus-web/finan_plus')}
+      ${extLink(LINUX_DOWNLOAD, 'computer', 'Baixar para Linux (.deb)', 'Ubuntu 24.04+, Linux Mint 22, Debian 13, KDE neon')}
+      ${extLink(REPO_LINUX, 'code', 'Código-fonte do Finan+ para Linux', 'github.com/finanplus-web/finan_plus_linux')}
+    </div>
+    <p class="muted small">Também publicado junto com o app, na pasta js/ (módulos legíveis; js/app.bundle.js é a junção deles, sem minificar). ${env.storageNote || ''}</p>
     <div class="btnGrid">${btn('Atalhos de teclado', { act: 'shortcuts', icon: 'keyboard', iconSize: 18 })}${btn('Novidades desta versão', { act: 'whatsnew', icon: 'history', iconSize: 18 })}</div>`;
 }
 

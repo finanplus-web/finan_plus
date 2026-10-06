@@ -1,5 +1,11 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.1.1 — links para o código e a versão Linux (06/10/2026)
+
+- **Ajustes › Sobre › Código-fonte e outras versões:** três links que abrem em nova aba — o repositório desta versão web (`github.com/finanplus-web/finan_plus`), o download da versão Linux (página da Release mais recente, com o `.deb`) e o repositório da versão Linux (`github.com/finanplus-web/finan_plus_linux`). Os links usam `rel="noopener noreferrer"`: a página aberta não recebe o endereço de origem nem acesso a esta aba.
+- Ícones novos (Material Symbols Rounded, peso 300, 24 px, Apache 2.0): `code`, `computer`, `open-in-new`.
+- Relatório em PDF: o passo da escala do gráfico nunca é zero (com totais de poucos centavos, a geração travava).
+
 ## 1.1.0 — Finan+ web (04/10/2026)
 
 > **GitHub Pages (04/10/2026):** publicação automática pronta: `.github/workflows/pages.yml` gera o bundle, roda os testes e publica a cada envio para `main`; `tools/site.mjs` monta só os arquivos do site e carimba a versão do service worker com o commit; `.gitignore`; `npm run preview`. Testado num endereço com subpasta, como o do GitHub Pages, inclusive offline.

@@ -343,6 +343,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.',
     'Novo nome: Finan+, com o ícone do app Android.',
     'Layout para computador e notebook: barra lateral com saldo, telas em 2 ou 3 colunas, atalhos de teclado e janelas centrais.',
     'Dados criptografados (AES-256-GCM) com chave não extraível do navegador; os dados antigos são migrados automaticamente.',
