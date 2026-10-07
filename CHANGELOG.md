@@ -1,6 +1,6 @@
 # Changelog — Finan+ web (PWA)
 
-## Não publicado — modo remoto (para o "Acesso pela rede" do Finan+ Android beta)
+## Modo remoto — para o "Acesso pela rede" do Finan+ Android 1.2.0 (07/10/2026)
 
 - **Modo normal sem mudanças:** aberto pelo GitHub Pages, instalado ou pela pasta, o Finan+ web continua
   lendo e gravando os dados do navegador, criptografados, como antes.
