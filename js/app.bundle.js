@@ -3982,10 +3982,13 @@ ${xref}
       <div class="manageActions">${btn(hasPin ? "Remover PIN" : "Definir PIN", { act: hasPin ? "pin-remove" : "pin-set", cls: "soft small" })}${hasPin ? btn("Trocar", { act: "pin-set", cls: "soft small" }) : ""}</div></div>
     ${check("privacy", "Ocultar valores", s.privacy, { sub: "Esconde os valores em reais na tela e nos avisos (Ctrl+H)" })}
     <label class="field"><span>Bloqueio automático</span><select id="autoLockSel"${hasPin ? "" : " disabled"}>${AUTOLOCK_OPTIONS.map((m) => `<option value="${m}"${s.autoLock === m ? " selected" : ""}>${m === 0 ? "Desativado" : `${m} minuto${m > 1 ? "s" : ""} sem usar`}</option>`).join("")}</select>${hasPin ? "" : '<small class="hint">Precisa de um PIN.</small>'}</label>
-    <div class="infoBox">${icon("lock", 18)}<p>${env2.encrypted ? "Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores." : "Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia."} O PIN nunca vai para o backup.</p></div>
+    ${env2.remote ? `<div class="manageItem"><div><b>Conectado ao celular</b><small>Acesso pela rede do Finan+ Android</small></div><div class="manageActions">${btn("Desconectar", { act: "remote-logout", cls: "soft small" })}</div></div>` : ""}
+    <div class="infoBox">${icon("lock", 18)}<p>${env2.remote ? "Modo remoto: os dados ficam no celular (criptografados lá) e chegam por conexão criptografada (HTTPS). Nada financeiro é gravado neste navegador; o PIN abaixo vale só para ele." : env2.encrypted ? "Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores." : "Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia."} O PIN nunca vai para o backup.</p></div>
     <p class="muted small">Navegadores não permitem bloquear capturas de tela. Ao compartilhar a tela, ligue “Ocultar valores”.</p>`, "shield");
     const nperm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
-    const notif = fold("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
+    const notif = env2.remote ? fold("avisos", "Avisos de vencimento", "Feitos pelo celular", `
+    <p class="muted small">No modo remoto, os avisos de vencimento chegam pelo próprio celular.</p>
+    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
     ${check("notifications", "Avisar vencimentos", d.notifications && nperm === "granted", { sub: "Contas a pagar, valores a receber e faturas, uma vez por dia a partir das 9h, com o Finan+ aberto", disabled: nperm === "unsupported" })}
     ${nperm === "denied" ? '<p class="muted small">As notificações estão bloqueadas para este site. Libere nas configurações do navegador.</p>' : ""}
     ${nperm === "unsupported" ? '<p class="muted small">Este navegador não oferece notificações.</p>' : ""}
@@ -4026,10 +4029,10 @@ ${xref}
     const data = fold("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
     <div class="btnGrid">${btn("Exportar CSV", { act: "csv", icon: "table-view", iconSize: 18 })}${btn("Backup JSON", { act: "backup", icon: "download", iconSize: 18 })}
     ${btn("Restaurar", { act: "restore", icon: "upload", iconSize: 18 })}${btn("Relatório em PDF", { act: "pdf", icon: "picture-as-pdf", iconSize: 18 })}
-    ${btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
+    ${env2.remote ? "" : btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
     <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, "database");
     const about = fold("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
-    const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
+    const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.remote ? "Tudo é salvo no celular, pela rede local." : env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
     const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
     return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
   }
@@ -4105,7 +4108,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     <div class="sideTools">${btn("", { act: "toggle-privacy", cls: "icon small", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores (Ctrl+H)" : "Ocultar valores (Ctrl+H)" })}
     ${ctx.device.pinHash ? btn("", { act: "lock", cls: "icon small", icon: "lock", label: "Bloquear agora (Ctrl+L)" }) : ""}
     ${btn("", { act: "shortcuts", cls: "icon small", icon: "keyboard", label: "Atalhos de teclado (?)" })}</div>
-    <small class="sideNote">${icon("shield", 12)} Dados só neste aparelho</small>`;
+    <small class="sideNote">${icon("shield", 12)} ${ctx.remote ? "Dados no celular (conexão segura)" : "Dados só neste aparelho"}</small>`;
   }
   function topbarHtml() {
     const s = ctx.state;
@@ -4599,8 +4602,268 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     openSheet({ title: `Novidades da versão ${APP_VERSION}`, body: `<ul class="reportLines">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul><p class="muted small">Lista completa em CHANGELOG.md e FUNCIONALIDADES.md.</p>` });
   }
 
+  // js/remote.js
+  var isRemote = () => typeof document !== "undefined" && !!document.querySelector('meta[name="finanplus-remote"]');
+  var TOKEN_KEY = "finanplus-lan-token";
+  var ss = () => {
+    try {
+      return globalThis.sessionStorage || null;
+    } catch {
+      return null;
+    }
+  };
+  var getToken = () => {
+    try {
+      return ss()?.getItem(TOKEN_KEY) || null;
+    } catch {
+      return null;
+    }
+  };
+  var setToken = (t) => {
+    try {
+      t ? ss()?.setItem(TOKEN_KEY, t) : ss()?.removeItem(TOKEN_KEY);
+    } catch {
+    }
+  };
+  var RemoteError = class extends Error {
+    constructor(status, title, message, body) {
+      super(message);
+      this.status = status;
+      this.title = title;
+      this.body = body;
+    }
+  };
+  async function call(method, path, body, fetchImpl = globalThis.fetch) {
+    const t = getToken();
+    let res;
+    try {
+      res = await fetchImpl(path, {
+        method,
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", ...t ? { Authorization: "Bearer " + t } : {} },
+        body: body === void 0 ? void 0 : JSON.stringify(body)
+      });
+    } catch {
+      throw new RemoteError(0, "Sem conexão com o celular", "Confira se o acesso pela rede continua ligado no celular e se os dois estão no mesmo Wi-Fi.");
+    }
+    let j = null;
+    try {
+      j = await res.json();
+    } catch {
+    }
+    if (!res.ok) throw new RemoteError(res.status, j?.title || "Erro", j?.message || "Erro " + res.status, j);
+    return j;
+  }
+  var _RemoteStore_instances, call_fn, take_fn;
+  var RemoteStore = class {
+    constructor(fetchImpl = globalThis.fetch) {
+      __privateAdd(this, _RemoteStore_instances);
+      this.fetch = fetchImpl;
+      this.mode = "remote";
+      this.locked = false;
+      this.noDb = false;
+      this.savedAt = 0;
+      this.rev = void 0;
+      this.themeRev = void 0;
+      this.palette = null;
+      this.queue = Promise.resolve();
+      this.onUnauthorized = null;
+    }
+    get encrypted() {
+      return true;
+    }
+    // HTTPS, e nada gravado neste navegador
+    get remote() {
+      return true;
+    }
+    async open() {
+      const n = __privateMethod(this, _RemoteStore_instances, take_fn).call(this, await __privateMethod(this, _RemoteStore_instances, call_fn).call(this, "GET", "/api/remote/state"));
+      return { status: "ok", state: n.state, dropped: n.droppedTotal };
+    }
+    async reload() {
+      return __privateMethod(this, _RemoteStore_instances, take_fn).call(this, await __privateMethod(this, _RemoteStore_instances, call_fn).call(this, "GET", "/api/remote/state")).state;
+    }
+    /** grava no celular (em fila: gravações nunca se sobrepõem) */
+    save(state) {
+      const data = JSON.parse(toJson(state));
+      const job = this.queue.then(async () => {
+        try {
+          const j = await __privateMethod(this, _RemoteStore_instances, call_fn).call(this, "PUT", "/api/remote/state", { rev: this.rev, data });
+          if (!Number.isSafeInteger(j?.rev)) throw new RemoteError(502, "Resposta inválida do celular", "Confirmação de gravação sem versão.");
+          this.rev = j.rev;
+          this.savedAt = Date.now();
+        } catch (e) {
+          if (e.status === 409) throw new ConflictError("Os dados foram alterados no celular.");
+          throw e;
+        }
+      });
+      this.queue = job.catch(() => {
+      });
+      return job;
+    }
+    /**
+     * Algo mudou no celular desde a última leitura? Consulta leve, que não conta como uso
+     * (o servidor continua desligando sozinho após 10 min parado).
+     */
+    async changed() {
+      const j = await __privateMethod(this, _RemoteStore_instances, call_fn).call(this, "GET", "/api/rev");
+      if (!Number.isSafeInteger(j?.data) || typeof j.rev !== "string") throw new RemoteError(502, "Resposta inválida do celular", "Versão em formato inesperado.");
+      const theme = j.rev.split("-")[1] || "";
+      const themeChanged = this.themeRev !== void 0 && theme !== this.themeRev;
+      this.themeRev = theme;
+      return themeChanged || j.data !== this.rev;
+    }
+    async logout() {
+      try {
+        await __privateMethod(this, _RemoteStore_instances, call_fn).call(this, "POST", "/api/logout");
+      } catch {
+      }
+      setToken(null);
+    }
+    // o restante do Store não se aplica: os dados não ficam aqui
+    async startOver() {
+      this.locked = false;
+    }
+    async unreadableExport() {
+      return null;
+    }
+    async wipe() {
+      throw new Error("Apague os dados pelo celular.");
+    }
+    close() {
+    }
+    static async persist() {
+      return false;
+    }
+  };
+  _RemoteStore_instances = new WeakSet();
+  call_fn = function(method, path, body) {
+    return call(method, path, body, this.fetch).catch((e) => {
+      if (e.status === 401) this.onUnauthorized?.();
+      throw e;
+    });
+  };
+  /** Resposta do celular validada antes de usar: versão inteira, dados num objeto, cores num objeto (ou nada). */
+  take_fn = function(j) {
+    if (!j || !Number.isSafeInteger(j.rev) || j.rev < 0 || !j.data || typeof j.data !== "object" || Array.isArray(j.data)) {
+      throw new RemoteError(502, "Resposta inválida do celular", "Os dados recebidos não estão no formato esperado. Nada foi alterado.");
+    }
+    this.rev = j.rev;
+    this.palette = j.palette && typeof j.palette === "object" ? j.palette : null;
+    return normalize(j.data);
+  };
+  var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function pairFlow(el, message = "") {
+    return new Promise((resolve) => {
+      const shell = document.getElementById("shell");
+      if (shell) shell.inert = true;
+      el.hidden = false;
+      let waiting = null;
+      const form = (err2 = "") => {
+        waiting = null;
+        el.innerHTML = `<div class="lockBox glass pairBox" role="dialog" aria-modal="true" aria-labelledby="pairTitle">
+        <img src="icons/icon-192.png" alt="" width="64" height="64">
+        <h2 id="pairTitle">Conectar ao celular</h2>
+        <p class="muted">No celular, abra <b>Ajustes › Acesso pela rede (beta)</b> e digite o código de 6 dígitos mostrado lá.</p>
+        <form id="pairForm" novalidate autocomplete="off">
+          <input id="pairCode" class="pairCode" inputmode="numeric" maxlength="7" aria-label="Código de pareamento" placeholder="000 000">
+          <button type="submit" class="btn primary wide">Conectar</button>
+        </form>
+        <small id="pairErr" class="pinErr" role="alert">${esc(err2)}</small>
+        <p class="muted small">Conexão criptografada. Os dados ficam no celular; nada é gravado neste navegador.</p>
+      </div>`;
+        const inp = el.querySelector("#pairCode");
+        inp.oninput = () => {
+          const d = inp.value.replace(/\D/g, "").slice(0, 6);
+          inp.value = d.length > 3 ? d.slice(0, 3) + " " + d.slice(3) : d;
+        };
+        el.querySelector("#pairForm").onsubmit = async (e) => {
+          e.preventDefault();
+          const code = inp.value.replace(/\s/g, "");
+          const errEl = el.querySelector("#pairErr");
+          if (!/^\d{6}$/.test(code)) {
+            errEl.textContent = "O código tem 6 dígitos.";
+            return;
+          }
+          errEl.textContent = "Conectando…";
+          try {
+            const j = await call("POST", "/api/pair", { code });
+            if (j?.token) return done(j.token);
+            if (j?.pending) return wait(j.pending, j.label, j.timeout);
+            errEl.textContent = "Resposta inesperada do celular.";
+          } catch (err3) {
+            errEl.textContent = err3.message;
+          }
+        };
+        inp.focus();
+      };
+      const wait = async (id, label, timeoutS) => {
+        const me = {};
+        waiting = me;
+        el.innerHTML = `<div class="lockBox glass pairBox" role="dialog" aria-modal="true" aria-labelledby="pairTitle">
+        <div class="pairSpinner" aria-hidden="true"></div>
+        <h2 id="pairTitle">Confirme no celular</h2>
+        <p class="muted" role="status">O celular está perguntando se permite <b>${esc(label || "este navegador")}</b>. Toque em <b>Permitir</b> lá.</p>
+        <button type="button" class="btn soft" id="pairCancel">Cancelar</button>
+      </div>`;
+        el.querySelector("#pairCancel").onclick = () => form("Pedido cancelado.");
+        const until = Date.now() + (timeoutS || 120) * 1e3;
+        while (waiting === me && Date.now() < until) {
+          await sleep(1500);
+          if (waiting !== me) return;
+          try {
+            const j = await call("GET", "/api/pair/" + encodeURIComponent(id));
+            if (j.status === "approved") return done(j.token);
+            if (j.status === "denied") return form("O acesso foi recusado no celular.");
+          } catch (err2) {
+            if (err2.status === 410) return form("O pedido expirou. Digite o novo código do celular.");
+            return form(err2.message);
+          }
+        }
+        if (waiting === me) form("Sem resposta do celular. Digite o novo código e tente de novo.");
+      };
+      const done = (token) => {
+        waiting = null;
+        setToken(token);
+        el.hidden = true;
+        el.innerHTML = "";
+        if (shell) shell.inert = false;
+        resolve(token);
+      };
+      form(message);
+    });
+  }
+  var VARS = {
+    bg: "--bg",
+    surface: "--surface",
+    text: "--text",
+    muted: "--muted",
+    accent: "--accent",
+    onAccent: "--onAccent",
+    accent2: "--accent2",
+    red: "--red",
+    green: "--green",
+    track: "--track",
+    glowA: "--glow1",
+    glowB: "--glow2",
+    border: "--line"
+  };
+  var opaque = (c) => String(c).replace(/^rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)$/, "rgba($1,$2,$3,1)");
+  function applyPalette(root, palette, dark) {
+    const p = palette ? dark ? palette.dark : palette.light : null;
+    for (const v of [...Object.values(VARS), "--solid", "--field", "--surface2"]) root.style.removeProperty(v);
+    if (!p) return null;
+    for (const [k, v] of Object.entries(VARS)) if (p[k]) root.style.setProperty(v, p[k]);
+    if (p.surface) {
+      root.style.setProperty("--solid", opaque(p.surface));
+      root.style.setProperty("--field", p.dark ? opaque(p.bg) : opaque(p.surface));
+    }
+    return p.dark ? "oledGray" : "materialBlue";
+  }
+
   // js/app.js
-  var env = { encrypted: false };
+  var env = { encrypted: false, remote: false };
+  var REMOTE = isRemote();
   var VIEWS = { home: "inicio", moves: "lancamentos", reports: "relatorios", assist: "assistente", prefs: "ajustes" };
   var HASH_TO_VIEW = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v, k]));
   var channel = null;
@@ -4647,10 +4910,15 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
         } catch (e2) {
           console.error(e2);
         }
-        notice("Alteração não salva", "Os dados foram alterados em outra aba ou janela do Finan+ ao mesmo tempo. A tela foi atualizada com a versão mais recente; refaça a última alteração.");
+        notice("Alteração não salva", REMOTE ? "Os dados foram alterados no celular (ou em outro navegador) ao mesmo tempo. A tela foi atualizada com a versão mais recente; refaça a última alteração." : "Os dados foram alterados em outra aba ou janela do Finan+ ao mesmo tempo. A tela foi atualizada com a versão mais recente; refaça a última alteração.");
         return;
       }
       console.error(e);
+      if (REMOTE) {
+        if (e?.status === 401) return;
+        notice("Não foi possível salvar no celular", (e?.message || e) + "\nA alteração aparece aqui, mas não foi gravada. Ao reconectar, a tela volta aos dados do celular.");
+        return;
+      }
       notice("Não foi possível salvar", "Verifique o espaço livre do aparelho e tente de novo. Faça um backup JSON para não perder dados.\n(" + (e?.message || e) + ")");
     }
   }
@@ -4658,7 +4926,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   var darkMq = matchMedia("(prefers-color-scheme: dark)");
   function applyTheme(theme) {
     const t = themeOf(theme);
-    const eff = t === "auto" ? darkMq.matches ? "dark" : "light" : t;
+    let eff = t === "auto" ? darkMq.matches ? REMOTE ? "oledGray" : "dark" : "light" : t;
+    if (REMOTE) {
+      const base = applyPalette(document.documentElement, t === "materialBlue" ? ctx.store?.palette : null, darkMq.matches);
+      if (base) eff = base;
+    }
     document.documentElement.dataset.theme = eff;
     document.querySelector("meta[name=theme-color]")?.setAttribute("content", THEME_COLORS[eff] || "#d9e5ff");
     if (ctx.device && ctx.device.themeCache !== theme) updateDevice({ themeCache: theme });
@@ -4903,6 +5175,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       toast(ctx.state.privacy ? "Valores ocultos" : "Valores visíveis");
     },
     lock: () => lockNow(),
+    "remote-logout": async () => {
+      if (!await ask("Desconectar do celular", "Este navegador deixa de acessar os dados do celular. Para voltar, digite um novo código.", { ok: "Desconectar" })) return;
+      await ctx.store.logout();
+      location.reload();
+    },
     pdf: () => pdfDialog(),
     csv: () => exportCsv(),
     backup: () => exportBackup(),
@@ -5162,6 +5439,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     };
   }
   async function wipeAll() {
+    if (REMOTE) return notice("Apagar tudo", "Pelo navegador não é possível apagar os dados do celular. Se quiser mesmo apagar, use Ajustes › Dados › Apagar tudo no próprio celular.");
     if (!await ask("Apagar todos os dados", "Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.", { ok: "Apagar tudo", danger: true })) return;
     await ctx.store.wipe();
     wipeDevice();
@@ -5175,6 +5453,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   async function checkNotifications(force = false) {
     const d = ctx.device;
     if (!ctx.state || ctx.locked || ctx.problem) return;
+    if (REMOTE && !force) return;
     const today2 = ctx.today, list = Finance.reminders(ctx.state, today2, 2);
     if (force) {
       if (!list.length) return notice("Nenhum vencimento", "Nada vence nos próximos 2 dias, e não há contas em atraso.");
@@ -5213,15 +5492,27 @@ e mais ${list.length - 5}` : "");
   }
   async function boot() {
     ctx.device = loadDevice();
+    ctx.remote = env.remote = REMOTE;
     if (ctx.device.themeCache) applyTheme(ctx.device.themeCache);
-    if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW", e));
+    if (REMOTE) {
+      navigator.serviceWorker?.getRegistrations?.().then((rs) => rs.forEach((r2) => r2.unregister())).catch(() => {
+      });
+    } else if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW", e));
     try {
       ctx.dict = Dictionary.parse(DICT_TEXT);
     } catch {
       ctx.dict = null;
     }
-    ctx.store = new Store();
-    const r = await ctx.store.open();
+    let r;
+    if (REMOTE) {
+      ctx.store = new RemoteStore();
+      ctx.store.onUnauthorized = () => reconnect("A conexão com o celular expirou (o servidor foi reiniciado ou este navegador foi desconectado). Digite o novo código.");
+      $("#shell").classList.add("ready");
+      r = await openRemote();
+    } else {
+      ctx.store = new Store();
+      r = await ctx.store.open();
+    }
     env.encrypted = ctx.store.encrypted;
     $("#shell").classList.add("ready");
     if (r.status === "problem") {
@@ -5253,7 +5544,7 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
     checkNotifications();
     if (started) return;
     started = true;
-    Store.persist();
+    if (!REMOTE) Store.persist();
     try {
       channel = new BroadcastChannel("finan-plus");
       channel.onmessage = onPeer;
@@ -5264,6 +5555,7 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
       dayTick();
       autoLockCheck();
     }, 15e3);
+    if (REMOTE) setInterval(pollRemote, 4e3);
     setInterval(() => checkNotifications(), 5 * 6e4);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
@@ -5272,6 +5564,81 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
         checkNotifications();
       }
     });
+  }
+  async function openRemote(message = "") {
+    for (; ; ) {
+      if (!getToken()) await pairFlow($("#lock"), message);
+      try {
+        return await ctx.store.open();
+      } catch (e) {
+        if (e?.status === 401) {
+          setToken(null);
+          message = "Digite o novo código mostrado no celular.";
+          continue;
+        }
+        if (e?.status === 0) {
+          await pairFlowRetry(e.message);
+          continue;
+        }
+        throw e;
+      }
+    }
+  }
+  function pairFlowRetry(msg) {
+    return new Promise((res) => {
+      const el = $("#lock");
+      el.hidden = false;
+      el.innerHTML = `<div class="lockBox glass pairBox" role="alertdialog" aria-modal="true" aria-labelledby="offTitle">${icon("warning", 40, "red")}
+      <h2 id="offTitle">Sem conexão com o celular</h2><p class="muted">${esc(msg)}</p>
+      <button type="button" class="btn primary" id="retryBtn">Tentar de novo</button></div>`;
+      $("#retryBtn").onclick = () => {
+        el.hidden = true;
+        el.innerHTML = "";
+        res();
+      };
+      $("#retryBtn").focus();
+    });
+  }
+  var reconnecting = false;
+  async function reconnect(message) {
+    if (reconnecting) return;
+    reconnecting = true;
+    closeDialogs();
+    closeSheet();
+    setToken(null);
+    try {
+      await pairFlow($("#lock"), message);
+      ctx.state = await ctx.store.reload();
+      render();
+      toast("Conectado de novo ao celular. Confira se a última alteração aparece na lista.", 5e3);
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      reconnecting = false;
+    }
+  }
+  var offline = false;
+  var polling = false;
+  async function pollRemote() {
+    if (polling || document.hidden || ctx.locked || ctx.problem || reconnecting || !ctx.state) return;
+    polling = true;
+    try {
+      const changed = await ctx.store.changed();
+      if (offline) {
+        offline = false;
+        toast("Conexão com o celular restabelecida");
+      }
+      if (!changed) return;
+      ctx.state = await ctx.store.reload();
+      render();
+    } catch (e) {
+      if (e?.status === 0 && !offline) {
+        offline = true;
+        toast("Sem conexão com o celular. As alterações não serão salvas até reconectar.", 6e3);
+      } else if (e?.status !== 0 && e?.status !== 401) console.warn("poll", e?.status);
+    } finally {
+      polling = false;
+    }
   }
   var pending = [];
   function flushPending() {

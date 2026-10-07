@@ -14,8 +14,11 @@ import { $, $$, esc, toast, notice, ask, closeDialogs, dialogOpen, closeSheet, s
 import { ctx, money, APP_VERSION } from './ctx.js';
 import * as S from './screens.js';
 import * as E from './editors.js';
+import { isRemote, RemoteStore, pairFlow, getToken, setToken, applyPalette } from './remote.js';
 
-const env = { encrypted: false };
+const env = { encrypted: false, remote: false };
+/** aberto pelo endereço do celular (Finan+ Android › Acesso pela rede): os dados ficam no celular */
+const REMOTE = isRemote();
 const VIEWS = { home: 'inicio', moves: 'lancamentos', reports: 'relatorios', assist: 'assistente', prefs: 'ajustes' };
 const HASH_TO_VIEW = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v, k]));
 let channel = null;
@@ -52,12 +55,19 @@ async function persist() {
     channel?.postMessage({ type: 'saved' });
   } catch (e) {
     if (e instanceof ConflictError) {
-      // outra aba gravou antes: mostra os dados dela, sem gravar por cima
+      // outra aba (ou o celular, no modo remoto) gravou antes: mostra os dados dela, sem gravar por cima
       try { ctx.state = await ctx.store.reload(); render(); } catch (e2) { console.error(e2); }
-      notice('Alteração não salva', 'Os dados foram alterados em outra aba ou janela do Finan+ ao mesmo tempo. A tela foi atualizada com a versão mais recente; refaça a última alteração.');
+      notice('Alteração não salva', REMOTE
+        ? 'Os dados foram alterados no celular (ou em outro navegador) ao mesmo tempo. A tela foi atualizada com a versão mais recente; refaça a última alteração.'
+        : 'Os dados foram alterados em outra aba ou janela do Finan+ ao mesmo tempo. A tela foi atualizada com a versão mais recente; refaça a última alteração.');
       return;
     }
     console.error(e);
+    if (REMOTE) {
+      if (e?.status === 401) return; // a tela de conexão já está aparecendo
+      notice('Não foi possível salvar no celular', (e?.message || e) + '\nA alteração aparece aqui, mas não foi gravada. Ao reconectar, a tela volta aos dados do celular.');
+      return;
+    }
     notice('Não foi possível salvar', 'Verifique o espaço livre do aparelho e tente de novo. Faça um backup JSON para não perder dados.\n(' + (e?.message || e) + ')');
   }
 }
@@ -67,7 +77,11 @@ const THEME_COLORS = { light: '#d9e5ff', dark: '#0f1524', materialBlue: '#dbe7ff
 const darkMq = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(theme) {
   const t = themeOf(theme);
-  const eff = t === 'auto' ? (darkMq.matches ? 'dark' : 'light') : t;
+  let eff = t === 'auto' ? (darkMq.matches ? (REMOTE ? 'oledGray' : 'dark') : 'light') : t;
+  if (REMOTE) {
+    const base = applyPalette(document.documentElement, t === 'materialBlue' ? ctx.store?.palette : null, darkMq.matches);
+    if (base) eff = base;
+  }
   document.documentElement.dataset.theme = eff;
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', THEME_COLORS[eff] || '#d9e5ff');
   if (ctx.device && ctx.device.themeCache !== theme) updateDevice({ themeCache: theme });
@@ -241,6 +255,11 @@ const ACTIONS = {
   'ask-example': el => { const i = $('#askInput'); if (i) i.value = el.dataset.q; askQuestion(el.dataset.q); },
   'toggle-privacy': () => { ctx.replace({ ...ctx.state, privacy: !ctx.state.privacy }); toast(ctx.state.privacy ? 'Valores ocultos' : 'Valores visíveis'); },
   lock: () => lockNow(),
+  'remote-logout': async () => {
+    if (!await ask('Desconectar do celular', 'Este navegador deixa de acessar os dados do celular. Para voltar, digite um novo código.', { ok: 'Desconectar' })) return;
+    await ctx.store.logout();
+    location.reload();
+  },
   pdf: () => E.pdfDialog(), csv: () => E.exportCsv(), backup: () => E.exportBackup(), restore: () => E.restoreBackup(),
   wipe: () => wipeAll(),
   theme: el => ctx.replace({ ...ctx.state, theme: el.dataset.id }),
@@ -436,6 +455,7 @@ function showProblem(message) {
 
 // ================================================================== apagar tudo
 async function wipeAll() {
+  if (REMOTE) return notice('Apagar tudo', 'Pelo navegador não é possível apagar os dados do celular. Se quiser mesmo apagar, use Ajustes › Dados › Apagar tudo no próprio celular.');
   if (!await ask('Apagar todos os dados', 'Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.', { ok: 'Apagar tudo', danger: true })) return;
   await ctx.store.wipe();
   wipeDevice();
@@ -451,6 +471,7 @@ async function wipeAll() {
 async function checkNotifications(force = false) {
   const d = ctx.device;
   if (!ctx.state || ctx.locked || ctx.problem) return;
+  if (REMOTE && !force) return; // no modo remoto, os avisos são do celular
   const today = ctx.today, list = Finance.reminders(ctx.state, today, 2);
   if (force) {
     if (!list.length) return notice('Nenhum vencimento', 'Nada vence nos próximos 2 dias, e não há contas em atraso.');
@@ -488,12 +509,24 @@ function dayTick() {
 // ================================================================== início
 async function boot() {
   ctx.device = loadDevice();
+  ctx.remote = env.remote = REMOTE;
   if (ctx.device.themeCache) applyTheme(ctx.device.themeCache);
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
+  if (REMOTE) {
+    // modo remoto: nada de cache/service worker (os arquivos e os dados vêm sempre do celular)
+    navigator.serviceWorker?.getRegistrations?.().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+  } else if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
   try { ctx.dict = Dictionary.parse(DICT_TEXT); } catch { ctx.dict = null; }
 
-  ctx.store = new Store();
-  const r = await ctx.store.open();
+  let r;
+  if (REMOTE) {
+    ctx.store = new RemoteStore();
+    ctx.store.onUnauthorized = () => reconnect('A conexão com o celular expirou (o servidor foi reiniciado ou este navegador foi desconectado). Digite o novo código.');
+    $('#shell').classList.add('ready');
+    r = await openRemote();
+  } else {
+    ctx.store = new Store();
+    r = await ctx.store.open();
+  }
   env.encrypted = ctx.store.encrypted;
   $('#shell').classList.add('ready');
   if (r.status === 'problem') { showProblem(r.message); return; }
@@ -517,11 +550,68 @@ function afterOpen(r) {
   checkNotifications();
   if (started) return;
   started = true;
-  Store.persist();
+  if (!REMOTE) Store.persist();
   try { channel = new BroadcastChannel('finan-plus'); channel.onmessage = onPeer; } catch { channel = null; }
   setInterval(() => { dayTick(); autoLockCheck(); }, 15000);
+  if (REMOTE) setInterval(pollRemote, 4000);
   setInterval(() => checkNotifications(), 5 * 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { dayTick(); autoLockCheck(); checkNotifications(); } });
+}
+
+// ================================================================== modo remoto (dados no celular)
+/** conecta (código + Permitir no celular, se preciso) e lê os dados do celular */
+async function openRemote(message = '') {
+  for (;;) {
+    if (!getToken()) await pairFlow($('#lock'), message);
+    try { return await ctx.store.open(); } catch (e) {
+      if (e?.status === 401) { setToken(null); message = 'Digite o novo código mostrado no celular.'; continue; }
+      if (e?.status === 0) { await pairFlowRetry(e.message); continue; }
+      throw e;
+    }
+  }
+}
+/** sem conexão ao abrir: mostra o erro e tenta de novo quando o usuário pedir */
+function pairFlowRetry(msg) {
+  return new Promise(res => {
+    const el = $('#lock'); el.hidden = false;
+    el.innerHTML = `<div class="lockBox glass pairBox" role="alertdialog" aria-modal="true" aria-labelledby="offTitle">${icon('warning', 40, 'red')}
+      <h2 id="offTitle">Sem conexão com o celular</h2><p class="muted">${esc(msg)}</p>
+      <button type="button" class="btn primary" id="retryBtn">Tentar de novo</button></div>`;
+    $('#retryBtn').onclick = () => { el.hidden = true; el.innerHTML = ''; res(); };
+    $('#retryBtn').focus();
+  });
+}
+
+let reconnecting = false;
+/** token perdido no meio do uso: pede o código de novo e recarrega os dados do celular */
+async function reconnect(message) {
+  if (reconnecting) return;
+  reconnecting = true;
+  closeDialogs(); closeSheet();
+  setToken(null);
+  try {
+    await pairFlow($('#lock'), message);
+    ctx.state = await ctx.store.reload();
+    render(); toast('Conectado de novo ao celular. Confira se a última alteração aparece na lista.', 5000);
+  } catch (e) { console.warn(e); }
+  finally { reconnecting = false; }
+}
+
+let offline = false, polling = false;
+/** a cada 4 s (aba visível): mudou algo no celular? Então mostra os dados novos. Nunca duas consultas ao mesmo tempo. */
+async function pollRemote() {
+  if (polling || document.hidden || ctx.locked || ctx.problem || reconnecting || !ctx.state) return;
+  polling = true;
+  try {
+    const changed = await ctx.store.changed();
+    if (offline) { offline = false; toast('Conexão com o celular restabelecida'); }
+    if (!changed) return;
+    ctx.state = await ctx.store.reload(); // uma folha aberta continua aberta: ao salvar, a versão é conferida
+    render();
+  } catch (e) {
+    if (e?.status === 0 && !offline) { offline = true; toast('Sem conexão com o celular. As alterações não serão salvas até reconectar.', 6000); }
+    else if (e?.status !== 0 && e?.status !== 401) console.warn('poll', e?.status);
+  } finally { polling = false; }
 }
 
 /** avisos que esperam o desbloqueio (um diálogo não pode aparecer por cima da tela do PIN) */
