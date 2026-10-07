@@ -449,3 +449,10 @@ dialog{color:var(--text)}
 .extLink small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .extLink:hover{filter:brightness(1.04)}
 .extLink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* modo remoto (aberto pelo celular): tela de conexão */
+.pairBox .btn{width:100%;justify-content:center}
+.pairBox form{width:100%}
+.pairCode{width:100%;font-size:28px;font-weight:800;letter-spacing:.3em;text-align:center;padding:12px;border-radius:16px;border:1px solid var(--fieldLine,var(--line));background:var(--field,var(--surface));color:var(--text)}
+.pairSpinner{width:34px;height:34px;margin:4px auto 6px;border-radius:50%;border:3px solid var(--track);border-top-color:var(--accent);animation:pairSpin 1s linear infinite}
+@keyframes pairSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.pairSpinner{animation:none}}

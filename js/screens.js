@@ -334,11 +334,14 @@ export function prefsView(env) {
       <div class="manageActions">${btn(hasPin ? 'Remover PIN' : 'Definir PIN', { act: hasPin ? 'pin-remove' : 'pin-set', cls: 'soft small' })}${hasPin ? btn('Trocar', { act: 'pin-set', cls: 'soft small' }) : ''}</div></div>
     ${check('privacy', 'Ocultar valores', s.privacy, { sub: 'Esconde os valores em reais na tela e nos avisos (Ctrl+H)' })}
     <label class="field"><span>Bloqueio automático</span><select id="autoLockSel"${hasPin ? '' : ' disabled'}>${AUTOLOCK_OPTIONS.map(m => `<option value="${m}"${s.autoLock === m ? ' selected' : ''}>${m === 0 ? 'Desativado' : `${m} minuto${m > 1 ? 's' : ''} sem usar`}</option>`).join('')}</select>${hasPin ? '' : '<small class="hint">Precisa de um PIN.</small>'}</label>
-    <div class="infoBox">${icon('lock', 18)}<p>${env.encrypted ? 'Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores.' : 'Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia.'} O PIN nunca vai para o backup.</p></div>
+    ${env.remote ? `<div class="manageItem"><div><b>Conectado ao celular</b><small>Acesso pela rede do Finan+ Android</small></div><div class="manageActions">${btn('Desconectar', { act: 'remote-logout', cls: 'soft small' })}</div></div>` : ''}
+    <div class="infoBox">${icon('lock', 18)}<p>${env.remote ? 'Modo remoto: os dados ficam no celular (criptografados lá) e chegam por conexão criptografada (HTTPS). Nada financeiro é gravado neste navegador; o PIN abaixo vale só para ele.' : env.encrypted ? 'Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores.' : 'Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia.'} O PIN nunca vai para o backup.</p></div>
     <p class="muted small">Navegadores não permitem bloquear capturas de tela. Ao compartilhar a tela, ligue “Ocultar valores”.</p>`, 'shield');
 
   const nperm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
-  const notif = fold('avisos', 'Avisos de vencimento', d.notifications && nperm === 'granted' ? 'Avisos de vencimento ligados' : 'Avisos de vencimento desligados', `
+  const notif = env.remote ? fold('avisos', 'Avisos de vencimento', 'Feitos pelo celular', `
+    <p class="muted small">No modo remoto, os avisos de vencimento chegam pelo próprio celular.</p>
+    ${btn('Ver vencimentos agora', { act: 'notify-now', cls: 'soft small', icon: 'notifications', iconSize: 18 })}`, 'notifications') : fold('avisos', 'Avisos de vencimento', d.notifications && nperm === 'granted' ? 'Avisos de vencimento ligados' : 'Avisos de vencimento desligados', `
     ${check('notifications', 'Avisar vencimentos', d.notifications && nperm === 'granted', { sub: 'Contas a pagar, valores a receber e faturas, uma vez por dia a partir das 9h, com o Finan+ aberto', disabled: nperm === 'unsupported' })}
     ${nperm === 'denied' ? '<p class="muted small">As notificações estão bloqueadas para este site. Libere nas configurações do navegador.</p>' : ''}
     ${nperm === 'unsupported' ? '<p class="muted small">Este navegador não oferece notificações.</p>' : ''}
@@ -379,11 +382,11 @@ export function prefsView(env) {
   const data = fold('dados', 'Dados', 'Backup, restauração, CSV e relatório em PDF', `
     <div class="btnGrid">${btn('Exportar CSV', { act: 'csv', icon: 'table-view', iconSize: 18 })}${btn('Backup JSON', { act: 'backup', icon: 'download', iconSize: 18 })}
     ${btn('Restaurar', { act: 'restore', icon: 'upload', iconSize: 18 })}${btn('Relatório em PDF', { act: 'pdf', icon: 'picture-as-pdf', iconSize: 18 })}
-    ${btn('Apagar tudo', { act: 'wipe', cls: 'dangerB', icon: 'delete', iconSize: 18 })}</div>
+    ${env.remote ? '' : btn('Apagar tudo', { act: 'wipe', cls: 'dangerB', icon: 'delete', iconSize: 18 })}</div>
     <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, 'database');
 
   const about = fold('sobre', 'Sobre', `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env), 'info');
-  const head = pageTitle('prefsTitle', 'Configurações', 'Ajustes', env.encrypted ? 'Tudo fica salvo e criptografado neste aparelho.' : 'Tudo fica salvo neste aparelho.');
+  const head = pageTitle('prefsTitle', 'Configurações', 'Ajustes', env.remote ? 'Tudo é salvo no celular, pela rede local.' : env.encrypted ? 'Tudo fica salvo e criptografado neste aparelho.' : 'Tudo fica salvo neste aparelho.');
   const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
   return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join('') : cols(left, right));
 }
@@ -461,7 +464,7 @@ export function sideFootHtml() {
     <div class="sideTools">${btn('', { act: 'toggle-privacy', cls: 'icon small', icon: s.privacy ? 'visibility' : 'visibility-off', label: s.privacy ? 'Mostrar valores (Ctrl+H)' : 'Ocultar valores (Ctrl+H)' })}
     ${ctx.device.pinHash ? btn('', { act: 'lock', cls: 'icon small', icon: 'lock', label: 'Bloquear agora (Ctrl+L)' }) : ''}
     ${btn('', { act: 'shortcuts', cls: 'icon small', icon: 'keyboard', label: 'Atalhos de teclado (?)' })}</div>
-    <small class="sideNote">${icon('shield', 12)} Dados só neste aparelho</small>`;
+    <small class="sideNote">${icon('shield', 12)} ${ctx.remote ? 'Dados no celular (conexão segura)' : 'Dados só neste aparelho'}</small>`;
 }
 export function topbarHtml() {
   const s = ctx.state;
