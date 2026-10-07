@@ -142,7 +142,7 @@ export function pairFlow(el, message = '') {
       el.innerHTML = `<div class="lockBox glass pairBox" role="dialog" aria-modal="true" aria-labelledby="pairTitle">
         <img src="icons/icon-192.png" alt="" width="64" height="64">
         <h2 id="pairTitle">Conectar ao celular</h2>
-        <p class="muted">No celular, abra <b>Ajustes › Acesso pela rede (beta)</b> e digite o código de 6 dígitos mostrado lá.</p>
+        <p class="muted">No celular, abra <b>Ajustes › Acesso pela rede</b> e digite o código de 6 dígitos mostrado lá.</p>
         <form id="pairForm" novalidate autocomplete="off">
           <input id="pairCode" class="pairCode" inputmode="numeric" maxlength="7" aria-label="Código de pareamento" placeholder="000 000">
           <button type="submit" class="btn primary wide">Conectar</button>

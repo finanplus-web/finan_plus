@@ -1,4 +1,4 @@
-# Finan+ web · Modo remoto (beta, não publicado)
+# Finan+ web · Modo remoto (usado pelo Finan+ Android 1.2.0)
 
 O mesmo Finan+ web (PWA) funciona de dois jeitos:
 
@@ -56,7 +56,7 @@ npm install && npm run build          # gera js/app.bundle.js
 ```
 
 O script copia `index.html`, `style.css`, `manifest.webmanifest`, `js/app.bundle.js` e os ícones para
-`app/src/beta/assets/lan/pwa` (o `sw.js` fica de fora de propósito).
+`app/src/main/assets/lan/pwa` (o `sw.js` fica de fora de propósito).
 
 ## Testes
 
