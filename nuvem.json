@@ -1,5 +1,5 @@
 {
   "_leia": "Finan+ · Conta e nuvem: preencha url (a implantação /exec do seu Apps Script) e clientId (o cliente OAuth do Google). Passo a passo em NUVEM.md. Os dois valores são públicos por natureza; os dados sobem cifrados.",
-  "url": "",
-  "clientId": ""
+  "url": "https://script.google.com/macros/s/AKfycbyDe9XYBECCxCuifvDpeWXi5ULJBhWJGi34oNbQPb_4DyOU3FwQEpLqYt9Rt-GTd1Io/exec",
+  "clientId": "1057052386619-limbfg8gucr9iadm09c5thhcf6f6l573.apps.googleusercontent.com"
 }
