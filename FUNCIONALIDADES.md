@@ -1,12 +1,13 @@
 # Finan+ web — todas as funcionalidades
 
-Lista completa do que o Finan+ web (PWA) faz e de onde fica cada coisa. O núcleo (`js/core.js`, `js/assist.js`, `js/report.js`) é uma tradução direta do Kotlin do app Android e passa nos mesmos 60 testes, mais os testes de PDF e de armazenamento.
+Lista completa do que o Finan+ web (PWA) faz e de onde fica cada coisa. O núcleo (`js/core.js`, `js/assist.js`, `js/report.js`) é uma tradução direta do Kotlin do app Android e passa nos mesmos 60 testes, mais os testes de PDF, de armazenamento, do modo remoto e da nuvem (111 no total).
 
 ## Onde funciona
 
 - Em qualquer navegador moderno, no celular ou no computador: Chrome, Edge, Firefox, Safari (iOS 16.4+), Samsung Internet.
-- **Instalável como aplicativo** ("Instalar app" / "Adicionar à tela inicial"): abre em janela própria, com o ícone do Finan+, e tem atalhos no ícone (Nova despesa, Nova receita, Lançamentos).
+- **Instalável como aplicativo** ("Instalar app" / "Adicionar à tela inicial"): abre em janela própria, com o ícone do Finan+, e tem atalhos no ícone (Nova despesa, Nova receita, Lançamentos). No **Windows** e no Linux (Chrome/Edge) e no **Android/iPhone** (tela inicial).
 - **Funciona sem internet** depois da primeira abertura: o service worker (`sw.js`) guarda todos os arquivos do app. Os dados nunca passam pelo service worker.
+- **Conta e nuvem (opcional):** com login do Google e um serviço na sua conta Google (Apps Script + Planilha), os dados sincronizam entre aparelhos e entre **duas pessoas ao mesmo tempo**, cifrados de ponta a ponta. Guia completo em [NUVEM.md](NUVEM.md).
 
 ## Layout para computador e notebook
 
@@ -107,7 +108,21 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 | Limites mensais | Por categoria de despesa (pendentes do mês também contam). |
 | Categorias | Adicionar, renomear (leva junto lançamentos, recorrências e limites) e excluir, com as proteções de uso. |
 | Dados | Exportar CSV, backup JSON, restaurar (com revisão antes de substituir), relatório em PDF e apagar tudo. |
+| Conta e nuvem | Nuvem opcional: entrar com o Google, ativar a sincronização (criar a chave da casa ou entrar com o código), status e "Sincronizar agora", ver/copiar o código da casa, **Membros** (o administrador adiciona/remove e-mails), "Enviar tudo daqui", "Apagar na nuvem" (administrador) e "Desconectar este aparelho". |
 | Sobre | Texto do projeto, autoria, licença GPL v3 e licença dos ícones (textos completos dentro do app), atalhos e novidades. |
+
+## Conta e nuvem (opcional — detalhes em [NUVEM.md](NUVEM.md))
+
+| Recurso | Como funciona |
+|---|---|
+| Onde ficam os dados na nuvem | Uma Planilha Google na sua própria conta, criada pelo serviço (`backend/appsscript/Code.gs`, um App da Web). Sem servidor para manter e sem custo. |
+| Login | "Entrar com o Google" (Google Identity Services, carregado sob demanda). O serviço confere o token e a lista de **Membros**; o primeiro acesso com o `SETUP_CODE` vira administrador. |
+| Criptografia de ponta a ponta | Chave de 120 bits ("chave da casa", 24 caracteres) derivada por SHA-256; cada registro selado com **AES-256-GCM** (IV novo; coluna+id como dado adicional). A nuvem guarda só blocos ilegíveis, horários e um apelido de aparelho. |
+| Sincronização | Por registro, offline-first: edições locais na hora; envio agrupado ~1,5 s depois; leitura a cada 15 s com o app visível (e ao voltar o foco/reconectar). Nada de "estado inteiro": duas pessoas podem mexer em coisas diferentes ao mesmo tempo. |
+| Conflitos | Cada registro tem versão no serviço; envio com versão antiga é recusado, a versão mais nova prevalece (desempate pelo horário da edição local) e o app avisa. Apagar vira lápide e não ressuscita. |
+| Sem conexão | A fila fica no aparelho (IndexedDB `finan-plus-nuvem`) e sobe quando a internet voltar; a interface mostra "Nuvem sem conexão". |
+| Apagar | "Apagar na nuvem" (administrador) esvazia a planilha e avisa os outros aparelhos; em seguida o app oferece reenviar os dados do aparelho atual. "Desconectar" só desliga este aparelho. |
+| O que a nuvem **não** faz | Não há tempo real instantâneo (mudanças aparecem em ~15 s) e não há como recuperar os dados se o código da casa e todos os aparelhos forem perdidos — nem o Google consegue lê-los. |
 
 ## Segurança e privacidade
 
@@ -121,7 +136,7 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 | PIN | Hash **PBKDF2-SHA256** com 210.000 iterações e sal aleatório. A partir do 5º erro seguido há espera crescente (30 s, 60 s…), que vale para todas as abas e continua valendo se a página for recarregada. O PIN nunca vai para o backup. |
 | Bloqueio | Ao abrir, com Ctrl+L e pelo bloqueio automático. Bloquear fecha janelas abertas, e nenhuma janela abre por cima da tela do PIN (nem as que estavam esperando um arquivo). Teclado numérico na tela e teclado físico. |
 | Ocultar valores | "R$ ••••" na tela, nos gráficos e nos avisos. |
-| Sem rede | O app não faz nenhuma requisição para outros sites. A política de segurança (CSP) da página proíbe scripts e conexões externas. |
+| Sem rede | Sem a nuvem, o app não faz nenhuma requisição para outros sites. A política de segurança (CSP) da página só libera conexões para os domínios do Google usados pela nuvem opcional (login e Apps Script) e para o servidor de testes local. |
 | Backup e CSV | Arquivos gerados no aparelho. O CSV tem proteção contra fórmulas (=, +, -, @). |
 | Leitura de backups | Validação completa: tamanho máximo 30 MB, profundidade do JSON, tipos, datas, ids e referências. Itens inválidos são descartados e contados. |
 | Navegador sem WebCrypto | Os dados ficam no localStorage, sem criptografia, e o app avisa (Ajustes e aviso na abertura). |

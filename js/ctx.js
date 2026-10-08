@@ -5,7 +5,7 @@
 import { Money, todayStr, CARD_PAYMENT_CAT } from './core.js';
 import { Text } from './assist.js';
 
-export const APP_VERSION = '1.1.2';
+export const APP_VERSION = '1.2.0';
 
 export const ctx = {
   state: null,        // dados (AppState do core)
@@ -18,8 +18,11 @@ export const ctx = {
   locked: false,
   problem: false,
   moves: { from: null, to: null, q: '', kind: '', st: '', limit: 300 },
+  cloud: null,        // estado da nuvem para a interface (sync.js › info())
+  cloudCfg: null,     // {url, clientId} efetivos (nuvem.json ou configuração local)
+  sync: null,         // motor de sincronização (sync.js), criado por app.js
   // preenchidos por app.js
-  commit: null, replace: null, render: null, setDevice: null, go: null, openMoves: null, lockNow: null,
+  commit: null, replace: null, render: null, setDevice: null, go: null, openMoves: null, lockNow: null, cloudReload: null,
 };
 
 export const hidden = () => !!ctx.state?.privacy;

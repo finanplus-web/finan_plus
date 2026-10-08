@@ -1,6 +1,6 @@
 # Finan+ web (PWA)
 
-Controle financeiro pessoal **simples, privado e offline**, no navegador do celular ou do computador. Tem tudo o que o app Android faz — receitas, despesas, contas, cartões e faturas, parcelas, recorrências, limites, metas, relatórios, relatório em PDF, assistente no aparelho, PIN e backup compatível — com um **layout próprio para computador e notebook**.
+Controle financeiro pessoal **simples, privado e offline**, no navegador do celular ou do computador. Tem tudo o que o app Android faz — receitas, despesas, contas, cartões e faturas, parcelas, recorrências, limites, metas, relatórios, relatório em PDF, assistente no aparelho, PIN e backup compatível — com um **layout próprio para computador e notebook** e **nuvem opcional na sua conta Google** (login, banco de dados e duas pessoas ao mesmo tempo, com criptografia de ponta a ponta).
 
 ![Início no computador](docs/inicio-computador.png)
 
@@ -13,12 +13,13 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 - Lista completa do que o app faz: [FUNCIONALIDADES.md](FUNCIONALIDADES.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - O que foi feito nesta versão: [CHANGELOG.md](CHANGELOG.md)
+- **Conta e nuvem (opcional)** — instalar no Windows/Android, login Google, duas pessoas ao mesmo tempo: [NUVEM.md](NUVEM.md)
 
 **Usar agora:** https://finanplus-web.github.io/finan_plus/ · **Versão para Linux:** [baixar o .deb](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código-fonte](https://github.com/finanplus-web/finan_plus_linux))
 
 ## Publicar no GitHub Pages
 
-Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a branch `main`, o GitHub instala, gera o bundle, **roda os 74 testes** (se algum falhar, nada é publicado), monta o site e publica. A versão do service worker é carimbada com o commit, então os aparelhos recebem a atualização sozinhos.
+Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a branch `main`, o GitHub instala, gera o bundle, **roda os 111 testes** (se algum falhar, nada é publicado), monta o site e publica. A versão do service worker é carimbada com o commit, então os aparelhos recebem a atualização sozinhos.
 
 1. Crie um repositório no GitHub (ex.: `finan-plus-web`), público ou privado (Pages em repositório privado exige plano pago).
 2. Nesta pasta (use o seu e-mail "noreply" do GitHub, em Settings › Emails, para não deixar seu e-mail pessoal público no histórico):
@@ -36,20 +37,26 @@ Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a 
 
 Para publicar uma mudança: edite, `git commit` e `git push`. Para ver localmente exatamente o que vai ao ar: `npm run preview` (abre em `http://localhost:8000`).
 
-Funciona no endereço com subpasta do GitHub Pages (todos os caminhos são relativos) e também em domínio próprio. O site publicado contém só o necessário: `index.html`, `style.css`, `sw.js`, `manifest.webmanifest`, `js/` (o bundle e o código-fonte legível), `icons/`, `assistente/`, `licenca/`, `third_party/` e a documentação.
+Funciona no endereço com subpasta do GitHub Pages (todos os caminhos são relativos) e também em domínio próprio. O site publicado contém só o necessário: `index.html`, `style.css`, `sw.js`, `manifest.webmanifest`, `nuvem.json`, `js/` (o bundle e o código-fonte legível), `icons/`, `assistente/`, `licenca/`, `third_party/` e a documentação.
 
 ## Usar
 
-O Finan+ web é um site estático: pode ir para o GitHub Pages (acima) ou para qualquer hospedagem com **HTTPS** (Netlify, Cloudflare Pages, um servidor próprio…); nesse caso, publique o conteúdo de `_site/` gerado por `npm run build && npm run site`. Não há servidor de aplicação, banco de dados nem conta: tudo roda e fica no navegador.
+O Finan+ web é um site estático: pode ir para o GitHub Pages (acima) ou para qualquer hospedagem com **HTTPS** (Netlify, Cloudflare Pages, um servidor próprio…); nesse caso, publique o conteúdo de `_site/` gerado por `npm run build && npm run site`. Sem ativar a nuvem, não há servidor de aplicação, banco de dados nem conta: tudo roda e fica no navegador.
 
-- **Instalar:** abra o endereço e use "Instalar app" (Chrome/Edge no computador), "Adicionar à tela inicial" (Android) ou Compartilhar › "Adicionar à Tela de Início" (iPhone).
-- **Abrir direto da pasta:** dê dois cliques no `index.html` (endereço `file://…`). Funciona sem instalar nada, com os dados criptografados. Nesse modo não há instalação como app nem cache offline (o arquivo já está no computador), e os dados ficam separados dos de um endereço `https://`. Se o navegador não oferecer o armazenamento criptografado para arquivos locais, o app avisa e guarda sem criptografia.
-- **Testar como site no computador:** `python3 -m http.server 8000` nesta pasta e abra `http://localhost:8000`.
+- **Instalar:** abra o endereço e use "Instalar app" (Chrome/Edge no computador — funciona como app no **Windows**, Linux etc.), "Adicionar à tela inicial" (Android) ou Compartilhar › "Adicionar à Tela de Início" (iPhone). Em cada aparelho, os mesmos dados com a nuvem ativada.
+- **Abrir direto da pasta:** dê dois cliques no `index.html` (endereço `file://…`). Funciona sem instalar nada, com os dados criptografados. Nesse modo não há instalação como app nem cache offline (o arquivo já está no computador), e os dados ficam separados dos de um endereço `https://`. Se o navegador não oferecer o armazenamento criptografado para arquivos locais, o app avisa e guarda sem criptografia. A nuvem não funciona por `file://`.
+- **Testar como site no computador:** `npm run preview` (gera e serve em `http://localhost:8000`).
 - **Atualizar:** `npm run site` carimba uma versão nova no `sw.js` de `_site/` (no GitHub Pages isso é automático). Na próxima abertura o navegador baixa os arquivos novos.
 
 ### Vindo do "Minhas Finanças" (Finan+ web 0.5.0)
 
 Publique esta versão **no mesmo endereço** da antiga. Na primeira abertura, os dados antigos são migrados e passam a ficar criptografados; o PIN antigo continua valendo. Os dados de um site ficam presos ao endereço dele: num endereço novo, use o backup JSON da versão antiga (Ajustes › Dados › Restaurar).
+
+## Conta e nuvem (opcional)
+
+Com a nuvem ativada, os dados passam a sincronizar entre aparelhos e entre **duas pessoas ao mesmo tempo**, com **login do Google** e um banco de dados na **sua própria conta** (Apps Script + Planilha Google, de graça). Tudo sobe **cifrado de ponta a ponta** (AES-256-GCM com a "chave da casa"): a planilha guarda só blocos ilegíveis — nem o Google lê. Sem ativar, nada muda: o app continua 100% local e offline.
+
+O passo a passo (criar o serviço, o login, o código da casa e convidar a segunda pessoa) está em **[NUVEM.md](NUVEM.md)**. Para testar sem o Google: `npm run mock-cloud` + `npm run preview` (veja o mesmo guia).
 
 ## Seus dados
 
@@ -58,8 +65,10 @@ Publique esta versão **no mesmo endereço** da antiga. Na primeira abertura, os
 | Dados (criptografados, AES-256-GCM) | IndexedDB do site, banco `finan-plus`: versão atual e anterior |
 | Chave | IndexedDB do site, como chave **não extraível** do WebCrypto |
 | Configurações deste aparelho | localStorage `finanplus_device`: hash do PIN, avisos, assistente, dicas dispensadas. Não vão para o backup |
+| Nuvem (se ativada) | Metadados em localStorage/IndexedDB (`finanplus_nuvem*`, `finan-plus-nuvem`): configuração do serviço, sessão, código da casa, versões conhecidas e fila de envio. Os dados em si **não** ficam aqui em claro |
+| Servidor da nuvem | Planilha na sua conta Google com registros cifrados e o diário de alterações ([NUVEM.md](NUVEM.md) › Segurança) |
 
-O backup JSON (Ajustes › Dados) é o mesmo formato do app Android e da versão Linux: dá para levar os dados entre os três. "Limpar dados do site" no navegador apaga tudo: faça backups.
+O backup JSON (Ajustes › Dados) é o mesmo formato do app Android e da versão Linux: dá para levar os dados entre os três. "Limpar dados do site" no navegador apaga tudo (inclusive a ligação com a nuvem): faça backups.
 
 ## Desenvolvimento
 
@@ -68,7 +77,7 @@ O código-fonte legível está em `js/*.js` (módulos). O navegador carrega `js/
 ```sh
 npm install        # instala esbuild (gera o bundle) e fake-indexeddb (testes); só para desenvolvimento
 npm run build      # gera js/app.bundle.js e js/embedded-data.js
-npm test           # 74 testes (node --test)
+npm test           # 111 testes (node --test)
 ```
 
 ```
@@ -77,18 +86,26 @@ js/core.js                núcleo sem interface (testado): modelo, dinheiro, fin
 js/assist.js              assistente: texto, dicionário, categorias, resumo, dicas, perguntas
 js/report.js, js/pdf.js   números do relatório e gerador de PDF próprio
 js/store.js               armazenamento criptografado, migração, PIN
-js/app.js                 início, bloqueio, navegação, atalhos, avisos, virada do dia
+js/e2e.js                 criptografia de ponta a ponta da nuvem (código/chave da casa, selar/abrir)
+js/cloud.js               cliente do serviço da nuvem e configuração (nuvem.json)
+js/sync.js                motor de sincronização por registro (conflitos, lápides, fila offline)
+js/google.js              login com o Google (carregado só quando a nuvem é usada)
+js/app.js                 início, bloqueio, navegação, atalhos, avisos, virada do dia, nuvem
 js/screens.js             telas (Início, Lançamentos, Relatórios, Assistente, Ajustes)
-js/editors.js             editores e diálogos (lançamento, meta, conta, cartão, fatura…)
+js/editors.js             editores e diálogos (lançamento, meta, conta, cartão, fatura, nuvem…)
 js/ui.js, js/ctx.js       utilidades de interface e estado compartilhado
 js/icons.js               ícones Material Symbols embutidos
 js/app.bundle.js          GERADO: todos os módulos num arquivo (é o que o index.html carrega)
 js/embedded-data.js       GERADO: dicionário e licenças embutidos
 sw.js, manifest.webmanifest   funcionamento offline e instalação
+nuvem.json                URL do serviço e ID do cliente Google (veja NUVEM.md)
 assistente/dicionario.txt dicionário aberto do assistente
+backend/appsscript/       o serviço da nuvem (Code.gs) + contrato da API
 tests/                    testes (node --test)
 tools/build.mjs           gera o bundle (npm run build)
 tools/site.mjs            monta _site/ para publicar (npm run site)
+tools/dev-server.mjs      servidor estático para o npm run preview
+tools/mock-cloud.mjs      serviço da nuvem de mentira para desenvolver sem o Google
 .github/workflows/        publicação automática no GitHub Pages
 tools/demo-data.js        dados fictícios para capturas de tela
 licenca/, third_party/    licenças e créditos

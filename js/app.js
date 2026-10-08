@@ -15,6 +15,9 @@ import { ctx, money, APP_VERSION } from './ctx.js';
 import * as S from './screens.js';
 import * as E from './editors.js';
 import { isRemote, RemoteStore, pairFlow, getToken, setToken, applyPalette } from './remote.js';
+import { Sync } from './sync.js';
+import * as CloudMod from './cloud.js';
+import * as GoogleMod from './google.js';
 
 const env = { encrypted: false, remote: false };
 /** aberto pelo endereço do celular (Finan+ Android › Acesso pela rede): os dados ficam no celular */
@@ -50,8 +53,10 @@ window.addEventListener('storage', e => {
 });
 
 async function persist() {
+  const fromCloud = !!ctx.sync?.applying; // mudanças vindas da nuvem não voltam para ela
   try {
     await ctx.store.save(ctx.state);
+    if (!fromCloud) ctx.sync?.noteSave(ctx.state);
     channel?.postMessage({ type: 'saved' });
   } catch (e) {
     if (e instanceof ConflictError) {
@@ -262,6 +267,15 @@ const ACTIONS = {
   },
   pdf: () => E.pdfDialog(), csv: () => E.exportCsv(), backup: () => E.exportBackup(), restore: () => E.restoreBackup(),
   wipe: () => wipeAll(),
+  'cloud-setup': () => E.cloudSetup(),
+  'cloud-login': () => E.cloudLogin(),
+  'cloud-activate': () => E.cloudActivate(),
+  'cloud-key': () => E.cloudKey(),
+  'cloud-members': () => E.cloudMembers(),
+  'cloud-sync': () => E.cloudSyncNow(),
+  'cloud-disconnect': () => E.cloudDisconnect(),
+  'cloud-resend': () => E.cloudResend(),
+  'cloud-wipe': () => E.cloudWipe(),
   theme: el => ctx.replace({ ...ctx.state, theme: el.dataset.id }),
   'pin-set': () => E.setPin(), 'pin-remove': () => E.removePin(),
   'notify-now': () => checkNotifications(true),
@@ -397,6 +411,7 @@ function showLock() {
       launchParams();
       flushPending();
       checkNotifications();
+      ctx.sync?.tick();
       return;
     }
     updateDevice(d => Throttle.fail(d));
@@ -456,7 +471,11 @@ function showProblem(message) {
 // ================================================================== apagar tudo
 async function wipeAll() {
   if (REMOTE) return notice('Apagar tudo', 'Pelo navegador não é possível apagar os dados do celular. Se quiser mesmo apagar, use Ajustes › Dados › Apagar tudo no próprio celular.');
-  if (!await ask('Apagar todos os dados', 'Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.', { ok: 'Apagar tudo', danger: true })) return;
+  const cloudOn = !!ctx.sync?.session;
+  if (!await ask('Apagar todos os dados', (cloudOn
+    ? 'Apagar TODOS os dados deste aparelho, o PIN e a ligação com a nuvem? Os dados que já estão na nuvem continuam lá (para apagá-los, use Ajustes › Conta e nuvem › Apagar na nuvem). Faça um backup antes.'
+    : 'Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.'), { ok: 'Apagar tudo', danger: true })) return;
+  if (cloudOn) { try { await ctx.sync.disconnect(); } catch (e) { console.warn(e); } ctx.cloud = ctx.sync?.info() || null; }
   await ctx.store.wipe();
   wipeDevice();
   ctx.device = loadDevice();
@@ -551,12 +570,53 @@ function afterOpen(r) {
   if (started) return;
   started = true;
   if (!REMOTE) Store.persist();
+  if (!REMOTE) cloudInit().catch(e => console.warn('nuvem', e));
   try { channel = new BroadcastChannel('finan-plus'); channel.onmessage = onPeer; } catch { channel = null; }
   setInterval(() => { dayTick(); autoLockCheck(); }, 15000);
   if (REMOTE) setInterval(pollRemote, 4000);
   setInterval(() => checkNotifications(), 5 * 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { dayTick(); autoLockCheck(); checkNotifications(); } });
 }
+
+// ================================================================== nuvem (Google Apps Script)
+let cloudSig = '', cloudPrevPhase = '';
+/** reage ao estado da sincronização: nota da barra lateral e a seção de Ajustes */
+function cloudUi() {
+  if (ctx.problem || !ctx.state) return;
+  const c = ctx.cloud || {};
+  const phase = c.phase || '';
+  if (phase === 'signedOut' && cloudPrevPhase && cloudPrevPhase !== 'signedOut' && c.email && ctx.cloudCfg) {
+    toast('A sessão do Google expirou. Entre de novo em Ajustes › Conta e nuvem.', 6000);
+  }
+  cloudPrevPhase = phase;
+  const foot = $('#sideFoot'); if (foot) foot.innerHTML = S.sideFootHtml();
+  const sig = [phase, c.message || '', c.pending || 0, c.hasKey ? 1 : 0, c.email || '', c.isAdmin ? 1 : 0].join('|');
+  if (ctx.view === 'prefs' && !dialogOpen() && sig !== cloudSig) { cloudSig = sig; const el = $('#prefsView'); if (el) { el.innerHTML = S.prefsView(env); bindView(); } }
+}
+
+async function cloudInit() {
+  if (REMOTE) return;
+  ctx.cloudCfg = await CloudMod.effectiveCloudConfig().catch(() => null);
+  ctx.sync = new Sync({
+    cloud: ctx.cloudCfg ? new CloudMod.Cloud(ctx.cloudCfg.url) : null,
+    google: { requestToken: o => GoogleMod.requestGoogleToken({ ...o, clientId: ctx.cloudCfg?.clientId || '' }) },
+    clientId: ctx.cloudCfg?.clientId || '',
+    getState: () => ctx.state,
+    apply: s => ctx.replace(s),
+    notify: (t, m) => { if (ctx.locked || ctx.problem) pending.push([t, m]); else notice(t, m); },
+    onStatus: info => { ctx.cloud = info; cloudUi(); },
+    isPaused: () => !!(ctx.locked || ctx.problem),
+  });
+  await ctx.sync.init();
+  ctx.cloud = ctx.sync.info();
+  if (ctx.cloudCfg) ctx.sync.start();
+  cloudUi();
+}
+ctx.cloudReload = async () => {
+  try { ctx.sync?.stop(); } catch { /* ignore */ }
+  ctx.sync = null; ctx.cloud = null;
+  await cloudInit();
+};
 
 // ================================================================== modo remoto (dados no celular)
 /** conecta (código + Permitir no celular, se preciso) e lê os dados do celular */

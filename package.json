@@ -1,6 +1,6 @@
 {
   "name": "finan-plus-web",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "private": true,
   "description": "Finan+ web (PWA): controle financeiro pessoal simples, privado e offline",
   "license": "GPL-3.0-or-later",
@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.mjs",
     "build": "node tools/build.mjs",
     "site": "node tools/site.mjs",
-    "preview": "npm run build && npm run site && python3 -m http.server 8000 --directory _site"
+    "mock-cloud": "node tools/mock-cloud.mjs",
+    "preview": "npm run build && npm run site && node tools/dev-server.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",

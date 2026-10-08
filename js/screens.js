@@ -386,9 +386,68 @@ export function prefsView(env) {
     <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, 'database');
 
   const about = fold('sobre', 'Sobre', `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env), 'info');
+  const nuvem = env.remote ? '' : cloudFold();
   const head = pageTitle('prefsTitle', 'Configurações', 'Ajustes', env.remote ? 'Tudo é salvo no celular, pela rede local.' : env.encrypted ? 'Tudo fica salvo e criptografado neste aparelho.' : 'Tudo fica salvo neste aparelho.');
-  const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
-  return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join('') : cols(left, right));
+  const left = [appearance, privacy, nuvem, notif, assist, about], right = [accounts, recurring, limits, cats, data];
+  return head + (ctx.cols === 1 ? [appearance, privacy, nuvem, notif, assist, accounts, recurring, limits, cats, data, about].join('') : cols(left, right));
+}
+
+// ================================================================== nuvem (Ajustes › Conta e nuvem)
+const cloudClock = ts => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+function cloudStatus(c) {
+  switch (c?.phase) {
+    case 'ready': return c.lastSyncAt ? `Em dia · última sincronização às ${cloudClock(c.lastSyncAt)}` : 'Em dia';
+    case 'syncing': return 'Sincronizando…';
+    case 'offline': return 'Sem conexão com a nuvem';
+    case 'error': return c.message || 'Precisa de atenção';
+    case 'signedOut': return c.email ? `Sessão do Google expirada (${c.email})` : 'Entre com a sua conta Google';
+    case 'needKey': return 'Falta o código da casa';
+    default: return 'Não configurada';
+  }
+}
+/** nota da barra lateral (null = "dados só neste aparelho") */
+function cloudFootNote() {
+  const c = ctx.cloud;
+  if (!ctx.cloudCfg || !c) return null;
+  if (c.phase === 'ready') return `<button type="button" class="sideCloud" data-act="cloud-sync" title="Sincronizar agora">${icon('check', 12)} Nuvem em dia${c.pending ? ` · ${c.pending} para enviar` : ''}</button>`;
+  if (c.phase === 'syncing') return `<span class="sideCloud">${icon('sync', 12)} Sincronizando…</span>`;
+  if (c.phase === 'offline') return `<button type="button" class="sideCloud" data-act="cloud-sync" title="Tentar de novo agora">${icon('warning', 12)} Nuvem sem conexão</button>`;
+  if (c.phase === 'error') return `<button type="button" class="sideCloud" data-act="cloud-sync" title="${attr(c.message)}">${icon('warning', 12)} Nuvem: atenção</button>`;
+  if (c.phase === 'signedOut') return `<button type="button" class="sideCloud" data-act="cloud-login">${icon('sync', 12)} Nuvem: entrar com o Google</button>`;
+  if (c.phase === 'needKey') return `<button type="button" class="sideCloud" data-act="cloud-activate">${icon('sync', 12)} Nuvem: ativar</button>`;
+  return null;
+}
+function cloudFold() {
+  const c = ctx.cloud;
+  const phase = c?.phase || 'off';
+  let body;
+  if (phase === 'off' || !ctx.cloudCfg) {
+    body = `
+      <p class="muted small">Sincronize com a <b>nuvem do Google</b>: os dados continuam neste aparelho (e funcionando offline) e passam a ser compartilhados, cifrados, entre dois ou mais aparelhos e pessoas. O serviço é uma planilha na sua própria conta Google; o passo a passo está em NUVEM.md.</p>
+      ${typeof location !== 'undefined' && location.protocol === 'file:' ? '<div class="infoBox">' + icon('warning', 18) + '<p>A nuvem não funciona com o app aberto direto da pasta (<b>file://</b>). Use o site por <b>https://</b> (GitHub Pages) ou <b>http://localhost</b>; aqui tudo continua funcionando só neste aparelho.</p></div>' : ''}
+      <div class="btnGrid">${btn('Configurar serviço', { act: 'cloud-setup', icon: 'settings', iconSize: 18 })}</div>`;
+  } else if (phase === 'signedOut') {
+    body = `
+      <p class="muted small">${esc(c?.message || 'Entre com a conta Google dona do serviço para sincronizar. Cada pessoa entra com a própria conta, autorizada em Membros.')}</p>
+      <div class="btnGrid">${btn('Entrar com o Google', { act: 'cloud-login', cls: 'primary', icon: 'sync', iconSize: 18 })}${btn('Configuração do serviço', { act: 'cloud-setup', icon: 'settings', iconSize: 18 })}</div>`;
+  } else if (phase === 'needKey') {
+    body = `
+      <div class="manageItem"><div><b>${esc(c.email)}</b><small>Conta conectada. Falta o código da casa neste aparelho.</small></div>
+        <div class="manageActions">${btn('Ativar', { act: 'cloud-activate', cls: 'primary small' })}</div></div>
+      <p class="muted small">O código da casa abre os dados cifrados. Use o mesmo código dos outros aparelhos ou crie um novo se este for o primeiro.</p>`;
+  } else {
+    const busy = phase === 'syncing';
+    body = `
+      <div class="manageItem"><div><b>${esc(c.email)}${c.isAdmin ? ' · administra a casa' : ''}</b><small>${esc(cloudStatus(c))}</small></div>
+        <div class="manageActions">${btn(busy ? 'Sincronizando…' : 'Sincronizar agora', { act: 'cloud-sync', cls: 'soft small', disabled: busy })}</div></div>
+      ${phase === 'offline' || phase === 'error' ? `<div class="infoBox">${icon('warning', 18)}<p>${esc(c.message || 'Sem conexão com a nuvem.')} As alterações continuam salvas neste aparelho e sobem quando a conexão voltar.</p></div>` : ''}
+      <div class="btnGrid">${btn('Código da casa', { act: 'cloud-key', icon: 'lock', iconSize: 18 })}${btn('Membros', { act: 'cloud-members', icon: 'shield', iconSize: 18 })}
+        ${btn('Enviar tudo daqui', { act: 'cloud-resend', icon: 'upload', iconSize: 18 })}${c.isAdmin ? btn('Apagar na nuvem', { act: 'cloud-wipe', cls: 'dangerB', icon: 'delete', iconSize: 18 }) : ''}</div>
+      ${btn('Desconectar este aparelho', { act: 'cloud-disconnect', icon: 'close', iconSize: 18 })}
+      <div class="infoBox">${icon('lock', 18)}<p>Os registros sobem cifrados (AES-256-GCM) com a chave da casa; a planilha guarda só blocos ilegíveis. Sem o código e um login autorizado, ninguém lê — nem o Google. Novas pessoas entram com a própria conta Google depois de autorizadas em Membros.</p></div>`;
+  }
+  const cfgLink = (phase !== 'off' && ctx.cloudCfg) ? `<p class="muted small">Serviço configurado. <button type="button" class="sideCloud" data-act="cloud-setup">Trocar configuração</button></p>` : '';
+  return fold('nuvem', 'Conta e nuvem', cloudStatus(c), body + cfgLink, 'sync');
 }
 
 function categoryUse(k, c) { const n = ctx.state.txs.filter(t => t.kind === k && t.category === c).length; return n ? ` · ${n} lançamento(s)` : ''; }
@@ -459,12 +518,13 @@ export function sideNavHtml() {
 export function sideFootHtml() {
   const s = ctx.state, today = ctx.today, ym = ymOf(today);
   const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today);
+  const note = ctx.remote ? `${icon('shield', 12)} Dados no celular (conexão segura)` : (cloudFootNote() || `${icon('shield', 12)} Dados só neste aparelho`);
   return `<div class="sideBal"><small>Saldo atual</small><b class="${bal < 0 ? 'negative' : ''}">${money(bal)}</b>
     <small>Previsto para ${ymLen(ym)}/${String(ym % 12 + 1).padStart(2, '0')}</small><b class="future ${fut < 0 ? 'negative' : ''}">${money(fut)}</b></div>
     <div class="sideTools">${btn('', { act: 'toggle-privacy', cls: 'icon small', icon: s.privacy ? 'visibility' : 'visibility-off', label: s.privacy ? 'Mostrar valores (Ctrl+H)' : 'Ocultar valores (Ctrl+H)' })}
     ${ctx.device.pinHash ? btn('', { act: 'lock', cls: 'icon small', icon: 'lock', label: 'Bloquear agora (Ctrl+L)' }) : ''}
     ${btn('', { act: 'shortcuts', cls: 'icon small', icon: 'keyboard', label: 'Atalhos de teclado (?)' })}</div>
-    <small class="sideNote">${icon('shield', 12)} ${ctx.remote ? 'Dados no celular (conexão segura)' : 'Dados só neste aparelho'}</small>`;
+    <small class="sideNote">${note}</small>`;
 }
 export function topbarHtml() {
   const s = ctx.state;

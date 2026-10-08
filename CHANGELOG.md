@@ -1,5 +1,43 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.2.0 — Conta e nuvem: vários aparelhos, duas pessoas, login Google (08/10/2026)
+
+O Finan+ web ganha **sincronização opcional** entre Windows, Android, iPhone e Linux, com **login do
+Google** e banco de dados na **sua própria conta** (Google Apps Script + Planilha), **cifrado de ponta
+a ponta**: a planilha guarda só blocos ilegíveis. Duas pessoas usam **ao mesmo tempo**; ninguém perde
+alteração em silêncio. Sem ativar, nada muda: o app continua 100% local e offline.
+
+- **Conta e nuvem (Ajustes):** entrar com o Google (botão oficial; o script do Google só é baixado
+  quando necessário), ativar a sincronização (primeiro aparelho: cria a **chave da casa**; aparelho
+  novo: entra com o código), "Sincronizar agora", **Membros** (admin adiciona/remove e-mails),
+  **Código da casa** (ver/copiar), **Enviar tudo daqui**, **Apagar na nuvem** (admin) e **Desconectar**.
+  A barra lateral mostra o estado ("Nuvem em dia", "sem conexão", "sincronizando…").
+- **Sincronização por registro, offline-first:** cada lançamento/meta/conta/cartão/recorrência viaja
+  como um registro; categorias, limites e tema formam o registro "ajustes". As edições locais continuam
+  instantâneas; o envio sai ~1,5 s depois (agrupado) e a leitura acontece a cada 15 s com o app visível
+  (e ao voltar o foco/reconectar). Fila persistente: fechar o app não perde envios pendentes.
+- **Conflitos sem sobrescrita silenciosa:** cada registro tem versão no serviço; envios levam a versão
+  conhecida e o serviço recusa se alguém mudou antes. A versão mais nova (com desempate pelo horário da
+  edição local) prevalece e o app avisa "Alterações de outra pessoa". Apagar vira lápide e não ressuscita.
+- **Criptografia de ponta a ponta:** chave de 120 bits ("chave da casa", 24 caracteres) derivada por
+  SHA-256; cada registro é selado com AES-256-GCM, IV novo e o par coluna/id como dado adicional (um
+  bloco não vale em outro lugar). O serviço valida os registros recebidos antes de aplicar.
+- **Login e acesso:** ID token do Google conferido no serviço (com cache de 25 min) e lista de membros;
+  o administrador é definido rodando `bootstrap()` uma vez no editor (atalho) ou pelo `SETUP_CODE`
+  das Propriedades do script; tokens de outro cliente OAuth são recusados.
+- **Serviço em `backend/appsscript/Code.gs`:** ações `hello`, `pull`, `push`, `members`, `member-add`,
+  `member-remove` e `wipe`; planilha criada sozinha ("Finan+ · dados da nuvem"), aba de registros +
+  diário com compactação, `LockService` nas gravações, lápides e marca d'água no "apagar tudo".
+  Contrato completo em `backend/appsscript/LEIA-ME.md`; guia do usuário em [NUVEM.md](NUVEM.md).
+- **Desenvolvimento:** `npm run mock-cloud` (serviço de mentira com login simulado) e
+  `npm run preview` (servidor estático próprio, sem depender do Python — agora também no Windows);
+  `tools/build.mjs` e `tools/site.mjs` corrigidos para caminhos do Windows.
+- **Testes:** 26 novos (criptografia, cliente da nuvem e motor de sincronização com um serviço de
+  mentira — ativação, dois aparelhos, conflitos, lápides, compactação, offline, membros e apagar):
+  111 no total.
+- **Ainda sem bibliotecas:** o app continua sem dependências de execução; o login do Google é o único
+  recurso externo, carregado sob demanda e restrito à CSP.
+
 ## Modo remoto — para o "Acesso pela rede" do Finan+ Android 1.2.0 (07/10/2026)
 
 - **Modo normal sem mudanças:** aberto pelo GitHub Pages, instalado ou pela pasta, o Finan+ web continua
@@ -7,7 +45,7 @@
 - **Modo remoto** (`js/remote.js`): quando a página vem do celular (Finan+ Android › Acesso pela rede), os
   dados ficam no celular; nada financeiro é gravado no navegador; cada gravação leva a versão lida (conflito
   → aviso, sem sobrescrever); respostas do celular são validadas; sem service worker. Detalhes em `MODO-REMOTO.md`.
-- 8 testes novos: 85 no total.
+- 8 testes novos na época: 85 no total (hoje o projeto tem 111; veja a entrada 1.2.0).
 
 ## 1.1.2 — correções da auditoria do app Android (06/10/2026)
 

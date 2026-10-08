@@ -5,7 +5,7 @@
 // Não guarda nem vê dados financeiros (eles ficam no IndexedDB, criptografados).
 // VERSION é carimbada a cada publicação por tools/site.mjs (npm run site / GitHub Actions),
 // para os aparelhos baixarem os arquivos novos. Publicando à mão, troque o valor.
-const VERSION = 'finan-plus-web-1.1.2';
+const VERSION = 'finan-plus-web-1.2.0';
 const FILES = [
   './', './index.html', './style.css', './manifest.webmanifest',
   './js/app.bundle.js',

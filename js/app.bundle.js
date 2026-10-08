@@ -140,10 +140,10 @@
       const lc = s.lastIndexOf(","), ld = s.lastIndexOf(".");
       const count = (str2, ch) => str2.split(ch).length - 1;
       if (lc >= 0 && ld >= 0) {
-        const dec2 = lc > ld ? "," : ".", thou = dec2 === "," ? "." : ",";
+        const dec3 = lc > ld ? "," : ".", thou = dec3 === "," ? "." : ",";
         s = s.split(thou).join("");
-        if (count(s, dec2) > 1) return null;
-        s = s.replace(dec2, ".");
+        if (count(s, dec3) > 1) return null;
+        s = s.replace(dec3, ".");
       } else if (lc >= 0) {
         if (count(s, ",") > 1) return null;
         s = s.replace(",", ".");
@@ -2751,12 +2751,12 @@ Public License instead of this License.  But first, please read
     return { ok: false, upgrade: false };
   }
   var Throttle = {
-    waitSeconds(d, now = Date.now()) {
-      return d.pinWaitUntil > now ? Math.ceil((d.pinWaitUntil - now) / 1e3) : 0;
+    waitSeconds(d, now2 = Date.now()) {
+      return d.pinWaitUntil > now2 ? Math.ceil((d.pinWaitUntil - now2) / 1e3) : 0;
     },
-    fail(d, now = Date.now()) {
+    fail(d, now2 = Date.now()) {
       const fails = (d.pinFails || 0) + 1;
-      return { ...d, pinFails: fails, pinWaitUntil: fails >= 5 ? now + 3e4 * (fails - 4) : 0 };
+      return { ...d, pinFails: fails, pinWaitUntil: fails >= 5 ? now2 + 3e4 * (fails - 4) : 0 };
     },
     reset: (d) => ({ ...d, pinFails: 0, pinWaitUntil: 0 })
   };
@@ -2979,7 +2979,7 @@ Public License instead of this License.  But first, please read
   var why = (text) => `<details class="why"><summary>${icon("help", 16)}<span>Por quê?</span></summary><p>${esc(text)}</p></details>`;
 
   // js/ctx.js
-  var APP_VERSION = "1.1.2";
+  var APP_VERSION = "1.2.0";
   var ctx = {
     state: null,
     // dados (AppState do core)
@@ -2995,6 +2995,12 @@ Public License instead of this License.  But first, please read
     locked: false,
     problem: false,
     moves: { from: null, to: null, q: "", kind: "", st: "", limit: 300 },
+    cloud: null,
+    // estado da nuvem para a interface (sync.js › info())
+    cloudCfg: null,
+    // {url, clientId} efetivos (nuvem.json ou configuração local)
+    sync: null,
+    // motor de sincronização (sync.js), criado por app.js
     // preenchidos por app.js
     commit: null,
     replace: null,
@@ -3002,7 +3008,8 @@ Public License instead of this License.  But first, please read
     setDevice: null,
     go: null,
     openMoves: null,
-    lockNow: null
+    lockNow: null,
+    cloudReload: null
   };
   var hidden = () => !!ctx.state?.privacy;
   var money = (c) => hidden() ? "R$ ••••" : Money.format(c);
@@ -3364,12 +3371,12 @@ Public License instead of this License.  But first, please read
       "Média mensal = valor da categoria ÷ meses do período (meses incompletos contam pela fração de dias)."
     ]) para(pen, `• ${l}`);
   }
-  function header(pen, r, now) {
+  function header(pen, r, now2) {
     pen.rect(0, 0, W2, 112, ACCENT);
     pen.text("FINAN+", M, 40, 10, over(0.8, WHITE, ACCENT), { bold: true });
     pen.text("Relatório financeiro", M, 68, 24, WHITE, { bold: true });
     pen.text(`${brDate(r.from)} a ${brDate(r.to)} · ${r.days} dia(s)`, M, 92, 12, WHITE);
-    const d = now || /* @__PURE__ */ new Date();
+    const d = now2 || /* @__PURE__ */ new Date();
     const ds = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     pen.text(`Gerado em ${brDate(ds)} às ${pad2(d.getHours())}:${pad2(d.getMinutes())}`, W2 - M, 40, 9, over(0.87, WHITE, ACCENT), { align: "right" });
     pen.y = 132;
@@ -4032,9 +4039,72 @@ ${xref}
     ${env2.remote ? "" : btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
     <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, "database");
     const about = fold("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
+    const nuvem = env2.remote ? "" : cloudFold();
     const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.remote ? "Tudo é salvo no celular, pela rede local." : env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
-    const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
-    return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
+    const left = [appearance, privacy, nuvem, notif, assist, about], right = [accounts, recurring, limits, cats, data];
+    return head + (ctx.cols === 1 ? [appearance, privacy, nuvem, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
+  }
+  var cloudClock = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  function cloudStatus(c) {
+    switch (c?.phase) {
+      case "ready":
+        return c.lastSyncAt ? `Em dia · última sincronização às ${cloudClock(c.lastSyncAt)}` : "Em dia";
+      case "syncing":
+        return "Sincronizando…";
+      case "offline":
+        return "Sem conexão com a nuvem";
+      case "error":
+        return c.message || "Precisa de atenção";
+      case "signedOut":
+        return c.email ? `Sessão do Google expirada (${c.email})` : "Entre com a sua conta Google";
+      case "needKey":
+        return "Falta o código da casa";
+      default:
+        return "Não configurada";
+    }
+  }
+  function cloudFootNote() {
+    const c = ctx.cloud;
+    if (!ctx.cloudCfg || !c) return null;
+    if (c.phase === "ready") return `<button type="button" class="sideCloud" data-act="cloud-sync" title="Sincronizar agora">${icon("check", 12)} Nuvem em dia${c.pending ? ` · ${c.pending} para enviar` : ""}</button>`;
+    if (c.phase === "syncing") return `<span class="sideCloud">${icon("sync", 12)} Sincronizando…</span>`;
+    if (c.phase === "offline") return `<button type="button" class="sideCloud" data-act="cloud-sync" title="Tentar de novo agora">${icon("warning", 12)} Nuvem sem conexão</button>`;
+    if (c.phase === "error") return `<button type="button" class="sideCloud" data-act="cloud-sync" title="${attr(c.message)}">${icon("warning", 12)} Nuvem: atenção</button>`;
+    if (c.phase === "signedOut") return `<button type="button" class="sideCloud" data-act="cloud-login">${icon("sync", 12)} Nuvem: entrar com o Google</button>`;
+    if (c.phase === "needKey") return `<button type="button" class="sideCloud" data-act="cloud-activate">${icon("sync", 12)} Nuvem: ativar</button>`;
+    return null;
+  }
+  function cloudFold() {
+    const c = ctx.cloud;
+    const phase = c?.phase || "off";
+    let body;
+    if (phase === "off" || !ctx.cloudCfg) {
+      body = `
+      <p class="muted small">Sincronize com a <b>nuvem do Google</b>: os dados continuam neste aparelho (e funcionando offline) e passam a ser compartilhados, cifrados, entre dois ou mais aparelhos e pessoas. O serviço é uma planilha na sua própria conta Google; o passo a passo está em NUVEM.md.</p>
+      ${typeof location !== "undefined" && location.protocol === "file:" ? '<div class="infoBox">' + icon("warning", 18) + "<p>A nuvem não funciona com o app aberto direto da pasta (<b>file://</b>). Use o site por <b>https://</b> (GitHub Pages) ou <b>http://localhost</b>; aqui tudo continua funcionando só neste aparelho.</p></div>" : ""}
+      <div class="btnGrid">${btn("Configurar serviço", { act: "cloud-setup", icon: "settings", iconSize: 18 })}</div>`;
+    } else if (phase === "signedOut") {
+      body = `
+      <p class="muted small">${esc(c?.message || "Entre com a conta Google dona do serviço para sincronizar. Cada pessoa entra com a própria conta, autorizada em Membros.")}</p>
+      <div class="btnGrid">${btn("Entrar com o Google", { act: "cloud-login", cls: "primary", icon: "sync", iconSize: 18 })}${btn("Configuração do serviço", { act: "cloud-setup", icon: "settings", iconSize: 18 })}</div>`;
+    } else if (phase === "needKey") {
+      body = `
+      <div class="manageItem"><div><b>${esc(c.email)}</b><small>Conta conectada. Falta o código da casa neste aparelho.</small></div>
+        <div class="manageActions">${btn("Ativar", { act: "cloud-activate", cls: "primary small" })}</div></div>
+      <p class="muted small">O código da casa abre os dados cifrados. Use o mesmo código dos outros aparelhos ou crie um novo se este for o primeiro.</p>`;
+    } else {
+      const busy = phase === "syncing";
+      body = `
+      <div class="manageItem"><div><b>${esc(c.email)}${c.isAdmin ? " · administra a casa" : ""}</b><small>${esc(cloudStatus(c))}</small></div>
+        <div class="manageActions">${btn(busy ? "Sincronizando…" : "Sincronizar agora", { act: "cloud-sync", cls: "soft small", disabled: busy })}</div></div>
+      ${phase === "offline" || phase === "error" ? `<div class="infoBox">${icon("warning", 18)}<p>${esc(c.message || "Sem conexão com a nuvem.")} As alterações continuam salvas neste aparelho e sobem quando a conexão voltar.</p></div>` : ""}
+      <div class="btnGrid">${btn("Código da casa", { act: "cloud-key", icon: "lock", iconSize: 18 })}${btn("Membros", { act: "cloud-members", icon: "shield", iconSize: 18 })}
+        ${btn("Enviar tudo daqui", { act: "cloud-resend", icon: "upload", iconSize: 18 })}${c.isAdmin ? btn("Apagar na nuvem", { act: "cloud-wipe", cls: "dangerB", icon: "delete", iconSize: 18 }) : ""}</div>
+      ${btn("Desconectar este aparelho", { act: "cloud-disconnect", icon: "close", iconSize: 18 })}
+      <div class="infoBox">${icon("lock", 18)}<p>Os registros sobem cifrados (AES-256-GCM) com a chave da casa; a planilha guarda só blocos ilegíveis. Sem o código e um login autorizado, ninguém lê — nem o Google. Novas pessoas entram com a própria conta Google depois de autorizadas em Membros.</p></div>`;
+    }
+    const cfgLink = phase !== "off" && ctx.cloudCfg ? `<p class="muted small">Serviço configurado. <button type="button" class="sideCloud" data-act="cloud-setup">Trocar configuração</button></p>` : "";
+    return fold("nuvem", "Conta e nuvem", cloudStatus(c), body + cfgLink, "sync");
   }
   function categoryUse(k, c) {
     const n = ctx.state.txs.filter((t) => t.kind === k && t.category === c).length;
@@ -4103,12 +4173,13 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   function sideFootHtml() {
     const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
     const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
+    const note2 = ctx.remote ? `${icon("shield", 12)} Dados no celular (conexão segura)` : cloudFootNote() || `${icon("shield", 12)} Dados só neste aparelho`;
     return `<div class="sideBal"><small>Saldo atual</small><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b>
     <small>Previsto para ${ymLen(ym)}/${String(ym % 12 + 1).padStart(2, "0")}</small><b class="future ${fut < 0 ? "negative" : ""}">${money(fut)}</b></div>
     <div class="sideTools">${btn("", { act: "toggle-privacy", cls: "icon small", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores (Ctrl+H)" : "Ocultar valores (Ctrl+H)" })}
     ${ctx.device.pinHash ? btn("", { act: "lock", cls: "icon small", icon: "lock", label: "Bloquear agora (Ctrl+L)" }) : ""}
     ${btn("", { act: "shortcuts", cls: "icon small", icon: "keyboard", label: "Atalhos de teclado (?)" })}</div>
-    <small class="sideNote">${icon("shield", 12)} ${ctx.remote ? "Dados no celular (conexão segura)" : "Dados só neste aparelho"}</small>`;
+    <small class="sideNote">${note2}</small>`;
   }
   function topbarHtml() {
     const s = ctx.state;
@@ -4146,6 +4217,15 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     SHORTCUTS: () => SHORTCUTS,
     accountEditor: () => accountEditor,
     cardEditor: () => cardEditor,
+    cloudActivate: () => cloudActivate,
+    cloudDisconnect: () => cloudDisconnect,
+    cloudKey: () => cloudKey,
+    cloudLogin: () => cloudLogin,
+    cloudMembers: () => cloudMembers,
+    cloudResend: () => cloudResend,
+    cloudSetup: () => cloudSetup,
+    cloudSyncNow: () => cloudSyncNow,
+    cloudWipe: () => cloudWipe,
     deleteCategory: () => deleteCategory,
     download: () => download,
     exportBackup: () => exportBackup,
@@ -4166,6 +4246,283 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     whatsNew: () => whatsNew,
     ymOf: () => ymOf
   });
+
+  // js/e2e.js
+  var ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  var CODE_LEN = 24;
+  var AD_PREFIX = "finan-plus/nuvem/v1";
+  var enc2 = new TextEncoder();
+  var dec2 = new TextDecoder();
+  var hasCrypto2 = () => typeof crypto !== "undefined" && !!crypto.subtle && typeof crypto.getRandomValues === "function";
+  function b64e2(bytes) {
+    let s = "";
+    for (let i = 0; i < bytes.length; i += 32768) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(s);
+  }
+  function b64d2(text) {
+    return Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+  }
+  function newCode() {
+    if (!hasCrypto2()) throw new Error("Este navegador não tem as funções de segurança necessárias.");
+    const bytes = crypto.getRandomValues(new Uint8Array(15));
+    let out = "", acc = 0, bits = 0;
+    for (const b of bytes) {
+      acc = acc << 8 | b;
+      bits += 8;
+      while (bits >= 5) {
+        out += ALPHABET[acc >>> bits - 5 & 31];
+        bits -= 5;
+      }
+    }
+    return out;
+  }
+  function normalizeCode(input2) {
+    return String(input2 ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/[IL]/g, "1").replace(/O/g, "0").replace(/U/g, "V");
+  }
+  function validCode(code) {
+    const s = normalizeCode(code);
+    return s.length === CODE_LEN && [...s].every((ch) => ALPHABET.includes(ch));
+  }
+  function formatCode(code) {
+    return normalizeCode(code).replace(/(.{4})(?=.)/g, "$1-");
+  }
+  async function keyFromCode(code) {
+    if (!hasCrypto2()) throw new Error("Este navegador não tem as funções de segurança necessárias.");
+    const s = normalizeCode(code);
+    if (!validCode(s)) throw new Error("Código da casa incompleto ou inválido.");
+    const material = await crypto.subtle.digest("SHA-256", enc2.encode(`${AD_PREFIX}|chave|${s}`));
+    return crypto.subtle.importKey("raw", material, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  }
+  var ad = (col, id) => enc2.encode(`${AD_PREFIX}|${col}|${id}`);
+  async function seal(key, col, id, value) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: ad(col, id) }, key, enc2.encode(JSON.stringify(value))));
+    const box = new Uint8Array(iv.length + ct.length);
+    box.set(iv);
+    box.set(ct, iv.length);
+    return b64e2(box);
+  }
+  async function unseal(key, col, id, text) {
+    const raw = b64d2(text);
+    if (raw.length < 12 + 16) throw new Error("Registro cifrado inválido.");
+    const iv = raw.subarray(0, 12), ct = raw.subarray(12);
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: ad(col, id) }, key, ct);
+    return JSON.parse(dec2.decode(pt));
+  }
+
+  // js/cloud.js
+  var LS_CFG = "finanplus_nuvem";
+  var LS_SES = "finanplus_nuvem_sessao";
+  var TIMEOUT_MS = 25e3;
+  var ls2 = () => {
+    try {
+      return globalThis.localStorage || null;
+    } catch {
+      return null;
+    }
+  };
+  var CloudError = class extends Error {
+    constructor(code, message, status = 0) {
+      super(message);
+      this.code = code;
+      this.status = status;
+    }
+  };
+  function validCloudUrl(url) {
+    try {
+      const u = new URL(String(url || ""));
+      return u.protocol === "https:" || u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+    } catch {
+      return false;
+    }
+  }
+  function cloudReady(cfg) {
+    return !!(cfg && validCloudUrl(cfg.url) && String(cfg.clientId || "").trim());
+  }
+  function loadCloudConfig() {
+    const l = ls2();
+    try {
+      const o = l && JSON.parse(l.getItem(LS_CFG) || "null");
+      if (o && typeof o === "object") return { url: String(o.url || ""), clientId: String(o.clientId || "") };
+    } catch {
+    }
+    return { url: "", clientId: "" };
+  }
+  function saveCloudConfig(cfg) {
+    const l = ls2();
+    try {
+      l?.setItem(LS_CFG, JSON.stringify({ url: String(cfg.url || "").trim(), clientId: String(cfg.clientId || "").trim() }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function clearCloudConfig() {
+    try {
+      ls2()?.removeItem(LS_CFG);
+    } catch {
+    }
+  }
+  async function siteCloudConfig(fetchImpl = globalThis.fetch) {
+    try {
+      const r = await fetchImpl("nuvem.json", { cache: "no-store" });
+      if (!r.ok) return null;
+      const j = await r.json();
+      const cfg = { url: String(j?.url || "").trim(), clientId: String(j?.clientId || "").trim() };
+      return cloudReady(cfg) ? cfg : null;
+    } catch {
+      return null;
+    }
+  }
+  async function effectiveCloudConfig(fetchImpl = globalThis.fetch) {
+    const local = loadCloudConfig();
+    if (cloudReady(local)) return local;
+    const site = await siteCloudConfig(fetchImpl);
+    if (site) return site;
+    return local.url || local.clientId ? local : null;
+  }
+  function loadCloudSession() {
+    const l = ls2();
+    try {
+      const o = l && JSON.parse(l.getItem(LS_SES) || "null");
+      if (o && typeof o === "object" && typeof o.email === "string" && o.email) return { email: o.email, name: String(o.name || ""), isAdmin: !!o.isAdmin };
+    } catch {
+    }
+    return null;
+  }
+  function saveCloudSession(s) {
+    try {
+      ls2()?.setItem(LS_SES, JSON.stringify(s));
+    } catch {
+    }
+  }
+  function clearCloudSession() {
+    try {
+      ls2()?.removeItem(LS_SES);
+    } catch {
+    }
+  }
+  var Cloud = class {
+    constructor(url, fetchImpl = globalThis.fetch) {
+      this.url = url;
+      this.fetchImpl = fetchImpl;
+    }
+    async call(action, params = {}, token = null, o = {}) {
+      const body = JSON.stringify({ v: 1, action, ...token ? { token } : {}, ...params });
+      const ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = setTimeout(() => {
+        try {
+          ac?.abort();
+        } catch {
+        }
+      }, o.timeoutMs || TIMEOUT_MS);
+      const doFetch = this.fetchImpl || globalThis.fetch;
+      let res;
+      try {
+        res = await doFetch(this.url, {
+          method: "POST",
+          cache: "no-store",
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body,
+          ...ac ? { signal: ac.signal } : {}
+        });
+      } catch (e) {
+        console.warn("nuvem: falha na chamada", e);
+        throw new CloudError("offline", "Sem conexão com a nuvem. Confira a internet e tente de novo.");
+      } finally {
+        clearTimeout(timer);
+      }
+      let j = null;
+      try {
+        j = await res.json();
+      } catch {
+      }
+      if (!j || typeof j !== "object") throw new CloudError("bad_response", "O serviço da nuvem respondeu em um formato inesperado.");
+      if (!res.ok || j.ok !== true) {
+        const code = typeof j.error === "string" ? j.error : "http_" + res.status;
+        throw new CloudError(code, typeof j.message === "string" && j.message ? j.message : "Erro " + res.status, res.status);
+      }
+      return j;
+    }
+  };
+
+  // js/google.js
+  var GIS_SRC = "https://accounts.google.com/gsi/client";
+  var gisPromise = null;
+  function loadGis() {
+    if (gisPromise) return gisPromise;
+    gisPromise = new Promise((resolve, reject) => {
+      if (globalThis.google?.accounts?.id) return resolve();
+      const s = document.createElement("script");
+      s.src = GIS_SRC;
+      s.async = true;
+      s.defer = true;
+      s.onload = () => resolve();
+      s.onerror = () => {
+        gisPromise = null;
+        reject(new Error("Não foi possível carregar o login do Google. Confira a internet."));
+      };
+      document.head.append(s);
+    });
+    return gisPromise;
+  }
+  function decodeCredential(jwt) {
+    const part = String(jwt || "").split(".")[1];
+    if (!part) return null;
+    try {
+      const s = atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "="));
+      const j = JSON.parse(s);
+      return { email: typeof j.email === "string" ? j.email : "", name: typeof j.name === "string" ? j.name : "", exp: Number(j.exp) || 0 };
+    } catch {
+      return null;
+    }
+  }
+  async function requestGoogleToken({ clientId, silent = false, render: render2 = null, timeoutMs = silent ? 8e3 : 0 } = {}) {
+    if (clientId === "dev-mock") {
+      const email = (globalThis.FinanPlus?.mockEmail || "dev@finanplus.local").toLowerCase();
+      return { credential: "dev:" + email, email, name: "Desenvolvimento", exp: Math.floor(Date.now() / 1e3) + 3600 };
+    }
+    await loadGis();
+    return new Promise((resolve) => {
+      let done = false;
+      let timer = null;
+      const finish = (t) => {
+        if (done) return;
+        done = true;
+        if (timer) clearTimeout(timer);
+        resolve(t);
+      };
+      const accept = (r) => {
+        const c = r?.credential;
+        const d = decodeCredential(c);
+        finish(c && d && d.email ? { credential: c, ...d } : null);
+      };
+      globalThis.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: accept,
+        auto_select: silent,
+        cancel_on_tap_outside: true,
+        use_fedcm_for_prompt: true
+      });
+      if (render2) {
+        globalThis.google.accounts.id.renderButton(render2, { theme: "outline", size: "large", shape: "pill", text: "continue_with", locale: "pt-BR", width: 280 });
+        return;
+      }
+      globalThis.google.accounts.id.prompt((n) => {
+        if (n?.isNotDisplayed?.() || n?.isSkippedMoment?.() || n?.isDismissedMoment?.()) finish(null);
+      });
+      if (silent && timeoutMs) timer = setTimeout(() => finish(null), timeoutMs);
+    });
+  }
+  function disableGoogleAutoSelect() {
+    try {
+      globalThis.google?.accounts?.id?.disableAutoSelect?.();
+    } catch {
+    }
+  }
+
+  // js/editors.js
   var today = () => ctx.today;
   function apply(o, msg) {
     if (!o.ok) {
@@ -4568,6 +4925,296 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       toast("PIN removido");
     } else notice("Não foi possível remover", "PIN incorreto.");
   }
+  var syncOf = () => ctx.sync;
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function cloudSetup() {
+    const cur = loadCloudConfig();
+    const d = openSheet({
+      title: "Serviço da nuvem",
+      subtitle: "Endereço do Apps Script e ID do cliente Google (veja NUVEM.md).",
+      body: `${field("URL do serviço", input("url", cur.url, { placeholder: "https://script.google.com/macros/s/…/exec", max: 300 }), { hint: "A URL /exec da implantação do Apps Script." })}
+      ${field("ID do cliente Google", input("cid", cur.clientId, { placeholder: "…apps.googleusercontent.com", max: 200 }), { hint: "O cliente OAuth criado no Google Cloud para o login." })}
+      <p class="muted small">Normalmente os dois valores ficam no arquivo <b>nuvem.json</b> publicado junto do site. Preencha aqui somente para testar ou usar uma nuvem própria neste aparelho.</p>
+      <div class="btnGrid">${btn("Salvar", { id: "cloudSave", cls: "primary" })}${btn("Remover configuração", { id: "cloudClear", cls: "soft" })}</div>`
+    });
+    d.querySelector("#cloudSave").onclick = async () => {
+      const url = d.querySelector("[name=url]").value.trim(), clientId = d.querySelector("[name=cid]").value.trim();
+      if (!validCloudUrl(url) || !clientId) return notice("Confira os valores", "A URL precisa começar com https:// (ou http://localhost, para testes) e o ID do cliente não pode ficar vazio.");
+      saveCloudConfig({ url, clientId });
+      closeSheet();
+      await ctx.cloudReload?.();
+      toast("Serviço salvo");
+    };
+    d.querySelector("#cloudClear").onclick = async () => {
+      clearCloudConfig();
+      closeSheet();
+      await ctx.cloudReload?.();
+      toast("Configuração removida");
+    };
+  }
+  function cloudLogin() {
+    const sync = syncOf();
+    if (!sync) return cloudSetup();
+    const d = openSheet({
+      title: "Entrar com o Google",
+      subtitle: "A conta Google só é usada para autorizar este aparelho a sincronizar.",
+      body: `<div class="gbox" id="gbtn"></div>
+      <small id="loginMsg" class="pinErr" role="status">Toque no botão do Google para entrar.</small>
+      <div id="setupBox" hidden>
+        <div class="infoBox">${icon("settings", 18)}<p>O serviço ainda não foi ativado. No editor do Apps Script (script.google.com), rode a função <b>bootstrap</b> uma vez — ou crie a propriedade <b>SETUP_CODE</b> (Propriedades do projeto › Propriedades do script) e digite-a aqui. Quem entrar depois disso precisa ser autorizado em Membros.</p></div>
+        ${field("Código de instalação", input("setupCode", "", { placeholder: "o SETUP_CODE definido no script", max: 60 }))}
+        <div class="btnGrid">${btn("Ativar serviço", { id: "setupGo", cls: "primary" })}</div>
+      </div>`
+    });
+    const msg = d.querySelector("#loginMsg"), box = d.querySelector("#setupBox");
+    let cred = null;
+    const attempt = async (setupCode = "") => {
+      msg.textContent = "Confirmando com a nuvem…";
+      const r = await sync.signInWithCredential(cred, { setupCode });
+      if (r.ok) {
+        closeSheet();
+        toast("Conectado à nuvem");
+        if (!sync.currentCode()) cloudActivate();
+        return;
+      }
+      if (r.error === "setup_pending" || r.error === "setup_bad_code") {
+        box.hidden = false;
+        msg.textContent = r.message;
+        if (r.error === "setup_bad_code") d.querySelector("[name=setupCode]").focus();
+        return;
+      }
+      msg.textContent = r.error === "not_member" ? "Esta conta ainda não foi autorizada. Peça para quem administra adicionar o seu e-mail em Ajustes › Conta e nuvem › Membros." : r.message || "Não foi possível entrar.";
+    };
+    requestGoogleToken({ clientId: ctx.cloudCfg?.clientId || "", render: d.querySelector("#gbtn") }).then((g) => {
+      if (!g) {
+        msg.textContent = "Entrada não concluída. Toque no botão do Google.";
+        return;
+      }
+      cred = g;
+      msg.textContent = `Conta: ${g.email}`;
+      return attempt("");
+    }).catch((e) => {
+      msg.textContent = e?.message || "Não foi possível falar com o Google.";
+    });
+    d.querySelector("#setupGo").addEventListener("click", () => {
+      if (!cred) return;
+      attempt(d.querySelector("[name=setupCode]").value.trim());
+    });
+  }
+  function cloudActivate() {
+    const sync = syncOf();
+    if (!sync?.session) return cloudLogin();
+    const d = openSheet({ title: "Ativar a sincronização", subtitle: "Ligue este aparelho à sua nuvem.", body: "<div></div>" });
+    const body = d.querySelector(".sheetBody");
+    let mode = null, genCode = null, stats = null, checking = true;
+    sync.serverStats().then((s) => {
+      stats = s;
+      checking = false;
+      if (mode === null) render2();
+    });
+    const render2 = () => {
+      if (mode === null) {
+        body.innerHTML = `
+        <p class="muted small">Como este aparelho entra na casa?</p>
+        <div class="btnCol">
+          <button type="button" class="optCard" id="mCreate">${icon("upload", 22)}<span><b>Este é o primeiro aparelho</b><small>Os dados que já existem aqui passam a valer para todos, cifrados na nuvem.</small></span></button>
+          <button type="button" class="optCard" id="mJoin">${icon("download", 22)}<span><b>Já tenho a nuvem em outro aparelho</b><small>Os dados da nuvem chegam aqui; o que existe só aqui também sobe.<br>Você vai precisar do código da casa.</small></span></button>
+        </div>
+        ${checking ? '<p class="muted small">Verificando a nuvem…</p>' : stats && stats.records > 0 ? `<p class="muted small">A nuvem já tem ${stats.records} registro(s).</p>` : ""}`;
+        d.querySelector("#mCreate").onclick = () => {
+          mode = "create";
+          render2();
+        };
+        d.querySelector("#mJoin").onclick = () => {
+          mode = "join";
+          render2();
+        };
+        return;
+      }
+      if (mode === "create") {
+        genCode = genCode || newCode();
+        const hasData = stats && stats.records > 0;
+        body.innerHTML = `
+        ${hasData ? `<div class="infoBox">${icon("warning", 18)}<p>Já existem <b>${stats.records}</b> registro(s) na nuvem. Criar uma chave nova torna esses dados antigos ilegíveis (continuam lá, mas sem abrir). Se você já usava esta nuvem, use “Já tenho um código”.</p></div>` : `<p class="muted small">A chave da casa é criada agora. Guarde o código num lugar seguro (ex.: gerenciador de senhas): é ele que abre os dados da nuvem, e não há recuperação sem ele.</p>`}
+        <label class="field codeField"><span>Código da casa (24 caracteres)</span><input readonly id="newKey" value="${attr(formatCode(genCode))}" spellcheck="false"></label>
+        <div class="btnGrid">${btn("Copiar", { id: "copyKey", cls: "primary", icon: "content-copy", iconSize: 18 })}${btn("Gerar outro", { id: "genKey", icon: "sync", iconSize: 18 })}</div>
+        ${check("keyOk", "Guardei o código num lugar seguro", false, { sub: "Sem o código e todos os aparelhos, os dados da nuvem não têm como ser recuperados." })}
+        <div class="btnCol" style="margin-top:10px">
+          ${btn("Ativar e enviar deste aparelho", { id: "actGo", cls: "primary wide", disabled: true })}
+          ${btn("Já tenho um código", { id: "toJoin", cls: "soft" })}
+          ${btn("Voltar", { id: "back", cls: "soft" })}
+        </div>
+        <small id="actMsg" class="pinErr" role="alert"></small>`;
+        const chk = d.querySelector("[name=keyOk]");
+        chk.onchange = () => {
+          d.querySelector("#actGo").disabled = !chk.checked;
+        };
+        d.querySelector("#copyKey").onclick = async () => {
+          const ok2 = await copyText(formatCode(genCode));
+          toast(ok2 ? "Código copiado" : "Selecione o campo e copie");
+        };
+        d.querySelector("#genKey").onclick = () => {
+          genCode = newCode();
+          render2();
+        };
+        d.querySelector("#toJoin").onclick = () => {
+          mode = "join";
+          render2();
+        };
+        d.querySelector("#back").onclick = () => {
+          mode = null;
+          render2();
+        };
+        d.querySelector("#actGo").onclick = async () => {
+          const msg = d.querySelector("#actMsg");
+          msg.textContent = "Ativando e enviando os dados…";
+          const r = await sync.activate({ mode: "create", code: genCode });
+          if (!r.ok) {
+            msg.textContent = r.message || "Não foi possível ativar. Tente de novo.";
+            return;
+          }
+          closeSheet();
+          toast("Sincronização ativada");
+          if (r.failures) notice("Nuvem", `${r.failures} registro(s) antigos da nuvem não puderam ser abertos com a chave nova e continuam lá sem uso.`);
+        };
+        return;
+      }
+      body.innerHTML = `
+      <p class="muted small">Digite o <b>código da casa</b> do outro aparelho (Ajustes › Conta e nuvem › Código da casa). São 24 caracteres; pode colar.</p>
+      ${field("Código da casa", input("joinCode", "", { placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", max: 40 }))}
+      ${check("joinOk", "Entendi: os dados da nuvem passam a valer neste aparelho (o que existe só aqui também sobe)", false)}
+      <div class="btnCol" style="margin-top:10px">
+        ${btn("Ativar e baixar da nuvem", { id: "actGo2", cls: "primary wide", disabled: true })}
+        ${btn("Voltar", { id: "back2", cls: "soft" })}
+      </div>
+      <small id="actMsg2" class="pinErr" role="alert"></small>`;
+      const chk2 = d.querySelector("[name=joinOk]");
+      chk2.onchange = () => {
+        d.querySelector("#actGo2").disabled = !chk2.checked;
+      };
+      d.querySelector("#back2").onclick = () => {
+        mode = null;
+        render2();
+      };
+      d.querySelector("#actGo2").onclick = async () => {
+        const msg = d.querySelector("#actMsg2"), raw = d.querySelector("[name=joinCode]").value;
+        if (!validCode(raw)) {
+          msg.textContent = "O código tem 24 caracteres.";
+          return;
+        }
+        msg.textContent = "Lendo e combinando os dados…";
+        const r = await sync.activate({ mode: "join", code: raw });
+        if (!r.ok) {
+          msg.textContent = r.message || "Não foi possível ativar. Tente de novo.";
+          return;
+        }
+        closeSheet();
+        toast("Nuvem conectada neste aparelho");
+      };
+    };
+    render2();
+  }
+  function cloudKey() {
+    const sync = syncOf();
+    const code = sync?.currentCode();
+    if (!code) return notice("Nuvem", "Este aparelho ainda não tem o código da casa. Ative a sincronização primeiro.");
+    const d = openSheet({
+      title: "Código da casa",
+      subtitle: "A chave que abre os dados na nuvem.",
+      body: `<label class="field codeField"><span>Código da casa</span><input readonly id="keyIn" value="${attr(formatCode(code))}" spellcheck="false"></label>
+      <div class="btnGrid">${btn("Copiar", { id: "copyKey", cls: "primary", icon: "content-copy", iconSize: 18 })}</div>
+      <div class="infoBox">${icon("lock", 18)}<p>Guarde num lugar seguro (ex.: gerenciador de senhas). Quem tiver este código <b>e</b> um login autorizado consegue ler os dados; sem ele, nem o Google consegue.</p></div>`
+    });
+    d.querySelector("#copyKey").onclick = async () => {
+      const ok2 = await copyText(formatCode(code));
+      toast(ok2 ? "Código copiado" : "Selecione o campo e copie");
+    };
+  }
+  async function cloudMembers() {
+    const sync = syncOf();
+    if (!sync) return notice("Nuvem", "Configure o serviço primeiro.");
+    const d = openSheet({ title: "Membros da casa", subtitle: "Quem pode entrar e sincronizar com esta nuvem.", body: '<p class="muted small">Carregando…</p>' });
+    const render2 = (r) => {
+      const body = d.querySelector(".sheetBody");
+      if (!r.ok) {
+        body.innerHTML = `<p class="muted">${esc(r.message || "Não foi possível carregar os membros.")}</p>`;
+        return;
+      }
+      const me = sync.info();
+      body.innerHTML = `
+      <div class="manageList">${r.members.map((m) => `<div class="manageItem"><div><b>${esc(m.email)}</b><small>${m.admin ? "Administra a casa" : "Membro"}${m.name ? " · " + esc(m.name) : ""}</small></div>
+        <div class="manageActions">${!m.admin && me.isAdmin ? btn("", { cls: "icon tiny dangerIc", icon: "delete", iconSize: 16, label: `Remover ${m.email}`, data: { email: m.email } }) : ""}</div></div>`).join("")}</div>
+      ${me.isAdmin ? `<form id="addForm" class="filters"><input name="email" type="email" placeholder="e-mail da pessoa" maxlength="120" aria-label="E-mail do novo membro" autocomplete="off">${btn("Adicionar", { submit: true, cls: "primary" })}</form>
+           <p class="muted small">A pessoa entra com essa conta Google em Ajustes › Conta e nuvem › Entrar com o Google. Ela também precisa do código da casa.</p>` : '<p class="muted small">Só quem administra pode adicionar ou remover pessoas.</p>'}`;
+      const form = body.querySelector("#addForm");
+      if (form) form.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = form.querySelector("[name=email]").value.trim();
+        if (!email) return;
+        const res = await sync.memberAdd(email);
+        if (!res.ok) return notice("Membros", res.message || "Não foi possível adicionar.");
+        toast("Membro adicionado");
+        render2(res);
+      };
+      body.querySelectorAll("[data-email]").forEach((b) => b.onclick = async () => {
+        if (!await ask("Remover membro", `“${b.dataset.email}” deixa de conseguir sincronizar nesta nuvem. O que já está no aparelho dessa pessoa continua lá.`, { ok: "Remover", danger: true })) return;
+        const res = await sync.memberRemove(b.dataset.email);
+        if (!res.ok) return notice("Membros", res.message || "Não foi possível remover.");
+        toast("Membro removido");
+        render2(res);
+      });
+    };
+    render2(await sync.members());
+  }
+  async function cloudSyncNow() {
+    const sync = syncOf();
+    if (!sync) return;
+    const r = await sync.syncNow();
+    if (r.ok) return toast("Nuvem em dia");
+    if (r.error === "not_ready") return;
+    if (r.error === "offline") return notice("Sem conexão", r.message || "Confira a internet e tente de novo.");
+    if (r.error === "auth_invalid") return cloudLogin();
+    notice("Nuvem", r.message || "Não foi possível sincronizar.");
+  }
+  async function cloudDisconnect() {
+    const sync = syncOf();
+    if (!sync) return;
+    if (!await ask("Desconectar da nuvem", "Este aparelho para de sincronizar e esquece o código da casa e a conta Google. Os dados daqui continuam neste aparelho; os da nuvem continuam na sua conta. Continuar?", { ok: "Desconectar" })) return;
+    await sync.disconnect();
+    toast("Desconectado da nuvem");
+  }
+  async function cloudResend() {
+    const sync = syncOf();
+    if (!sync) return;
+    if (!await ask("Enviar tudo deste aparelho", "Todos os registros daqui sobem para a nuvem, prevalecendo sobre as versões de lá. Use quando a nuvem ficou vazia ou fora de sincronia.", { ok: "Enviar tudo" })) return;
+    toast("Enviando…");
+    const r = await sync.resendAll();
+    if (r.ok) toast(`Enviados ${r.applied} registro(s)`);
+    else notice("Nuvem", r.message || "Não foi possível enviar.");
+  }
+  async function cloudWipe() {
+    const sync = syncOf();
+    if (!sync) return;
+    if (!sync.info().isAdmin) return notice("Nuvem", "Só quem administra a casa pode apagar os dados da nuvem.");
+    const t = await promptDlg("Apagar os dados da nuvem", "Todos os registros da nuvem serão apagados (o código da casa e os membros continuam). Na próxima sincronização, os outros aparelhos ficam vazios também. Digite APAGAR para confirmar.", { label: "Confirmação", value: "", max: 10 }, { ok: "Apagar" });
+    if (t == null) return;
+    if (String(t).trim().toUpperCase() !== "APAGAR") return notice("Nada foi apagado", "Para confirmar, digite APAGAR.");
+    const r = await sync.wipeCloud();
+    if (!r.ok) return notice("Nuvem", r.message || "Não foi possível apagar.");
+    toast("Dados da nuvem apagados");
+    if (await ask("Enviar deste aparelho?", "A nuvem ficou vazia. Enviar agora os dados deste aparelho de volta?", { ok: "Enviar" })) {
+      const rr = await sync.resendAll();
+      if (rr.ok) toast(`Enviados ${rr.applied} registro(s)`);
+      else notice("Nuvem", rr.message || "Não foi possível enviar.");
+    }
+  }
   var SHORTCUTS = [
     ["Lançamentos", [["N  ·  Ctrl+N", "Nova despesa"], ["R  ·  Ctrl+Shift+N", "Nova receita"], ["M  ·  Ctrl+M", "Nova meta"], ["/  ·  Ctrl+F", "Buscar lançamentos"], ["K  ·  Ctrl+K", "Perguntar ao assistente"]]],
     ["Navegação", [["1 … 5  ·  Ctrl+1 … 5", "Início, Lançamentos, Relatórios, Assistente, Ajustes"], ["Ctrl+,", "Ajustes"], ["Esc", "Fechar a janela aberta"]]],
@@ -4586,6 +5233,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   function whatsNew() {
     const items = [
+      "1.2.0: Conta e nuvem (opcional): entre com o Google e sincronize entre Windows, Android e outros navegadores, com os dados cifrados numa planilha da sua conta Google. Duas pessoas podem usar ao mesmo tempo; conflitos avisam e nada se perde.",
       "1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.",
       "1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.",
       "Novo nome: Finan+, com o ícone do app Android.",
@@ -4861,6 +5509,788 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     return p.dark ? "oledGray" : "materialBlue";
   }
 
+  // js/sync.js
+  var COLS = ["txs", "goals", "accounts", "cards", "recurring"];
+  var SETTINGS_ID = "settings";
+  var DB_NAME2 = "finan-plus-nuvem";
+  var rk = (col, id) => col + "\0" + id;
+  function settingsOf(s) {
+    return {
+      cats: { expense: [...s.cats.expense], income: [...s.cats.income] },
+      limits: Object.fromEntries(s.limits),
+      privacy: !!s.privacy,
+      autoLock: s.autoLock,
+      theme: s.theme
+    };
+  }
+  function applySettingsTo(state, v) {
+    const list = (x) => Array.isArray(x) ? [...x] : [];
+    const lam = list(v?.cats?.expense), lin = list(v?.cats?.income);
+    const limits = new Map(state.limits);
+    if (v?.limits && typeof v.limits === "object") {
+      limits.clear();
+      for (const [k, n] of Object.entries(v.limits)) limits.set(k, n);
+    }
+    return {
+      ...state,
+      cats: { expense: lam.length ? lam : [...state.cats.expense], income: lin.length ? lin : [...state.cats.income] },
+      limits,
+      privacy: v?.privacy === true,
+      autoLock: AUTOLOCK_OPTIONS.includes(v?.autoLock) ? v.autoLock : 0,
+      theme: themeOf(v?.theme)
+    };
+  }
+  function stateRecords(state) {
+    const out = /* @__PURE__ */ new Map();
+    for (const col of COLS) for (const item of state[col]) out.set(rk(col, item.id), { col, id: item.id, value: item });
+    out.set(rk("settings", SETTINGS_ID), { col: "settings", id: SETTINGS_ID, value: settingsOf(state) });
+    return out;
+  }
+  var isObj2 = (v) => v != null && typeof v === "object" && !Array.isArray(v);
+  var istr = (v, max) => {
+    const s = typeof v === "string" ? v.trim() : "";
+    return s ? [...s].slice(0, max).join("") : "";
+  };
+  var imag = (v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= MAX_ABS_CENTS ? Math.round(v) : null;
+  var icents = (v) => {
+    const n = imag(v);
+    return n != null && n > 0 ? n : null;
+  };
+  var icents0 = (v) => {
+    const n = imag(v);
+    return n != null && n >= 0 ? n : null;
+  };
+  var iint = (v, a, b, def = null) => {
+    const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : NaN;
+    return Number.isFinite(n) && n >= a && n <= b ? n : def;
+  };
+  var idOf = (v, max) => typeof v === "string" ? v.slice(0, max) : "";
+  function sanitize(col, id, v) {
+    if (!isObj2(v)) return null;
+    if (col === "txs") {
+      const kind = v.kind === "income" || v.kind === "expense" ? v.kind : null;
+      const value = icents(v.value), date = typeof v.date === "string" && validDate(v.date) ? v.date : null;
+      const desc = istr(v.desc, 200);
+      if (!kind || !value || !date || !desc) return null;
+      return tx({
+        id,
+        kind,
+        value,
+        date,
+        desc,
+        category: istr(v.category, 40) || "Outros",
+        paid: v.paid === true,
+        accountId: idOf(v.accountId, 48) || void 0,
+        cardId: idOf(v.cardId, 48),
+        cardPayment: idOf(v.cardPayment, 48),
+        recurringId: idOf(v.recurringId, 48),
+        groupId: idOf(v.groupId, 48),
+        parcelN: iint(v.parcelN, 0, 120, 0),
+        parcelTotal: iint(v.parcelTotal, 0, 120, 0)
+      });
+    }
+    if (col === "goals") {
+      const name = istr(v.name, 60), target = icents(v.target);
+      if (!name || !target) return null;
+      return { id, name, target, saved: Math.max(0, icents0(v.saved) ?? 0), deadline: typeof v.deadline === "string" && validDate(v.deadline) ? v.deadline : null, monthly: Math.max(0, icents0(v.monthly) ?? 0) };
+    }
+    if (col === "accounts") {
+      const name = istr(v.name, 40);
+      const initial = imag(v.initial);
+      if (!name || initial == null) return null;
+      return { id, name, initial };
+    }
+    if (col === "cards") {
+      const name = istr(v.name, 40);
+      const limit = icents0(v.limit);
+      if (!name || limit == null) return null;
+      return { id, name, limit, close: iint(v.close, 1, 31, 5), due: iint(v.due, 1, 31, 12) };
+    }
+    if (col === "recurring") {
+      const kind = v.kind === "income" || v.kind === "expense" ? v.kind : null;
+      const desc = istr(v.desc, 120), value = icents(v.value);
+      if (!kind || !desc || !value) return null;
+      const start = typeof v.start === "string" && validDate(v.start) ? v.start : null;
+      return {
+        id,
+        kind,
+        desc,
+        value,
+        category: istr(v.category, 40) || "Outros",
+        accountId: idOf(v.accountId, 48) || void 0,
+        cardId: kind === "expense" ? idOf(v.cardId, 48) : "",
+        day: iint(v.day, 1, 31, 1),
+        active: v.active !== false,
+        start,
+        last: iint(v.last, 0, 12e4, null)
+      };
+    }
+    if (col === "settings") {
+      const catsOf2 = (x, def) => {
+        if (!Array.isArray(x)) return null;
+        const seen = /* @__PURE__ */ new Set(), out = [];
+        for (const c of x) {
+          const n = istr(c, 40);
+          if (n && !seen.has(n.toLowerCase())) {
+            seen.add(n.toLowerCase());
+            out.push(n);
+          }
+        }
+        return out.length ? out : null;
+      };
+      const limits = {};
+      if (isObj2(v.limits)) for (const [k, n] of Object.entries(v.limits)) {
+        const c = istr(k, 40), val = icents(n);
+        if (c && val) limits[c] = val;
+      }
+      return {
+        cats: { expense: catsOf2(v.cats?.expense) || [...DEFAULT_EXPENSE], income: catsOf2(v.cats?.income) || [...DEFAULT_INCOME] },
+        limits,
+        privacy: v.privacy === true,
+        autoLock: AUTOLOCK_OPTIONS.includes(v.autoLock) ? v.autoLock : 0,
+        theme: themeOf(v.theme)
+      };
+    }
+    return null;
+  }
+  function applyRecord(state, col, id, value) {
+    if (col === "settings") return value == null ? state : applySettingsTo(state, value);
+    if (!COLS.includes(col)) return state;
+    const list = state[col];
+    const i = list.findIndex((x) => x.id === id);
+    if (value == null) {
+      if (i < 0) return state;
+      const copy2 = list.slice();
+      copy2.splice(i, 1);
+      return { ...state, [col]: copy2 };
+    }
+    if (i >= 0 && JSON.stringify(list[i]) === JSON.stringify(value)) return state;
+    const copy = list.slice();
+    if (i >= 0) copy[i] = value;
+    else copy.push(value);
+    return { ...state, [col]: copy };
+  }
+  var hasIdb2 = () => typeof indexedDB !== "undefined";
+  var reqP2 = (r) => new Promise((res, rej) => {
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  var dbPromise = null;
+  function openDb2() {
+    if (!hasIdb2()) return Promise.reject(new Error("sem IndexedDB"));
+    if (!dbPromise) dbPromise = new Promise((res, rej) => {
+      const r = indexedDB.open(DB_NAME2, 1);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => {
+        dbPromise = null;
+        rej(r.error);
+      };
+    });
+    return dbPromise;
+  }
+  async function idbGet2(k) {
+    try {
+      const db = await openDb2();
+      return await reqP2(db.transaction("kv").objectStore("kv").get(k));
+    } catch {
+      return void 0;
+    }
+  }
+  async function idbPut(k, v) {
+    try {
+      const db = await openDb2();
+      return await new Promise((res, rej) => {
+        const t = db.transaction("kv", "readwrite");
+        t.objectStore("kv").put(v, k);
+        t.oncomplete = () => res();
+        t.onerror = () => rej(t.error);
+      });
+    } catch {
+    }
+  }
+  async function idbDel(k) {
+    try {
+      const db = await openDb2();
+      return await new Promise((res, rej) => {
+        const t = db.transaction("kv", "readwrite");
+        t.objectStore("kv").delete(k);
+        t.oncomplete = () => res();
+        t.onerror = () => rej(t.error);
+      });
+    } catch {
+    }
+  }
+  var ls3 = () => {
+    try {
+      return globalThis.localStorage || null;
+    } catch {
+      return null;
+    }
+  };
+  var LS_DEVICE2 = "finanplus_nuvem_aparelho";
+  function loadDeviceId() {
+    const l = ls3();
+    try {
+      const o = l && JSON.parse(l.getItem(LS_DEVICE2) || "null");
+      if (o && typeof o.id === "string" && o.id) return o.id;
+    } catch {
+    }
+    const id = "ap-" + Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+    try {
+      l?.setItem(LS_DEVICE2, JSON.stringify({ id }));
+    } catch {
+    }
+    return id;
+  }
+  async function wipeLocalCloud() {
+    for (const k of ["code", "seen", "dirty", "lastSeq"]) await idbDel(k);
+  }
+  var now = () => Date.now();
+  var _Sync_instances, emit_fn, setPhase_fn, googleToken_fn, call_fn2, snapshotState_fn, applyState_fn, persistSoon_fn, persist_fn;
+  var Sync = class {
+    constructor({ cloud = null, google = null, clientId = "", getState = null, apply: apply2 = null, notify = () => {
+    }, onStatus = () => {
+    }, isPaused = null, deviceLabel = "" } = {}) {
+      __privateAdd(this, _Sync_instances);
+      this.cloud = cloud;
+      this.google = google;
+      this.clientId = clientId;
+      this.getState = getState;
+      this.apply = apply2;
+      this.isPaused = isPaused;
+      this.notify = notify;
+      this.onStatus = onStatus;
+      this.deviceId = loadDeviceId();
+      this.label = deviceLabel || "";
+      this.code = "";
+      this.key = null;
+      this.seen = {};
+      this.dirty = /* @__PURE__ */ new Map();
+      this.lastSeq = 0;
+      this.snap = null;
+      this.token = null;
+      this.session = null;
+      this.phase = "off";
+      this.message = "";
+      this.lastSyncAt = 0;
+      this.applying = false;
+      this.busy = false;
+      this.started = false;
+      this.pushTimer = null;
+      this.tickTimer = null;
+      this.lastSilentAt = 0;
+      this.onVis = null;
+      this.onLine = null;
+    }
+    // ---- estado para a interface
+    info() {
+      return {
+        phase: this.phase,
+        message: this.message,
+        email: this.session?.email || "",
+        name: this.session?.name || "",
+        isAdmin: !!this.session?.isAdmin,
+        lastSyncAt: this.lastSyncAt,
+        pending: this.dirty.size,
+        lastSeq: this.lastSeq,
+        hasKey: !!this.code
+      };
+    }
+    // ---- ciclo de vida
+    /** Carrega o que ficou guardado e calcula o estado inicial. Devolve info(). */
+    async init() {
+      const [code, seen, dirty, lastSeq] = await Promise.all([idbGet2("code"), idbGet2("seen"), idbGet2("dirty"), idbGet2("lastSeq")]);
+      this.code = typeof code === "string" ? code : "";
+      this.seen = isObj2(seen) ? seen : {};
+      this.dirty = new Map(isObj2(dirty) ? Object.entries(dirty).filter(([, v]) => Number.isFinite(v)) : []);
+      this.lastSeq = Number.isSafeInteger(lastSeq) && lastSeq >= 0 ? lastSeq : 0;
+      if (this.code && validCode(this.code)) {
+        try {
+          this.key = await keyFromCode(this.code);
+        } catch {
+          this.code = "";
+        }
+      }
+      this.session = loadCloudSession();
+      __privateMethod(this, _Sync_instances, snapshotState_fn).call(this);
+      __privateMethod(this, _Sync_instances, setPhase_fn).call(this, !this.cloud ? "off" : !this.session ? "signedOut" : !this.code ? "needKey" : "ready");
+      return this.info();
+    }
+    start() {
+      if (this.started || !this.cloud || !this.google) return;
+      this.started = true;
+      this.tickTimer = setInterval(() => this.tick(), 15e3);
+      this.onVis = () => {
+        if (!document.hidden) this.tick();
+        else this.flush();
+      };
+      this.onLine = () => this.tick();
+      document.addEventListener("visibilitychange", this.onVis);
+      globalThis.addEventListener?.("online", this.onLine);
+      globalThis.addEventListener?.("offline", () => __privateMethod(this, _Sync_instances, setPhase_fn).call(this, this.phase === "off" ? "off" : "offline"));
+      this.tick();
+    }
+    stop() {
+      this.started = false;
+      clearInterval(this.tickTimer);
+      clearTimeout(this.pushTimer);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVis);
+      globalThis.removeEventListener?.("online", this.onLine);
+    }
+    /** Um passo: entra de novo se preciso (sem interação), puxa e envia. */
+    async tick() {
+      if (!this.cloud || !this.session) {
+        return;
+      }
+      if (this.isPaused?.()) return;
+      if (!this.code) {
+        __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "needKey");
+        return;
+      }
+      if (!this.token && now() - this.lastSilentAt > 4 * 6e4) {
+        this.lastSilentAt = now();
+        const t = await __privateMethod(this, _Sync_instances, googleToken_fn).call(this, true);
+        if (!t) {
+          if (typeof document === "undefined" || !document.hidden) __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "signedOut");
+          return;
+        }
+      }
+      if (!this.token) {
+        __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "signedOut");
+        return;
+      }
+      await this.syncNow();
+    }
+    /** Gravações locais pendentes sobem logo após a edição (com uma pequena espera para agrupar). */
+    schedulePush() {
+      clearTimeout(this.pushTimer);
+      this.pushTimer = setTimeout(() => {
+        if (this.session && this.code && !document.hidden) this.syncNow();
+      }, 1500);
+    }
+    /** Tenta esvaziar a fila agora (ex.: a aba ficou escondida). */
+    flush() {
+      if (this.session && this.code && this.dirty.size) this.syncNow();
+    }
+    /** Marca o que mudou desde a última gravação conhecida (chamado pelo app a cada gravação local). */
+    noteSave(state) {
+      if (!this.snap) __privateMethod(this, _Sync_instances, snapshotState_fn).call(this, state);
+      const recs = stateRecords(state);
+      const next = /* @__PURE__ */ new Map();
+      for (const [k, r] of recs) {
+        const json = JSON.stringify(r.value);
+        next.set(k, { col: r.col, id: r.id, json });
+        const prev = this.snap.get(k);
+        if (!prev || prev.json !== json) this.dirty.set(k, now());
+      }
+      for (const k of this.snap.keys()) if (!recs.has(k) && !this.dirty.has(k)) this.dirty.set(k, now());
+      this.snap = next;
+      __privateMethod(this, _Sync_instances, persistSoon_fn).call(this);
+      if (this.started && this.session && this.code) this.schedulePush();
+    }
+    // ---- entrar / ativar / sair
+    /** Entra com o Google. Devolve {ok, error, message}; 'setup_pending'/'setup_bad_code' pedem o código de instalação. */
+    async signIn({ interactive = false, setupCode = "", render: render2 = null } = {}) {
+      if (!this.cloud) return { ok: false, error: "off", message: "Nuvem não configurada." };
+      const t = await __privateMethod(this, _Sync_instances, googleToken_fn).call(this, !interactive, render2);
+      if (!t) return { ok: false, error: "no_token", message: interactive ? "Entrada não concluída." : "Precisa entrar com o Google de novo." };
+      return this.signInWithCredential(t, { setupCode });
+    }
+    /** Confirma a entrada usando um ID token já obtido (a tela de entrada guarda o token entre tentativas). */
+    async signInWithCredential(t, { setupCode = "" } = {}) {
+      if (!this.cloud) return { ok: false, error: "off", message: "Nuvem não configurada." };
+      let j;
+      try {
+        j = await this.cloud.call("hello", { clientId: this.clientId, name: t.name || "", ...setupCode ? { setupCode } : {} }, t.credential);
+      } catch (e) {
+        if (e.code === "setup_pending" || e.code === "setup_bad_code") return { ok: false, error: e.code, message: e.message };
+        if (e.code === "offline") return { ok: false, error: "offline", message: e.message };
+        return { ok: false, error: e.code || "error", message: e.message || "Não foi possível entrar." };
+      }
+      this.token = t;
+      this.session = { email: j.email || t.email, name: j.name || t.name, isAdmin: !!j.isAdmin };
+      saveCloudSession(this.session);
+      __privateMethod(this, _Sync_instances, setPhase_fn).call(this, this.code ? "ready" : "needKey");
+      return { ok: true, isAdmin: !!j.isAdmin, stats: j.stats || null };
+    }
+    /** Quantos registros existem na nuvem (para avisar antes de criar uma chave nova). */
+    async serverStats() {
+      try {
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "hello", { stats: true });
+        return j.stats || null;
+      } catch {
+        return null;
+      }
+    }
+    /**
+     * Liga este aparelho à nuvem.
+     * mode 'create': os dados deste aparelho prevalecem (primeiro aparelho);
+     * mode 'join': os dados da nuvem prevalecem (aparelho novo).
+     */
+    async activate({ mode, code }) {
+      if (!this.session) return { ok: false, error: "signedOut", message: "Entre com o Google primeiro." };
+      const norm = normalizeCode(code);
+      if (!validCode(norm)) return { ok: false, error: "bad_code", message: "O código da casa está incompleto (são 24 caracteres)." };
+      let key;
+      try {
+        key = await keyFromCode(norm);
+      } catch (e) {
+        return { ok: false, error: "bad_code", message: e.message };
+      }
+      let full;
+      try {
+        full = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "pull", { since: 0, full: true });
+      } catch (e) {
+        return { ok: false, error: e.code || "error", message: e.message };
+      }
+      const records = Array.isArray(full.records) ? full.records : [];
+      const opened = [];
+      let fails = 0;
+      for (const rec of records) {
+        if (!COLS.includes(rec.col) && rec.col !== "settings") continue;
+        if (rec.deleted) {
+          opened.push({ rec, value: null });
+          continue;
+        }
+        try {
+          opened.push({ rec, value: sanitize(rec.col, rec.id, await unseal(key, rec.col, rec.id, rec.blob)) });
+        } catch {
+          fails++;
+        }
+      }
+      if (fails && mode === "join") return { ok: false, error: "code_mismatch", message: `O código não abre ${fails === 1 ? "um registro" : fails + " registros"} que já estão na nuvem. Confira se é o mesmo código do outro aparelho.` };
+      const state0 = this.getState();
+      const local = stateRecords(state0);
+      let state = state0;
+      const seen = {}, remoteKeys = /* @__PURE__ */ new Set(), dirty = /* @__PURE__ */ new Map();
+      for (const { rec, value } of opened) {
+        const k = rk(rec.col, rec.id);
+        remoteKeys.add(k);
+        seen[k] = Number(rec.ts) || 0;
+        if (rec.deleted) {
+          if (mode === "join") state = applyRecord(state, rec.col, rec.id, null);
+          continue;
+        }
+        if (!value) continue;
+        if (mode === "join") state = applyRecord(state, rec.col, rec.id, value);
+        else if (!local.has(k)) state = applyRecord(state, rec.col, rec.id, value);
+        else dirty.set(k, now());
+      }
+      for (const k of local.keys()) if (!remoteKeys.has(k)) dirty.set(k, now());
+      this.key = key;
+      this.code = norm;
+      this.seen = seen;
+      this.dirty = dirty;
+      this.lastSeq = Number(full.lastSeq) || 0;
+      await idbPut("code", this.code);
+      await __privateMethod(this, _Sync_instances, persist_fn).call(this);
+      __privateMethod(this, _Sync_instances, applyState_fn).call(this, state);
+      __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "ready");
+      const pushed = await this.pushOnce().catch(() => null);
+      return { ok: true, failures: fails, pushed: pushed?.applied || 0, conflicts: pushed?.conflicts || 0, total: dirty.size };
+    }
+    /** Sai: para a sincronização e apaga os metadados desta nuvem neste aparelho (os dados locais ficam). */
+    async disconnect() {
+      this.stop();
+      await wipeLocalCloud();
+      this.code = "";
+      this.key = null;
+      this.seen = {};
+      this.dirty = /* @__PURE__ */ new Map();
+      this.lastSeq = 0;
+      this.token = null;
+      this.session = null;
+      this.snap = null;
+      clearCloudSession();
+      disableGoogleAutoSelect();
+      __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "signedOut");
+      return { ok: true };
+    }
+    // ---- puxar e enviar
+    async syncNow() {
+      if (this.busy || !this.session || !this.code || !this.key) return { ok: false, error: "not_ready" };
+      this.busy = true;
+      if (this.phase !== "off") __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "syncing");
+      try {
+        await this.pullOnce();
+        await this.pushOnce();
+        this.lastSyncAt = now();
+        __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "ready");
+        __privateMethod(this, _Sync_instances, emit_fn).call(this);
+        return { ok: true };
+      } catch (e) {
+        const offline2 = e.code === "offline";
+        if (e.code === "auth_invalid") {
+          this.token = null;
+          __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "signedOut");
+        } else __privateMethod(this, _Sync_instances, setPhase_fn).call(this, offline2 ? "offline" : "error", e.message || "Não foi possível sincronizar.");
+        return { ok: false, error: e.code || "error", message: e.message };
+      } finally {
+        this.busy = false;
+      }
+    }
+    async pullOnce() {
+      let rounds = 0, changed = false, conflicts = 0;
+      let state = this.getState();
+      const applyIncoming = async (rec) => {
+        const k = rk(rec.col, rec.id);
+        const ts = Number(rec.ts) || 0;
+        const localTs = this.dirty.get(k) || 0;
+        this.seen[k] = ts;
+        if (rec.deleted) {
+          if (localTs && localTs >= ts) return;
+          const s22 = applyRecord(state, rec.col, rec.id, null);
+          if (s22 !== state) {
+            state = s22;
+            changed = true;
+          }
+          this.dirty.delete(k);
+          return;
+        }
+        let value = null;
+        try {
+          value = sanitize(rec.col, rec.id, await unseal(this.key, rec.col, rec.id, rec.blob));
+        } catch {
+          return;
+        }
+        if (!value) return;
+        if (localTs) {
+          if (localTs >= ts) return;
+          this.dirty.delete(k);
+          conflicts++;
+        }
+        const s2 = applyRecord(state, rec.col, rec.id, value);
+        if (s2 !== state) {
+          state = s2;
+          changed = true;
+        }
+      };
+      while (rounds++ < 12) {
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "pull", { since: this.lastSeq, exclude: this.deviceId });
+        if (j.full) {
+          const used = /* @__PURE__ */ new Set();
+          for (const rec of Array.isArray(j.records) ? j.records : []) {
+            if (!COLS.includes(rec.col) && rec.col !== "settings") continue;
+            used.add(rk(rec.col, rec.id));
+            await applyIncoming({ col: rec.col, id: rec.id, ts: rec.ts, deleted: rec.deleted, blob: rec.blob });
+          }
+          for (const [k] of stateRecords(state)) {
+            if (used.has(k) || this.dirty.has(k)) continue;
+            const [col, id] = k.split("\0");
+            const s2 = applyRecord(state, col, id, null);
+            if (s2 !== state) {
+              state = s2;
+              changed = true;
+            }
+          }
+        } else {
+          for (const ev of Array.isArray(j.events) ? j.events : []) {
+            if (!COLS.includes(ev.col) && ev.col !== "settings") continue;
+            await applyIncoming({ col: ev.col, id: ev.id, ts: ev.ts, deleted: ev.deleted, blob: ev.blob });
+          }
+        }
+        this.lastSeq = Math.max(this.lastSeq, Number(j.lastSeq) || 0);
+        __privateMethod(this, _Sync_instances, persistSoon_fn).call(this);
+        if (!j.hasMore) break;
+      }
+      if (changed) __privateMethod(this, _Sync_instances, applyState_fn).call(this, state);
+      if (conflicts) this.notify("Alterações de outra pessoa", conflicts === 1 ? "Um registro foi alterado por outra pessoa antes da sua alteração. A versão mais recente foi mantida." : `${conflicts} registros foram alterados por outra pessoa antes das suas alterações. As versões mais recentes foram mantidas.`);
+      if (changed || conflicts) __privateMethod(this, _Sync_instances, emit_fn).call(this);
+    }
+    /** Sobe as pendências. localWins: sobrescrever a nuvem mesmo que ela tenha mudado. */
+    async pushOnce({ localWins = false } = {}) {
+      let rounds = 0, applied = 0, conflicts = 0;
+      const force = /* @__PURE__ */ new Map();
+      while (this.dirty.size && rounds++ < 8) {
+        const recs = stateRecords(this.getState());
+        const keys = [...this.dirty.keys()].slice(0, 100);
+        const changes = [];
+        for (const k of keys) {
+          const r = recs.get(k);
+          const base = force.has(k) ? force.get(k) : this.seen[k] || 0;
+          if (!r) changes.push({ col: k.split("\0")[0], id: k.split("\0")[1], baseTs: base, deleted: true });
+          else changes.push({ col: r.col, id: r.id, baseTs: base, deleted: false, blob: await seal(this.key, r.col, r.id, r.value) });
+        }
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "push", { changes, updater: this.deviceId });
+        for (const a of j.applied || []) {
+          const k = rk(a.col, a.id);
+          this.dirty.delete(k);
+          force.delete(k);
+          this.seen[k] = Number(a.ts) || 0;
+          applied++;
+        }
+        for (const c of j.conflicts || []) {
+          const k = rk(c.col, c.id);
+          const myTs = this.dirty.get(k) || 0;
+          if (c.deleted) {
+            if (localWins || myTs >= (Number(c.ts) || 0)) {
+              force.set(k, Number(c.ts) || 0);
+              continue;
+            }
+            this.dirty.delete(k);
+            const s2 = applyRecord(this.getState(), c.col, c.id, null);
+            if (s2 !== this.getState()) __privateMethod(this, _Sync_instances, applyState_fn).call(this, s2);
+            conflicts++;
+            continue;
+          }
+          if (localWins || myTs >= (Number(c.ts) || 0)) {
+            force.set(k, Number(c.ts) || 0);
+            continue;
+          }
+          this.dirty.delete(k);
+          this.seen[k] = Number(c.ts) || 0;
+          let value = null;
+          try {
+            value = sanitize(c.col, c.id, await unseal(this.key, c.col, c.id, c.blob));
+          } catch {
+          }
+          if (value != null) {
+            const s2 = applyRecord(this.getState(), c.col, c.id, value);
+            if (s2 !== this.getState()) {
+              __privateMethod(this, _Sync_instances, applyState_fn).call(this, s2);
+            }
+          }
+          conflicts++;
+        }
+        this.lastSeq = Math.max(this.lastSeq, Number(j.lastSeq) || 0);
+        await __privateMethod(this, _Sync_instances, persist_fn).call(this);
+        const stuck = keys.filter((k) => this.dirty.has(k) && !force.has(k));
+        if (stuck.length === keys.length) break;
+      }
+      if (conflicts) this.notify("Alterações de outra pessoa", conflicts === 1 ? "Um registro que você alterou também foi alterado por outra pessoa. A versão mais recente foi mantida." : `${conflicts} registros também foram alterados por outra pessoa. As versões mais recentes foram mantidas.`);
+      if (applied || conflicts) __privateMethod(this, _Sync_instances, emit_fn).call(this);
+      return { applied, conflicts };
+    }
+    /** Envia todos os registros deste aparelho para a nuvem (a versão daqui prevalece). */
+    async resendAll() {
+      this.dirty = new Map([...stateRecords(this.getState()).keys()].map((k) => [k, now()]));
+      await __privateMethod(this, _Sync_instances, persist_fn).call(this);
+      try {
+        return { ok: true, ...await this.pushOnce({ localWins: true }) };
+      } catch (e) {
+        return { ok: false, error: e.code || "error", message: e.message };
+      }
+    }
+    /** Apaga tudo o que está na nuvem (admin). O código da casa e os membros continuam. */
+    async wipeCloud() {
+      try {
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "wipe", { confirm: "APAGAR" });
+        this.seen = {};
+        this.dirty = /* @__PURE__ */ new Map();
+        this.lastSeq = Math.max(this.lastSeq, Number(j.lastSeq) || 0);
+        await __privateMethod(this, _Sync_instances, persist_fn).call(this);
+        __privateMethod(this, _Sync_instances, emit_fn).call(this);
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e.code || "error", message: e.message };
+      }
+    }
+    async members() {
+      try {
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "members", {});
+        return { ok: true, members: j.members || [] };
+      } catch (e) {
+        return { ok: false, error: e.code || "error", message: e.message };
+      }
+    }
+    async memberAdd(email) {
+      try {
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "member-add", { email });
+        return { ok: true, members: j.members || [] };
+      } catch (e) {
+        return { ok: false, error: e.code || "error", message: e.message };
+      }
+    }
+    async memberRemove(email) {
+      try {
+        const j = await __privateMethod(this, _Sync_instances, call_fn2).call(this, "member-remove", { email });
+        return { ok: true, members: j.members || [] };
+      } catch (e) {
+        return { ok: false, error: e.code || "error", message: e.message };
+      }
+    }
+    /** Código da casa atual, para mostrar/copiar. */
+    currentCode() {
+      return this.code;
+    }
+  };
+  _Sync_instances = new WeakSet();
+  emit_fn = function() {
+    try {
+      this.onStatus(this.info());
+    } catch (e) {
+      console.warn("sync status", e);
+    }
+  };
+  setPhase_fn = function(phase, message = "") {
+    if (this.phase !== phase || this.message !== message) {
+      this.phase = phase;
+      this.message = message;
+      __privateMethod(this, _Sync_instances, emit_fn).call(this);
+    }
+  };
+  googleToken_fn = async function(silent, render2 = null) {
+    try {
+      const t = await this.google.requestToken({ silent, render: render2, clientId: this.clientId });
+      if (t?.credential) {
+        this.token = t;
+        return t;
+      }
+    } catch (e) {
+      console.warn("google", e);
+    }
+    return null;
+  };
+  call_fn2 = async function(action, params) {
+    if (!this.token) {
+      const t = await __privateMethod(this, _Sync_instances, googleToken_fn).call(this, true);
+      if (!t) {
+        __privateMethod(this, _Sync_instances, setPhase_fn).call(this, "signedOut");
+        const e = new Error("Sessão do Google expirada.");
+        e.code = "auth_invalid";
+        throw e;
+      }
+    }
+    try {
+      return await this.cloud.call(action, params, this.token.credential);
+    } catch (e) {
+      if (e.code === "auth_invalid") {
+        this.token = null;
+      }
+      throw e;
+    }
+  };
+  snapshotState_fn = function(state = this.getState()) {
+    const recs = stateRecords(state || newState());
+    this.snap = new Map([...recs].map(([k, r]) => [k, { col: r.col, id: r.id, json: JSON.stringify(r.value) }]));
+  };
+  applyState_fn = function(state) {
+    this.applying = true;
+    try {
+      this.apply(state);
+    } finally {
+      this.applying = false;
+    }
+    __privateMethod(this, _Sync_instances, snapshotState_fn).call(this, state);
+  };
+  persistSoon_fn = function() {
+    clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => __privateMethod(this, _Sync_instances, persist_fn).call(this), 1200);
+  };
+  persist_fn = async function() {
+    clearTimeout(this.persistTimer);
+    await Promise.all([
+      idbPut("seen", this.seen),
+      idbPut("dirty", Object.fromEntries(this.dirty)),
+      idbPut("lastSeq", this.lastSeq),
+      this.code ? idbPut("code", this.code) : Promise.resolve()
+    ]);
+  };
+
   // js/app.js
   var env = { encrypted: false, remote: false };
   var REMOTE = isRemote();
@@ -4899,8 +6329,10 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     else render();
   });
   async function persist() {
+    const fromCloud = !!ctx.sync?.applying;
     try {
       await ctx.store.save(ctx.state);
+      if (!fromCloud) ctx.sync?.noteSave(ctx.state);
       channel?.postMessage({ type: "saved" });
     } catch (e) {
       if (e instanceof ConflictError) {
@@ -5185,6 +6617,15 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     backup: () => exportBackup(),
     restore: () => restoreBackup(),
     wipe: () => wipeAll(),
+    "cloud-setup": () => cloudSetup(),
+    "cloud-login": () => cloudLogin(),
+    "cloud-activate": () => cloudActivate(),
+    "cloud-key": () => cloudKey(),
+    "cloud-members": () => cloudMembers(),
+    "cloud-sync": () => cloudSyncNow(),
+    "cloud-disconnect": () => cloudDisconnect(),
+    "cloud-resend": () => cloudResend(),
+    "cloud-wipe": () => cloudWipe(),
     theme: (el) => ctx.replace({ ...ctx.state, theme: el.dataset.id }),
     "pin-set": () => setPin(),
     "pin-remove": () => removePin(),
@@ -5358,6 +6799,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
         launchParams();
         flushPending();
         checkNotifications();
+        ctx.sync?.tick();
         return;
       }
       updateDevice((d) => Throttle.fail(d));
@@ -5440,7 +6882,16 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   async function wipeAll() {
     if (REMOTE) return notice("Apagar tudo", "Pelo navegador não é possível apagar os dados do celular. Se quiser mesmo apagar, use Ajustes › Dados › Apagar tudo no próprio celular.");
-    if (!await ask("Apagar todos os dados", "Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.", { ok: "Apagar tudo", danger: true })) return;
+    const cloudOn = !!ctx.sync?.session;
+    if (!await ask("Apagar todos os dados", cloudOn ? "Apagar TODOS os dados deste aparelho, o PIN e a ligação com a nuvem? Os dados que já estão na nuvem continuam lá (para apagá-los, use Ajustes › Conta e nuvem › Apagar na nuvem). Faça um backup antes." : "Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.", { ok: "Apagar tudo", danger: true })) return;
+    if (cloudOn) {
+      try {
+        await ctx.sync.disconnect();
+      } catch (e) {
+        console.warn(e);
+      }
+      ctx.cloud = ctx.sync?.info() || null;
+    }
     await ctx.store.wipe();
     wipeDevice();
     ctx.device = loadDevice();
@@ -5545,6 +6996,7 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
     if (started) return;
     started = true;
     if (!REMOTE) Store.persist();
+    if (!REMOTE) cloudInit().catch((e) => console.warn("nuvem", e));
     try {
       channel = new BroadcastChannel("finan-plus");
       channel.onmessage = onPeer;
@@ -5565,6 +7017,61 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
       }
     });
   }
+  var cloudSig = "";
+  var cloudPrevPhase = "";
+  function cloudUi() {
+    if (ctx.problem || !ctx.state) return;
+    const c = ctx.cloud || {};
+    const phase = c.phase || "";
+    if (phase === "signedOut" && cloudPrevPhase && cloudPrevPhase !== "signedOut" && c.email && ctx.cloudCfg) {
+      toast("A sessão do Google expirou. Entre de novo em Ajustes › Conta e nuvem.", 6e3);
+    }
+    cloudPrevPhase = phase;
+    const foot = $("#sideFoot");
+    if (foot) foot.innerHTML = sideFootHtml();
+    const sig = [phase, c.message || "", c.pending || 0, c.hasKey ? 1 : 0, c.email || "", c.isAdmin ? 1 : 0].join("|");
+    if (ctx.view === "prefs" && !dialogOpen() && sig !== cloudSig) {
+      cloudSig = sig;
+      const el = $("#prefsView");
+      if (el) {
+        el.innerHTML = prefsView(env);
+        bindView();
+      }
+    }
+  }
+  async function cloudInit() {
+    if (REMOTE) return;
+    ctx.cloudCfg = await effectiveCloudConfig().catch(() => null);
+    ctx.sync = new Sync({
+      cloud: ctx.cloudCfg ? new Cloud(ctx.cloudCfg.url) : null,
+      google: { requestToken: (o) => requestGoogleToken({ ...o, clientId: ctx.cloudCfg?.clientId || "" }) },
+      clientId: ctx.cloudCfg?.clientId || "",
+      getState: () => ctx.state,
+      apply: (s) => ctx.replace(s),
+      notify: (t, m) => {
+        if (ctx.locked || ctx.problem) pending.push([t, m]);
+        else notice(t, m);
+      },
+      onStatus: (info) => {
+        ctx.cloud = info;
+        cloudUi();
+      },
+      isPaused: () => !!(ctx.locked || ctx.problem)
+    });
+    await ctx.sync.init();
+    ctx.cloud = ctx.sync.info();
+    if (ctx.cloudCfg) ctx.sync.start();
+    cloudUi();
+  }
+  ctx.cloudReload = async () => {
+    try {
+      ctx.sync?.stop();
+    } catch {
+    }
+    ctx.sync = null;
+    ctx.cloud = null;
+    await cloudInit();
+  };
   async function openRemote(message = "") {
     for (; ; ) {
       if (!getToken()) await pairFlow($("#lock"), message);

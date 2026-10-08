@@ -8,6 +8,9 @@ import { Categorizer } from './assist.js';
 import { buildReport, preset, PRESETS, reportFileName } from './report.js';
 import { renderPdf } from './pdf.js';
 import { hashPin, verifyPin, pinValidFormat } from './store.js';
+import { newCode, formatCode, validCode } from './e2e.js';
+import { loadCloudConfig, saveCloudConfig, clearCloudConfig, validCloudUrl } from './cloud.js';
+import { requestGoogleToken } from './google.js';
 import { icon } from './icons.js';
 import { esc, attr, openSheet, closeSheet, notice, confirmDlg, ask, promptDlg, field, input, moneyInput, select, check, btn, formData, toast, why } from './ui.js';
 import { ctx, money, APP_VERSION } from './ctx.js';
@@ -328,6 +331,250 @@ export async function removePin() {
   else notice('Não foi possível remover', 'PIN incorreto.');
 }
 
+// ------------------------------------------------------------------ nuvem (Conta e nuvem)
+const syncOf = () => ctx.sync;
+async function copyText(text) { try { await navigator.clipboard.writeText(text); return true; } catch { return false; } }
+
+/** URL do serviço e ID do cliente Google (normalmente vêm do nuvem.json publicado com o site). */
+export function cloudSetup() {
+  const cur = loadCloudConfig();
+  const d = openSheet({
+    title: 'Serviço da nuvem', subtitle: 'Endereço do Apps Script e ID do cliente Google (veja NUVEM.md).',
+    body: `${field('URL do serviço', input('url', cur.url, { placeholder: 'https://script.google.com/macros/s/…/exec', max: 300 }), { hint: 'A URL /exec da implantação do Apps Script.' })}
+      ${field('ID do cliente Google', input('cid', cur.clientId, { placeholder: '…apps.googleusercontent.com', max: 200 }), { hint: 'O cliente OAuth criado no Google Cloud para o login.' })}
+      <p class="muted small">Normalmente os dois valores ficam no arquivo <b>nuvem.json</b> publicado junto do site. Preencha aqui somente para testar ou usar uma nuvem própria neste aparelho.</p>
+      <div class="btnGrid">${btn('Salvar', { id: 'cloudSave', cls: 'primary' })}${btn('Remover configuração', { id: 'cloudClear', cls: 'soft' })}</div>`,
+  });
+  d.querySelector('#cloudSave').onclick = async () => {
+    const url = d.querySelector('[name=url]').value.trim(), clientId = d.querySelector('[name=cid]').value.trim();
+    if (!validCloudUrl(url) || !clientId) return notice('Confira os valores', 'A URL precisa começar com https:// (ou http://localhost, para testes) e o ID do cliente não pode ficar vazio.');
+    saveCloudConfig({ url, clientId });
+    closeSheet();
+    await ctx.cloudReload?.();
+    toast('Serviço salvo');
+  };
+  d.querySelector('#cloudClear').onclick = async () => {
+    clearCloudConfig();
+    closeSheet();
+    await ctx.cloudReload?.();
+    toast('Configuração removida');
+  };
+}
+
+/** Entrar com o Google (botão oficial dentro da folha) e, se o serviço for novo, ativá-lo com o SETUP_CODE. */
+export function cloudLogin() {
+  const sync = syncOf();
+  if (!sync) return cloudSetup();
+  const d = openSheet({
+    title: 'Entrar com o Google', subtitle: 'A conta Google só é usada para autorizar este aparelho a sincronizar.',
+    body: `<div class="gbox" id="gbtn"></div>
+      <small id="loginMsg" class="pinErr" role="status">Toque no botão do Google para entrar.</small>
+      <div id="setupBox" hidden>
+        <div class="infoBox">${icon('settings', 18)}<p>O serviço ainda não foi ativado. No editor do Apps Script (script.google.com), rode a função <b>bootstrap</b> uma vez — ou crie a propriedade <b>SETUP_CODE</b> (Propriedades do projeto › Propriedades do script) e digite-a aqui. Quem entrar depois disso precisa ser autorizado em Membros.</p></div>
+        ${field('Código de instalação', input('setupCode', '', { placeholder: 'o SETUP_CODE definido no script', max: 60 }))}
+        <div class="btnGrid">${btn('Ativar serviço', { id: 'setupGo', cls: 'primary' })}</div>
+      </div>`,
+  });
+  const msg = d.querySelector('#loginMsg'), box = d.querySelector('#setupBox');
+  let cred = null;
+  const attempt = async (setupCode = '') => {
+    msg.textContent = 'Confirmando com a nuvem…';
+    const r = await sync.signInWithCredential(cred, { setupCode });
+    if (r.ok) {
+      closeSheet();
+      toast('Conectado à nuvem');
+      if (!sync.currentCode()) cloudActivate();
+      return;
+    }
+    if (r.error === 'setup_pending' || r.error === 'setup_bad_code') { box.hidden = false; msg.textContent = r.message; if (r.error === 'setup_bad_code') d.querySelector('[name=setupCode]').focus(); return; }
+    msg.textContent = r.error === 'not_member'
+      ? 'Esta conta ainda não foi autorizada. Peça para quem administra adicionar o seu e-mail em Ajustes › Conta e nuvem › Membros.'
+      : (r.message || 'Não foi possível entrar.');
+  };
+  requestGoogleToken({ clientId: ctx.cloudCfg?.clientId || '', render: d.querySelector('#gbtn') })
+    .then(g => { if (!g) { msg.textContent = 'Entrada não concluída. Toque no botão do Google.'; return; } cred = g; msg.textContent = `Conta: ${g.email}`; return attempt(''); })
+    .catch(e => { msg.textContent = e?.message || 'Não foi possível falar com o Google.'; });
+  d.querySelector('#setupGo').addEventListener('click', () => { if (!cred) return; attempt(d.querySelector('[name=setupCode]').value.trim()); });
+}
+
+/** Ativar a sincronização neste aparelho: primeiro (criar a chave) ou entrando numa nuvem que já existe. */
+export function cloudActivate() {
+  const sync = syncOf();
+  if (!sync?.session) return cloudLogin();
+  const d = openSheet({ title: 'Ativar a sincronização', subtitle: 'Ligue este aparelho à sua nuvem.', body: '<div></div>' });
+  const body = d.querySelector('.sheetBody');
+  let mode = null, genCode = null, stats = null, checking = true;
+  sync.serverStats().then(s => { stats = s; checking = false; if (mode === null) render(); });
+  const render = () => {
+    if (mode === null) {
+      body.innerHTML = `
+        <p class="muted small">Como este aparelho entra na casa?</p>
+        <div class="btnCol">
+          <button type="button" class="optCard" id="mCreate">${icon('upload', 22)}<span><b>Este é o primeiro aparelho</b><small>Os dados que já existem aqui passam a valer para todos, cifrados na nuvem.</small></span></button>
+          <button type="button" class="optCard" id="mJoin">${icon('download', 22)}<span><b>Já tenho a nuvem em outro aparelho</b><small>Os dados da nuvem chegam aqui; o que existe só aqui também sobe.<br>Você vai precisar do código da casa.</small></span></button>
+        </div>
+        ${checking ? '<p class="muted small">Verificando a nuvem…</p>' : stats && stats.records > 0 ? `<p class="muted small">A nuvem já tem ${stats.records} registro(s).</p>` : ''}`;
+      d.querySelector('#mCreate').onclick = () => { mode = 'create'; render(); };
+      d.querySelector('#mJoin').onclick = () => { mode = 'join'; render(); };
+      return;
+    }
+    if (mode === 'create') {
+      genCode = genCode || newCode();
+      const hasData = stats && stats.records > 0;
+      body.innerHTML = `
+        ${hasData
+          ? `<div class="infoBox">${icon('warning', 18)}<p>Já existem <b>${stats.records}</b> registro(s) na nuvem. Criar uma chave nova torna esses dados antigos ilegíveis (continuam lá, mas sem abrir). Se você já usava esta nuvem, use “Já tenho um código”.</p></div>`
+          : `<p class="muted small">A chave da casa é criada agora. Guarde o código num lugar seguro (ex.: gerenciador de senhas): é ele que abre os dados da nuvem, e não há recuperação sem ele.</p>`}
+        <label class="field codeField"><span>Código da casa (24 caracteres)</span><input readonly id="newKey" value="${attr(formatCode(genCode))}" spellcheck="false"></label>
+        <div class="btnGrid">${btn('Copiar', { id: 'copyKey', cls: 'primary', icon: 'content-copy', iconSize: 18 })}${btn('Gerar outro', { id: 'genKey', icon: 'sync', iconSize: 18 })}</div>
+        ${check('keyOk', 'Guardei o código num lugar seguro', false, { sub: 'Sem o código e todos os aparelhos, os dados da nuvem não têm como ser recuperados.' })}
+        <div class="btnCol" style="margin-top:10px">
+          ${btn('Ativar e enviar deste aparelho', { id: 'actGo', cls: 'primary wide', disabled: true })}
+          ${btn('Já tenho um código', { id: 'toJoin', cls: 'soft' })}
+          ${btn('Voltar', { id: 'back', cls: 'soft' })}
+        </div>
+        <small id="actMsg" class="pinErr" role="alert"></small>`;
+      const chk = d.querySelector('[name=keyOk]');
+      chk.onchange = () => { d.querySelector('#actGo').disabled = !chk.checked; };
+      d.querySelector('#copyKey').onclick = async () => { const ok = await copyText(formatCode(genCode)); toast(ok ? 'Código copiado' : 'Selecione o campo e copie'); };
+      d.querySelector('#genKey').onclick = () => { genCode = newCode(); render(); };
+      d.querySelector('#toJoin').onclick = () => { mode = 'join'; render(); };
+      d.querySelector('#back').onclick = () => { mode = null; render(); };
+      d.querySelector('#actGo').onclick = async () => {
+        const msg = d.querySelector('#actMsg');
+        msg.textContent = 'Ativando e enviando os dados…';
+        const r = await sync.activate({ mode: 'create', code: genCode });
+        if (!r.ok) { msg.textContent = r.message || 'Não foi possível ativar. Tente de novo.'; return; }
+        closeSheet(); toast('Sincronização ativada');
+        if (r.failures) notice('Nuvem', `${r.failures} registro(s) antigos da nuvem não puderam ser abertos com a chave nova e continuam lá sem uso.`);
+      };
+      return;
+    }
+    body.innerHTML = `
+      <p class="muted small">Digite o <b>código da casa</b> do outro aparelho (Ajustes › Conta e nuvem › Código da casa). São 24 caracteres; pode colar.</p>
+      ${field('Código da casa', input('joinCode', '', { placeholder: 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX', max: 40 }))}
+      ${check('joinOk', 'Entendi: os dados da nuvem passam a valer neste aparelho (o que existe só aqui também sobe)', false)}
+      <div class="btnCol" style="margin-top:10px">
+        ${btn('Ativar e baixar da nuvem', { id: 'actGo2', cls: 'primary wide', disabled: true })}
+        ${btn('Voltar', { id: 'back2', cls: 'soft' })}
+      </div>
+      <small id="actMsg2" class="pinErr" role="alert"></small>`;
+    const chk2 = d.querySelector('[name=joinOk]');
+    chk2.onchange = () => { d.querySelector('#actGo2').disabled = !chk2.checked; };
+    d.querySelector('#back2').onclick = () => { mode = null; render(); };
+    d.querySelector('#actGo2').onclick = async () => {
+      const msg = d.querySelector('#actMsg2'), raw = d.querySelector('[name=joinCode]').value;
+      if (!validCode(raw)) { msg.textContent = 'O código tem 24 caracteres.'; return; }
+      msg.textContent = 'Lendo e combinando os dados…';
+      const r = await sync.activate({ mode: 'join', code: raw });
+      if (!r.ok) { msg.textContent = r.message || 'Não foi possível ativar. Tente de novo.'; return; }
+      closeSheet(); toast('Nuvem conectada neste aparelho');
+    };
+  };
+  render();
+}
+
+/** Mostrar/copiar o código da casa. */
+export function cloudKey() {
+  const sync = syncOf();
+  const code = sync?.currentCode();
+  if (!code) return notice('Nuvem', 'Este aparelho ainda não tem o código da casa. Ative a sincronização primeiro.');
+  const d = openSheet({
+    title: 'Código da casa', subtitle: 'A chave que abre os dados na nuvem.',
+    body: `<label class="field codeField"><span>Código da casa</span><input readonly id="keyIn" value="${attr(formatCode(code))}" spellcheck="false"></label>
+      <div class="btnGrid">${btn('Copiar', { id: 'copyKey', cls: 'primary', icon: 'content-copy', iconSize: 18 })}</div>
+      <div class="infoBox">${icon('lock', 18)}<p>Guarde num lugar seguro (ex.: gerenciador de senhas). Quem tiver este código <b>e</b> um login autorizado consegue ler os dados; sem ele, nem o Google consegue.</p></div>`,
+  });
+  d.querySelector('#copyKey').onclick = async () => { const ok = await copyText(formatCode(code)); toast(ok ? 'Código copiado' : 'Selecione o campo e copie'); };
+}
+
+/** Membros da casa: listar sempre; adicionar/remover só o administrador. */
+export async function cloudMembers() {
+  const sync = syncOf();
+  if (!sync) return notice('Nuvem', 'Configure o serviço primeiro.');
+  const d = openSheet({ title: 'Membros da casa', subtitle: 'Quem pode entrar e sincronizar com esta nuvem.', body: '<p class="muted small">Carregando…</p>' });
+  const render = r => {
+    const body = d.querySelector('.sheetBody');
+    if (!r.ok) { body.innerHTML = `<p class="muted">${esc(r.message || 'Não foi possível carregar os membros.')}</p>`; return; }
+    const me = sync.info();
+    body.innerHTML = `
+      <div class="manageList">${r.members.map(m => `<div class="manageItem"><div><b>${esc(m.email)}</b><small>${m.admin ? 'Administra a casa' : 'Membro'}${m.name ? ' · ' + esc(m.name) : ''}</small></div>
+        <div class="manageActions">${(!m.admin && me.isAdmin) ? btn('', { cls: 'icon tiny dangerIc', icon: 'delete', iconSize: 16, label: `Remover ${m.email}`, data: { email: m.email } }) : ''}</div></div>`).join('')}</div>
+      ${me.isAdmin
+        ? `<form id="addForm" class="filters"><input name="email" type="email" placeholder="e-mail da pessoa" maxlength="120" aria-label="E-mail do novo membro" autocomplete="off">${btn('Adicionar', { submit: true, cls: 'primary' })}</form>
+           <p class="muted small">A pessoa entra com essa conta Google em Ajustes › Conta e nuvem › Entrar com o Google. Ela também precisa do código da casa.</p>`
+        : '<p class="muted small">Só quem administra pode adicionar ou remover pessoas.</p>'}`;
+    const form = body.querySelector('#addForm');
+    if (form) form.onsubmit = async e => {
+      e.preventDefault();
+      const email = form.querySelector('[name=email]').value.trim();
+      if (!email) return;
+      const res = await sync.memberAdd(email);
+      if (!res.ok) return notice('Membros', res.message || 'Não foi possível adicionar.');
+      toast('Membro adicionado');
+      render(res);
+    };
+    body.querySelectorAll('[data-email]').forEach(b => b.onclick = async () => {
+      if (!await ask('Remover membro', `“${b.dataset.email}” deixa de conseguir sincronizar nesta nuvem. O que já está no aparelho dessa pessoa continua lá.`, { ok: 'Remover', danger: true })) return;
+      const res = await sync.memberRemove(b.dataset.email);
+      if (!res.ok) return notice('Membros', res.message || 'Não foi possível remover.');
+      toast('Membro removido');
+      render(res);
+    });
+  };
+  render(await sync.members());
+}
+
+/** Sincronizar agora, com recado claro do que aconteceu. */
+export async function cloudSyncNow() {
+  const sync = syncOf();
+  if (!sync) return;
+  const r = await sync.syncNow();
+  if (r.ok) return toast('Nuvem em dia');
+  if (r.error === 'not_ready') return;
+  if (r.error === 'offline') return notice('Sem conexão', r.message || 'Confira a internet e tente de novo.');
+  if (r.error === 'auth_invalid') return cloudLogin();
+  notice('Nuvem', r.message || 'Não foi possível sincronizar.');
+}
+
+/** Desconectar este aparelho (os dados daqui ficam; os da nuvem continuam na conta Google). */
+export async function cloudDisconnect() {
+  const sync = syncOf();
+  if (!sync) return;
+  if (!await ask('Desconectar da nuvem', 'Este aparelho para de sincronizar e esquece o código da casa e a conta Google. Os dados daqui continuam neste aparelho; os da nuvem continuam na sua conta. Continuar?', { ok: 'Desconectar' })) return;
+  await sync.disconnect();
+  toast('Desconectado da nuvem');
+}
+
+/** Reenviar todos os registros deste aparelho (a versão daqui prevalece). */
+export async function cloudResend() {
+  const sync = syncOf();
+  if (!sync) return;
+  if (!await ask('Enviar tudo deste aparelho', 'Todos os registros daqui sobem para a nuvem, prevalecendo sobre as versões de lá. Use quando a nuvem ficou vazia ou fora de sincronia.', { ok: 'Enviar tudo' })) return;
+  toast('Enviando…');
+  const r = await sync.resendAll();
+  if (r.ok) toast(`Enviados ${r.applied} registro(s)`);
+  else notice('Nuvem', r.message || 'Não foi possível enviar.');
+}
+
+/** Apagar tudo o que está na nuvem (só o administrador). */
+export async function cloudWipe() {
+  const sync = syncOf();
+  if (!sync) return;
+  if (!sync.info().isAdmin) return notice('Nuvem', 'Só quem administra a casa pode apagar os dados da nuvem.');
+  const t = await promptDlg('Apagar os dados da nuvem', 'Todos os registros da nuvem serão apagados (o código da casa e os membros continuam). Na próxima sincronização, os outros aparelhos ficam vazios também. Digite APAGAR para confirmar.', { label: 'Confirmação', value: '', max: 10 }, { ok: 'Apagar' });
+  if (t == null) return;
+  if (String(t).trim().toUpperCase() !== 'APAGAR') return notice('Nada foi apagado', 'Para confirmar, digite APAGAR.');
+  const r = await sync.wipeCloud();
+  if (!r.ok) return notice('Nuvem', r.message || 'Não foi possível apagar.');
+  toast('Dados da nuvem apagados');
+  if (await ask('Enviar deste aparelho?', 'A nuvem ficou vazia. Enviar agora os dados deste aparelho de volta?', { ok: 'Enviar' })) {
+    const rr = await sync.resendAll();
+    if (rr.ok) toast(`Enviados ${rr.applied} registro(s)`);
+    else notice('Nuvem', rr.message || 'Não foi possível enviar.');
+  }
+}
+
 // ------------------------------------------------------------------ atalhos e novidades
 export const SHORTCUTS = [
   ['Lançamentos', [['N  ·  Ctrl+N', 'Nova despesa'], ['R  ·  Ctrl+Shift+N', 'Nova receita'], ['M  ·  Ctrl+M', 'Nova meta'], ['/  ·  Ctrl+F', 'Buscar lançamentos'], ['K  ·  Ctrl+K', 'Perguntar ao assistente']]],
@@ -343,6 +590,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.2.0: Conta e nuvem (opcional): entre com o Google e sincronize entre Windows, Android e outros navegadores, com os dados cifrados numa planilha da sua conta Google. Duas pessoas podem usar ao mesmo tempo; conflitos avisam e nada se perde.',
     '1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.',
     '1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.',
     'Novo nome: Finan+, com o ícone do app Android.',

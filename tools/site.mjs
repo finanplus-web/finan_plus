@@ -6,9 +6,10 @@
 // Uso: npm run site            (versão = data e hora)
 //      SITE_VERSION=abc123 npm run site   (o GitHub Actions passa o commit)
 import { cpSync, rmSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname, out = root + '_site/';
-const FILES = ['index.html', 'style.css', 'sw.js', 'manifest.webmanifest', 'LICENSE', 'README.md', 'FUNCIONALIDADES.md', 'ASSISTENTE.md', 'CHANGELOG.md'];
+const root = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '') + '/', out = root + '_site/';
+const FILES = ['index.html', 'style.css', 'sw.js', 'manifest.webmanifest', 'nuvem.json', 'LICENSE', 'README.md', 'FUNCIONALIDADES.md', 'ASSISTENTE.md', 'NUVEM.md', 'CHANGELOG.md'];
 const DIRS = ['js', 'icons', 'assistente', 'licenca', 'third_party'];
 
 rmSync(out, { recursive: true, force: true });

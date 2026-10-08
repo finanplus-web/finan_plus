@@ -60,4 +60,4 @@ O script copia `index.html`, `style.css`, `manifest.webmanifest`, `js/app.bundle
 
 ## Testes
 
-`npm test`: 85 testes (77 existentes + 8 do modo remoto).
+`npm test`: 111 testes (85 na época do modo remoto, 77 existentes + 8 novos; veja o CHANGELOG 1.2.0).

@@ -449,6 +449,19 @@ dialog{color:var(--text)}
 .extLink small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .extLink:hover{filter:brightness(1.04)}
 .extLink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* nuvem (Conta e nuvem): nota da barra lateral, escolha de modo e código da casa */
+.sideCloud{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:0;color:inherit;font:inherit;font-size:inherit;cursor:pointer;text-align:center}
+button.sideCloud:hover{color:var(--accent)}
+button.sideCloud:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.codeField input{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.1em;font-weight:600}
+.gbox{display:flex;justify-content:center;align-items:center;min-height:46px;margin:6px 0 4px}
+.optCard{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer}
+.optCard:hover{filter:brightness(1.04)}
+.optCard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.optCard .ic{color:var(--accent);flex:none}
+.optCard b{display:block;font-size:14px}
+.optCard small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.optCard+.optCard{margin-top:8px}
 /* modo remoto (aberto pelo celular): tela de conexão */
 .pairBox .btn{width:100%;justify-content:center}
 .pairBox form{width:100%}

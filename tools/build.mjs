@@ -6,10 +6,12 @@
 // Também embute o dicionário do assistente e os textos das licenças (o navegador não deixa
 // ler arquivos da pasta com fetch em file://). Rode: npm run build
 import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
-const root = new URL('..', import.meta.url).pathname;
-const txt = p => JSON.stringify(readFileSync(root + p, 'utf8'));
+const root = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '') + '/';
+// quebras de linha normalizadas: o resultado é o mesmo no Windows e no Linux
+const txt = p => JSON.stringify(readFileSync(root + p, 'utf8').replace(/\r\n/g, '\n'));
 writeFileSync(root + 'js/embedded-data.js', `// Finan+ — Copyright (C) 2026 Juscelino Be
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
