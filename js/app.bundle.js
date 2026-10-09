@@ -1248,6 +1248,9 @@
     SMALL_SPENDS: "Pequenos gastos",
     SUBSCRIPTIONS: "Gastos fixos"
   };
+  var PACE_MIN_COUNT = 5;
+  var PACE_MIN_COUNT_CAT = 3;
+  var ONE_OFF_SHARE = 0.5;
   var SMALL_VALUE = 2e3;
   var SMALL_MIN_COUNT = 10;
   var SPIKE_RATIO = 1.3;
@@ -1391,12 +1394,31 @@
       );
     },
     /** compromissos do mês (recorrências, parcelas, contas agendadas) + gasto variável no ritmo diário atual */
-    project(list, today2) {
+    /**
+     * Projeção das despesas até o fim do mês: compromissos (recorrências, parcelas e contas pendentes) pelo valor
+     * + gasto variável pago até hoje ÷ dias passados × dias do mês. Uma despesa que sozinha passa de metade do gasto
+     * variável é pontual: conta uma vez, sem ser multiplicada. Com menos de [minCount] despesas variáveis não há
+     * "ritmo" para projetar (enough = false) e as dicas não aparecem.
+     */
+    project(list, today2, minCount = PACE_MIN_COUNT) {
       const ym = ymOf(today2), day = dom(today2), len = ymLen(ym);
       const month = list.filter((t) => ymOf(t.date) === ym);
       const committed = sum(month.filter((t) => isFixed(t) || !t.paid));
-      const variable = sum(month.filter((t) => !isFixed(t) && t.paid && dom(t.date) <= day));
-      return { committed, variable, projected: committed + Math.round(variable / day * len) };
+      const vars = month.filter((t) => !isFixed(t) && t.paid && dom(t.date) <= day);
+      const variable = sum(vars), biggest = vars.reduce((m, t) => Math.max(m, t.value), 0);
+      const oneOff = variable > 0 && biggest > variable * ONE_OFF_SHARE ? biggest : 0;
+      return {
+        committed,
+        variable,
+        oneOff,
+        count: vars.length,
+        enough: vars.length >= minCount,
+        projected: committed + oneOff + Math.round((variable - oneOff) / day * len)
+      };
+    },
+    /** texto do "Por quê?" com a conta da projeção */
+    projectionWhy(p, day, len, money3, minCount) {
+      return `Conta: compromissos do mês (recorrências, parcelas e contas agendadas) ${money3(p.committed)}` + (p.oneOff ? ` + gasto pontual ${money3(p.oneOff)} (conta uma vez) + resto do gasto variável até hoje ${money3(p.variable - p.oneOff)}` : ` + gasto variável até hoje ${money3(p.variable)}`) + ` ÷ ${day} dias × ${len} dias. Só é calculada a partir do dia ${PACE_MIN_DAY} e com pelo menos ${minCount} despesas variáveis pagas no mês.`;
     },
     limitPace(s, today2, money3) {
       const ym = ymOf(today2), day = dom(today2), len = ymLen(ym);
@@ -1406,15 +1428,15 @@
         const l = exp.filter((t) => t.category === cat);
         const used = sum(l.filter((t) => ymOf(t.date) === ym));
         if (used >= lim) continue;
-        const p = Insights.project(l, today2);
-        if (p.projected <= lim || p.projected - lim < 1e3) continue;
+        const p = Insights.project(l, today2, PACE_MIN_COUNT_CAT);
+        if (!p.enough || p.projected <= lim || p.projected - lim < 1e3) continue;
         const left = len - day, perDay = Math.trunc(Math.max(0, lim - used) / left);
         out.push(insight(
           `pace:${ymOf(today2)}:${cat}`,
           "LIMIT_PACE",
           `${cat} pode passar do limite`,
           `No ritmo atual, ${cat} deve fechar ${brMonth(ym)} em cerca de ${money3(p.projected)}, acima do limite de ${money3(lim)}. Para ficar dentro, gaste até ${money3(perDay)} por dia nos ${left} dias restantes.`,
-          `Conta: compromissos do mês (recorrências, parcelas e contas agendadas) ${money3(p.committed)} + gasto variável até hoje ${money3(p.variable)} ÷ ${day} dias × ${len} dias. Já usado: ${money3(used)} de ${money3(lim)}.`,
+          Insights.projectionWhy(p, day, len, money3, PACE_MIN_COUNT_CAT) + ` Já usado: ${money3(used)} de ${money3(lim)}.`,
           8,
           { query: cat, from: ymFirst(ym), to: today2 }
         ));
@@ -1426,14 +1448,14 @@
       if (day < PACE_MIN_DAY || day >= len) return null;
       const income = sum(s.txs.filter((t) => t.kind === "income" && ymOf(t.date) === ym));
       if (income <= 0) return null;
-      const p = Insights.project(expenses(s), today2);
-      if (p.projected <= income) return null;
+      const p = Insights.project(expenses(s), today2, PACE_MIN_COUNT);
+      if (!p.enough || p.projected <= income) return null;
       return insight(
         `over:${ym}`,
         "OVER_INCOME",
         "Despesas podem passar das receitas",
         `No ritmo atual, as despesas de ${brMonth(ym)} chegam a cerca de ${money3(p.projected)}, acima das receitas previstas para o mês (${money3(income)}). Diferença estimada: ${money3(p.projected - income)}.`,
-        `Conta: compromissos do mês ${money3(p.committed)} + gasto variável até hoje ${money3(p.variable)} ÷ ${day} dias × ${len} dias. Receitas previstas = recebidas + a receber neste mês.`,
+        Insights.projectionWhy(p, day, len, money3, PACE_MIN_COUNT) + " Receitas previstas = recebidas + a receber neste mês.",
         8,
         { from: ymFirst(ym), to: today2 }
       );
@@ -3147,7 +3169,7 @@ Public License instead of this License.  But first, please read
   var why = (text) => `<details class="why"><summary>${icon("help", 16)}<span>Por quê?</span></summary><p>${esc(text)}</p></details>`;
 
   // js/ctx.js
-  var APP_VERSION = "1.2.0";
+  var APP_VERSION = "1.2.1";
   var ctx = {
     state: null,
     // dados (AppState do core)
@@ -4893,6 +4915,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   function whatsNew() {
     const items = [
+      "1.2.1: o assistente não avisa mais que as despesas vão passar das receitas com base em uma ou duas compras: a projeção precisa de pelo menos 5 despesas no mês (3 por categoria com limite), e uma compra grande isolada conta uma vez.",
       "1.2.0: calendário em Lançamentos (saldo de cada dia, faturas no vencimento, atrasos; toque de novo num dia, ou segure, para lançar nessa data). No celular, deslize para o lado para trocar de aba.",
       '1.2.0: Início e Lista mais enxutos: o que falta receber e pagar, assistente em 2 frases, "Comece por aqui", ‹ mês › com Período e filtros, filtros de um toque e lançamentos agrupados por dia.',
       "1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.",

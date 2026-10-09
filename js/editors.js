@@ -364,6 +364,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.2.1: o assistente não avisa mais que as despesas vão passar das receitas com base em uma ou duas compras: a projeção precisa de pelo menos 5 despesas no mês (3 por categoria com limite), e uma compra grande isolada conta uma vez.',
     '1.2.0: calendário em Lançamentos (saldo de cada dia, faturas no vencimento, atrasos; toque de novo num dia, ou segure, para lançar nessa data). No celular, deslize para o lado para trocar de aba.',
     '1.2.0: Início e Lista mais enxutos: o que falta receber e pagar, assistente em 2 frases, "Comece por aqui", ‹ mês › com Período e filtros, filtros de um toque e lançamentos agrupados por dia.',
     '1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.',

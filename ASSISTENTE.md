@@ -63,8 +63,10 @@ Aparecem só quando há algo fora do padrão. A mais importante fica no Início 
 |---|---|---|
 | **Possível duplicado** | Mesma descrição + mesmo valor + mesma data, nos últimos 60 dias, sem ser parcela nem recorrência. | `DUP_DAYS = 60` |
 | **Aumento de preço** | Gasto mensal (ver "Gastos fixos") cujo último valor ficou ≥ 5% e ≥ R$ 1,00 acima do mês anterior. | `PRICE_UP_RATIO = 1.05` |
-| **Ritmo do limite** | Do dia 7 em diante, para categorias com limite ainda não ultrapassado: **projeção = compromissos do mês + gasto variável ÷ dias passados × dias do mês**. Compromissos são recorrências, parcelas e contas agendadas, e não são extrapolados. Avisa se a projeção passar do limite por ≥ R$ 10 e mostra quanto dá para gastar por dia no resto do mês. | `PACE_MIN_DAY = 7` |
-| **Ritmo do mês** | A mesma projeção para todas as despesas, comparada com as receitas previstas do mês (recebidas + a receber). | — |
+| **Ritmo do limite** | Do dia 7 em diante, para categorias com limite ainda não ultrapassado e com **pelo menos 3 despesas variáveis pagas no mês**: **projeção = compromissos do mês + gasto pontual + resto do gasto variável ÷ dias passados × dias do mês**. Compromissos são recorrências, parcelas e contas agendadas, e não são extrapolados. **Gasto pontual** é uma despesa que sozinha passa de metade do gasto variável: conta uma vez, sem ser multiplicada pelos dias. Avisa se a projeção passar do limite por ≥ R$ 10 e mostra quanto dá para gastar por dia no resto do mês. | `PACE_MIN_DAY = 7`, `PACE_MIN_COUNT_CAT = 3`, `ONE_OFF_SHARE = 0.5` |
+| **Ritmo do mês** | A mesma projeção para todas as despesas, com **pelo menos 5 despesas variáveis pagas no mês**, comparada com as receitas previstas do mês (recebidas + a receber). | `PACE_MIN_COUNT = 5` |
+
+> **Por que o mínimo e o gasto pontual (desde a 1.2.1):** antes, uma única compra no começo do mês era multiplicada pelos dias. Exemplo real: no dia 8, R$ 200 gastos de uma vez viravam R$ 25 por dia, R$ 775 no mês, e o aviso "Despesas podem passar das receitas" aparecia com R$ 500 de receita. Com poucas despesas não existe "ritmo" para projetar, e uma compra grande isolada não se repete todo dia.
 | **Acima da média** | Gasto realizado da categoria neste mês ≥ 30% acima da média dos 3 meses anteriores **e** ≥ R$ 50 a mais. Precisa de dados em pelo menos 2 desses meses. Mostra os 2 maiores lançamentos. | `SPIKE_RATIO = 1.30`, `SPIKE_MIN_DIFF = R$ 50` |
 | **Pequenos gastos** | Mais de 10 despesas de até R$ 20 no mês: total, percentual das despesas e as descrições mais frequentes. | `SMALL_VALUE = R$ 20`, `SMALL_MIN_COUNT = 10` |
 | **Gastos fixos** | Mesma descrição, **uma vez por mês**, em ≥ 3 meses seguidos (até este mês ou o anterior), com valores a até 30% da mediana. Parcelas não entram. Mostra o total por mês e por ano. | `SUB_MIN_MONTHS = 3`, `SUB_TOLERANCE = 0.30` |
@@ -101,7 +103,7 @@ Exemplos: "quanto gastei com mercado em agosto?", "maior gasto da semana", "quan
 
 - As perguntas não entendem frases muito livres ("estou gastando muito?"). Quando não entende algo, a linha "Como entendi" mostra exatamente o que foi considerado.
 - O aprendizado começa a sugerir depois de alguns lançamentos (pelo menos 5). Antes disso, valem a "mesma descrição" e o dicionário.
-- A projeção do mês supõe que o gasto variável continua no ritmo dos dias anteriores. É uma estimativa, e o "Por quê?" mostra a conta.
+- A projeção do mês supõe que o gasto variável continua no ritmo dos dias anteriores. É uma estimativa: só é feita com dados suficientes (veja acima), uma compra grande isolada conta uma vez, e o "Por quê?" mostra a conta.
 
 
 ## Diferenças em relação ao app Android e à versão Linux
