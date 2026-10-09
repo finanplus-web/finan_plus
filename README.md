@@ -11,6 +11,7 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 | ![Ajustes](docs/ajustes-tokyo.png) | ![Celular](docs/celular.png) |
 
 - Lista completa do que o app faz: [FUNCIONALIDADES.md](FUNCIONALIDADES.md)
+- Calendário de lançamentos: [CALENDARIO.md](CALENDARIO.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - O que foi feito nesta versão: [CHANGELOG.md](CHANGELOG.md)
 
@@ -18,7 +19,7 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 
 ## Publicar no GitHub Pages
 
-Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a branch `main`, o GitHub instala, gera o bundle, **roda os 74 testes** (se algum falhar, nada é publicado), monta o site e publica. A versão do service worker é carimbada com o commit, então os aparelhos recebem a atualização sozinhos.
+Tudo já está configurado (`.github/workflows/pages.yml`). A cada envio para a branch `main`, o GitHub instala, gera o bundle, **roda os testes** (95 hoje) (se algum falhar, nada é publicado), monta o site e publica. A versão do service worker é carimbada com o commit, então os aparelhos recebem a atualização sozinhos.
 
 1. Crie um repositório no GitHub (ex.: `finan-plus-web`), público ou privado (Pages em repositório privado exige plano pago).
 2. Nesta pasta (use o seu e-mail "noreply" do GitHub, em Settings › Emails, para não deixar seu e-mail pessoal público no histórico):
@@ -68,7 +69,7 @@ O código-fonte legível está em `js/*.js` (módulos). O navegador carrega `js/
 ```sh
 npm install        # instala esbuild (gera o bundle) e fake-indexeddb (testes); só para desenvolvimento
 npm run build      # gera js/app.bundle.js e js/embedded-data.js
-npm test           # 74 testes (node --test)
+npm test           # 95 testes (node --test)
 ```
 
 ```

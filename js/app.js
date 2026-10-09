@@ -4,6 +4,7 @@
 // Ponto de entrada do Finan+ web: abre os dados, bloqueio por PIN, navegação, layout
 // (celular × computador), atalhos de teclado, temas, avisos de vencimento e virada do dia.
 import { Finance, Ops, todayStr, themeOf, ymOf, ymFirst, ymLast, addDays, Money, newState, parseBackup } from './core.js';
+import { Period } from './calendar.js';
 import { Dictionary } from './assist.js';
 import { DICT_TEXT, LICENSES } from './embedded-data.js';
 import * as Core from './core.js';
@@ -163,15 +164,12 @@ function renderMovesData() {
 }
 
 function bindView() {
-  if (ctx.view === 'moves') {
+  if (ctx.view === 'moves' && $('#q')) {
     renderMovesData();
     const f = ctx.moves;
     const upd = () => { f.limit = 300; renderMovesData(); };
-    $('#fromDate').onchange = e => { f.from = e.target.value || null; f.all = !f.from && !f.to; upd(); };
-    $('#toDate').onchange = e => { f.to = e.target.value || null; f.all = !f.from && !f.to; upd(); };
+    // período, tipo e situação mudam por botões (data-act moves-*) e pela folha "Período e filtros"
     $('#q').oninput = e => { f.q = e.target.value; upd(); };
-    $('#kindF').onchange = e => { f.kind = e.target.value; upd(); };
-    $('#stF').onchange = e => { f.st = e.target.value; upd(); };
   }
   if (ctx.view === 'assist') {
     const form = $('#askForm');
@@ -230,7 +228,7 @@ async function onSwitch(i) {
 
 // ================================================================== ações (data-act)
 const ACTIONS = {
-  'new-tx': el => E.txEditor(el.dataset.kind || 'expense'),
+  'new-tx': el => E.txEditor(el.dataset.kind || 'expense', null, el.dataset.date || null),
   'edit-tx': el => E.txEditor('expense', el.dataset.id),
   'toggle-paid': el => { ctx.replace(Ops.togglePaid(ctx.state, el.dataset.id)); },
   'new-goal': () => E.goalEditor(), 'edit-goal': el => E.goalEditor(el.dataset.id),
@@ -249,6 +247,26 @@ const ACTIONS = {
     f.limit = 300; render();
   },
   'moves-more': () => { ctx.moves.limit += 300; renderMovesData(); },
+  // Lançamentos: Lista | Calendário, setas do mês, período e filtros, filtros de um toque
+  'moves-view': el => { ctx.movesView = el.dataset.v === 'calendar' ? 'calendar' : 'list'; render(); },
+  'moves-shift': el => { const f = ctx.moves; [f.from, f.to] = Period.shift(f.from, f.to, +el.dataset.d, ctx.today); f.all = false; f.limit = 300; render(); },
+  'moves-filters': () => E.movesFiltersSheet(),
+  'moves-chip': el => {
+    const f = ctx.moves, c = el.dataset.c;
+    if (c === 'all') { f.kind = ''; f.st = ''; }
+    else if (c === 'pending') f.st = f.st === 'pending' ? '' : 'pending';
+    else f.kind = f.kind === c ? '' : c;
+    f.limit = 300; render();
+  },
+  // calendário: 1º toque escolhe o dia; tocar de novo no dia escolhido abre um lançamento novo nessa data
+  'cal-day': el => {
+    if (suppressCalClick) { suppressCalClick = false; return; }
+    const d = el.dataset.date;
+    if (ctx.cal.day === d) { E.txEditor('expense', null, d); return; }
+    ctx.cal.day = d; render();
+  },
+  'cal-shift': el => calShift(+el.dataset.d),
+  'cal-today': () => { ctx.cal.ym = ymOf(ctx.today); ctx.cal.day = ctx.today; render(); },
   'dismiss-tip': el => ctx.setDevice({ dismissedTips: [...ctx.device.dismissedTips, el.dataset.id] }),
   'restore-tip': el => ctx.setDevice({ dismissedTips: ctx.device.dismissedTips.filter(x => x !== el.dataset.id) }),
   'restore-all-tips': () => ctx.setDevice({ dismissedTips: [] }),
@@ -298,6 +316,58 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.tx[role=button]')) { e.preventDefault(); ACTIONS['edit-tx'](e.target); }
   if (e.key === 'Escape') { const m = $('#menu'); if (m && !m.hidden) { m.hidden = true; $('#menuBtn')?.focus(); } }
 });
+
+// ================================================================== calendário e gestos
+function calShift(delta) {
+  const ym = (ctx.cal.ym ?? ymOf(ctx.today)) + delta;
+  ctx.cal.ym = ym;
+  ctx.cal.day = ym === ymOf(ctx.today) ? ctx.today : null; // no mês atual, o dia escolhido volta a ser hoje
+  render();
+}
+
+// tocar e segurar um dia do calendário: lançamento novo nessa data (em qualquer dia)
+let calHold = null, suppressCalClick = false;
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest?.('.calDay');
+  clearTimeout(calHold); calHold = null;
+  if (!el || e.button > 0) return;
+  calHold = setTimeout(() => {
+    calHold = null; suppressCalClick = true;
+    ctx.cal.day = el.dataset.date; render();
+    E.txEditor('expense', null, el.dataset.date);
+    setTimeout(() => { suppressCalClick = false; }, 800);
+  }, 550);
+}, { passive: true });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => document.addEventListener(ev, () => { clearTimeout(calHold); calHold = null; }, { passive: true }));
+document.addEventListener('pointermove', e => { if (calHold && (Math.abs(e.movementX) > 4 || Math.abs(e.movementY) > 4)) { clearTimeout(calHold); calHold = null; } }, { passive: true });
+document.addEventListener('contextmenu', e => { if (e.target.closest?.('.calDay')) e.preventDefault(); }); // sem o menu do navegador ao segurar
+
+/*
+ * Deslizar para o lado (celular): sobre o calendário troca de mês; no resto da tela, troca de aba
+ * na ordem Início › Lançamentos › Relatórios › Ajustes. Os botões da barra continuam funcionando.
+ * Fica de fora: campos de texto, fileiras que rolam para o lado, folhas e diálogos abertos.
+ */
+const SWIPE_TABS = ['home', 'moves', 'reports', 'prefs'];
+let swipe = null;
+document.addEventListener('touchstart', e => {
+  swipe = null;
+  if (ctx.cols !== 1 || e.touches.length !== 1 || ctx.locked || ctx.problem || dialogOpen()) return;
+  const t = e.target;
+  if (!t.closest?.('#main') || t.closest('input, select, textarea, .hscroll, details')) return;
+  swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now(), cal: !!t.closest('.calCard') };
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  const s = swipe; swipe = null;
+  if (!s || dialogOpen()) return;
+  const p = e.changedTouches[0], dx = p.clientX - s.x, dy = p.clientY - s.y;
+  if (Date.now() - s.at > 700 || Math.abs(dx) < 70 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
+  clearTimeout(calHold); calHold = null;
+  if (s.cal) { calShift(dx < 0 ? 1 : -1); return; }
+  const i = SWIPE_TABS.indexOf(ctx.view);
+  if (i < 0) return;
+  const next = SWIPE_TABS[i + (dx < 0 ? 1 : -1)];
+  if (next) ctx.go(next);
+}, { passive: true });
 
 // "Liquid Glass": brilho no ponto do toque
 document.addEventListener('pointerdown', e => {
@@ -500,6 +570,10 @@ function remText(r) {
 function dayTick() {
   const t = todayStr();
   if (t === ctx.today || !ctx.state) return;
+  // calendário parado em "hoje" (ontem): acompanha a virada do dia e do mês
+  if (ctx.cal.day === ctx.today && ctx.cal.ym === ymOf(ctx.today)) { ctx.cal.day = t; ctx.cal.ym = ymOf(t); }
+  // Lista parada no mês inteiro de ontem: acompanha a virada do mês
+  if (Period.fullMonth(ctx.moves.from, ctx.moves.to) === ymOf(ctx.today) && ymOf(t) !== ymOf(ctx.today)) { ctx.moves.from = ymFirst(ymOf(t)); ctx.moves.to = ymLast(ymOf(t)); }
   ctx.today = t;
   const [s, n] = Finance.generateRecurring(ctx.state, t);
   if (n > 0) ctx.replace(s); else render();

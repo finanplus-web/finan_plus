@@ -1,5 +1,44 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.2.0 — Calendário, gestos, Início e Lista enxutos (08/10/2026, ainda não publicada)
+
+> **Situação:** pronta e testada no navegador, mas **não publicada**: está no branch `calendario`. O GitHub Pages só publica o que entra na `main`. Mesmas mudanças do Finan+ Android 1.3.0 (PR #4 do `finan_plus_android`), com as mesmas regras e os mesmos testes.
+
+**Calendário de lançamentos** (Lançamentos › Calendário; detalhes em [CALENDARIO.md](CALENDARIO.md)):
+- O mês em grade (semana começando no domingo), com o saldo de cada dia abreviado ("+5,2 mil", "−120"), pontinhos de receita (verde), despesa (vermelho) e cartão (roxo) e alerta nos dias com conta atrasada ou fatura vencida. Hoje tem contorno; o dia escolhido fica preenchido.
+- Faturas em aberto no dia do vencimento (tocar abre "Pagar fatura"). Compras no cartão aparecem no dia, mas só contam no saldo pela fatura.
+- Totais do mês (Entradas, Saídas, Resultado) e, no dia escolhido: lançamentos, saldo do dia, **saldo previsto ao fim do dia** (de hoje em diante) e botões **Receita** e **Despesa** já com a data.
+- **Tocar de novo** no dia escolhido, ou **tocar e segurar** qualquer dia, abre o lançamento novo com a data; numa data futura, ele começa pendente.
+- Setas, deslizar o dedo sobre o calendário (celular) e "Voltar para hoje" trocam de mês. No computador, calendário à esquerda e o dia à direita.
+- "Ocultar valores": ficam só os pontinhos. Leitor de tela: cada dia é lido como frase ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso").
+
+**Trocar de aba deslizando (celular):** deslizar para o lado passa para a aba vizinha (Início › Lançamentos › Relatórios › Ajustes). Os botões da barra continuam. Fica de fora sobre o calendário (troca de mês), em campos de texto, na fileira de contas e com uma janela aberta.
+
+**Início mais enxuto:**
+- Celular: o topo mostra o nome, a data ("Quinta, 8 de outubro"), o selo "Privado" e o botão de ocultar valores; saiu o botão do assistente (ele abre pelo cartão do Início).
+- Embaixo de Receitas e Despesas do mês: "a receber" e "a pagar" (inclui faturas que vencem no mês). A barra de uso das receitas só aparece quando já entrou receita.
+- Saíram os botões Receita, Despesa e Meta (o + da barra e os botões do topo no computador fazem o mesmo).
+- Assistente compacto: as 2 frases mais úteis (regra em [ASSISTENTE.md](ASSISTENTE.md)), a dica principal e um link só.
+- Seções com um título só; uma conta só ocupa a linha inteira; Limites e Metas só aparecem quando existem, e antes disso o cartão **"Comece por aqui"** tem os atalhos.
+- O cartão "Vencimentos (30 dias)", que só existe na versão web, continua.
+
+**Lançamentos › Lista mais enxuta:** ‹ mês › com o botão **Período e filtros** (datas livres, atalhos e "Realizados"); filtros de um toque (Todos, Receitas, Despesas, Pendentes); resumo do período num cartão só, com o que está pendente; lançamentos agrupados por dia com o saldo do dia (a data não se repete em cada linha); saiu a comparação receitas × despesas (está em Relatórios).
+
+| Arquivo | Mudança |
+|---|---|
+| `js/calendar.js` (novo) | Regras do calendário e do período (tradução de `MonthCalendar.kt` e `Period.kt`) |
+| `js/calendarview.js` (novo) | Tela do calendário |
+| `js/assist.js` | `report().highlights`: as 2 frases do Início |
+| `js/screens.js` | Início e Lista enxutos, chave Lista/Calendário, cabeçalho do celular |
+| `js/editors.js` | `txEditor(kind, id, date)`; folha "Período e filtros"; novidades |
+| `js/app.js` | Ações novas, tocar e segurar, deslizar (abas e meses), virada do dia |
+| `js/ctx.js`, `package.json` | Versão 1.2.0; estado do calendário e da visão |
+| `js/icons.js` | `chevron-left` e `view-list` (Material Symbols, Apache 2.0) |
+| `style.css` | Estilos do calendário, da Lista e do Início |
+| `tests/calendar.test.mjs` (novo), `tests/assist.test.mjs` | 10 testes novos: 95 no total |
+
+Como foi verificado: os 95 testes passaram; o app foi aberto no Chromium (celular 412 px e computador 1440 px) com os dados de demonstração e com dados como os do autor: Início, Lista, filtros, Período e filtros, calendário, editor com a data do dia, "Ocultar valores", deslizar entre abas e meses e tocar e segurar um dia, sem erros no console.
+
 ## Modo remoto — para o "Acesso pela rede" do Finan+ Android 1.2.0 (07/10/2026)
 
 - **Modo normal sem mudanças:** aberto pelo GitHub Pages, instalado ou pela pasta, o Finan+ web continua

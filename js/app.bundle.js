@@ -824,6 +824,170 @@
     return JSON.stringify(o).replace(/"\\u0000R(-?\d+\.\d{2})\\u0000"/g, "$1");
   }
 
+  // js/calendar.js
+  var WEEKDAYS = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado", 7: "domingo" };
+  var capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  var ymYear2 = (ym) => Math.floor(ym / 12);
+  var MonthCalendar = {
+    /** cabeçalho das colunas: a semana começa no domingo (padrão brasileiro) */
+    WEEK_HEADER: ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"],
+    /** grade do mês: dias vazios (null) antes do dia 1 e no fim, sempre em semanas completas de 7 */
+    cells(ym) {
+      const first = ymFirst(ym), lead = weekday(first) % 7;
+      const out = Array(lead).fill(null);
+      for (let d = 1; d <= ymLen(ym); d++) out.push(ymDay(ym, d));
+      while (out.length % 7) out.push(null);
+      return out;
+    },
+    /** faturas em aberto (de todos os cartões) que vencem no mês */
+    invoicesDue(s, ym, today2) {
+      const out = [];
+      for (const c of s.cards) for (const inv of Finance.cardStatus(s, c, today2).invoices)
+        if (inv.open > 0 && ymOf(inv.due) === ym) out.push({ cardId: c.id, cardName: c.name, amount: inv.open, due: inv.due, overdue: inv.due < today2 });
+      return out;
+    },
+    /**
+     * Dias do mês que têm algo (Map data → dia). income/expense = dinheiro que entra/sai das contas no dia
+     * (realizado ou pendente): receitas e despesas fora do cartão, pagamentos de fatura e faturas em aberto
+     * no vencimento. Compras no cartão aparecem em txs (marca 'card'), mas não entram na soma.
+     */
+    build(s, ym, today2) {
+      const byDay = /* @__PURE__ */ new Map();
+      const get = (d) => {
+        if (!byDay.has(d)) byDay.set(d, { date: d, txs: [], invoices: [] });
+        return byDay.get(d);
+      };
+      for (const t of s.txs) if (ymOf(t.date) === ym) get(t.date).txs.push(t);
+      for (const i of MonthCalendar.invoicesDue(s, ym, today2)) get(i.due).invoices.push(i);
+      const days = /* @__PURE__ */ new Map();
+      for (const d of [...byDay.keys()].sort()) {
+        const g = byDay.get(d);
+        const txs = g.txs.sort((a, b) => (a.kind !== "income") - (b.kind !== "income") || isCard(a) - isCard(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        let income = 0, expense = 0, overdue = false;
+        const marks = /* @__PURE__ */ new Set();
+        for (const t of txs) {
+          if (isCard(t)) marks.add("card");
+          else if (t.kind === "income") {
+            income += t.value;
+            marks.add("income");
+          } else {
+            expense += t.value;
+            marks.add(t.cardPayment ? "card" : "expense");
+          }
+          if (!t.paid && !isCard(t) && t.date < today2) overdue = true;
+        }
+        for (const i of g.invoices) {
+          expense += i.amount;
+          marks.add("card");
+          if (i.overdue) overdue = true;
+        }
+        days.set(d, {
+          date: d,
+          txs,
+          invoices: g.invoices,
+          income,
+          expense,
+          net: income - expense,
+          overdue,
+          marks: ["income", "expense", "card"].filter((m) => marks.has(m)),
+          count: txs.length + g.invoices.length
+        });
+      }
+      return days;
+    },
+    /** totais do mês: a soma de todos os dias */
+    totals(days) {
+      let income = 0, expense = 0;
+      for (const d of days.values()) {
+        income += d.income;
+        expense += d.expense;
+      }
+      return { income, expense, net: income - expense };
+    },
+    /** valor curto para o quadradinho do dia (sem "R$"), arredondado ao mais próximo: 182 · 1,5 mil · 15 mil · 1,2 mi */
+    compact(c) {
+      const reais = Math.floor((Math.abs(c) + 50) / 100), sign = c < 0 ? "−" : "";
+      const short = (unit, suffix) => {
+        const tenths = Math.floor((reais * 10 + unit / 2) / unit);
+        if (tenths >= 100) return `${Math.floor((reais + unit / 2) / unit)} ${suffix}`;
+        return tenths % 10 === 0 ? `${tenths / 10} ${suffix}` : `${Math.floor(tenths / 10)},${tenths % 10} ${suffix}`;
+      };
+      if (reais < 1e3) return sign + reais;
+      if (Math.floor((reais + 500) / 1e3) < 1e3) return sign + short(1e3, "mil");
+      if (Math.floor((reais + 5e5) / 1e6) < 1e3) return sign + short(1e6, "mi");
+      return sign + short(1e9, "bi");
+    },
+    /** "+5,2 mil", "−120"; zero fica "0" */
+    signed: (c) => c > 0 ? "+" + MonthCalendar.compact(c) : c < 0 ? MonthCalendar.compact(c) : "0",
+    /** "Outubro de 2026" */
+    monthTitle: (ym) => `${capFirst(MONTHS[ym % 12])} de ${ymYear2(ym)}`,
+    /** "Quinta, 15 de outubro" (ano só quando não é o de hoje) */
+    dayTitle(d, today2) {
+      const wd = capFirst(WEEKDAYS[weekday(d)].split("-")[0]);
+      return `${wd}, ${+d.slice(8, 10)} de ${MONTHS[+d.slice(5, 7) - 1]}` + (d.slice(0, 4) !== today2.slice(0, 4) ? ` de ${+d.slice(0, 4)}` : "");
+    },
+    /** frase do leitor de tela para um dia; com "Ocultar valores", sem valores */
+    describe(d, day, today2, hide) {
+      const parts = [`${+d.slice(8, 10)} de ${MONTHS[+d.slice(5, 7) - 1]}, ${WEEKDAYS[weekday(d)]}`];
+      if (d === today2) parts.push("hoje");
+      if (!day || !day.count) parts.push("sem lançamentos");
+      else {
+        parts.push(day.count === 1 ? "1 lançamento" : `${day.count} lançamentos`);
+        if (!hide && (day.income || day.expense)) parts.push(day.net > 0 ? `saldo do dia mais ${Money.format(day.net)}` : day.net < 0 ? `saldo do dia menos ${Money.format(-day.net)}` : "saldo do dia zero");
+        if (day.overdue) parts.push("em atraso");
+      }
+      return parts.join(", ");
+    }
+  };
+  var Period = {
+    /** o período é exatamente um mês inteiro? Devolve o mês (ym) ou null */
+    fullMonth(from, to) {
+      if (!from || !to || from.slice(8, 10) !== "01") return null;
+      const ym = ymOf(from);
+      return to === ymLast(ym) ? ym : null;
+    },
+    /** "Outubro de 2026", "Todo o período", "01/10/2026 a 15/10/2026", "Desde 01/10/2026", "Até 15/10/2026" */
+    label(from, to) {
+      const ym = Period.fullMonth(from, to);
+      if (ym != null) return MonthCalendar.monthTitle(ym);
+      const f = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+      if (!from && !to) return "Todo o período";
+      if (!from) return `Até ${f(to)}`;
+      if (!to) return `Desde ${f(from)}`;
+      if (from === to) return f(from);
+      return `${f(from)} a ${f(to)}`;
+    },
+    /** setas ‹ ›: anda um mês inteiro; um período livre vai para o mês vizinho de onde começa (ou de hoje) */
+    shift(from, to, delta, today2) {
+      const base = Period.fullMonth(from, to) ?? ymOf(from || to || today2);
+      const ym = base + delta;
+      return [ymFirst(ym), ymLast(ym)];
+    },
+    /** pendências do mês: receitas a receber e contas a pagar fora do cartão + faturas em aberto que vencem no mês */
+    monthPending(s, ym, today2) {
+      let toReceive = 0, toPay = 0;
+      for (const t of s.txs) {
+        if (t.paid || isCard(t) || ymOf(t.date) !== ym) continue;
+        if (t.kind === "income") toReceive += t.value;
+        else toPay += t.value;
+      }
+      for (const i of MonthCalendar.invoicesDue(s, ym, today2)) toPay += i.amount;
+      return { toReceive, toPay };
+    },
+    /** pendências de uma lista já filtrada (fora do cartão) */
+    pending(list) {
+      let toReceive = 0, toPay = 0;
+      for (const t of list) {
+        if (t.paid || t.cardPayment || isCard(t)) continue;
+        if (t.kind === "income") toReceive += t.value;
+        else toPay += t.value;
+      }
+      return { toReceive, toPay };
+    },
+    /** saldo de um dia na lista agrupada (mesma regra do calendário, sem as faturas) */
+    cashNet: (txs) => txs.reduce((n, t) => isCard(t) ? n : t.kind === "income" ? n + t.value : n - t.value, 0)
+  };
+
   // js/assist.js
   var sum = (l) => l.reduce((n, t) => n + t.value, 0);
   function groupBy(list, key) {
@@ -1106,6 +1270,7 @@
       const curInc = s.txs.filter((t) => t.kind === "income" && t.paid && inMonthUntil(t, ym, day));
       const spent = sum(curExp), before = sum(prevExp), income = sum(curInc);
       const lines = [];
+      const hl = {};
       if (spent === 0) lines.push(`Ainda não há despesas realizadas em ${brMonth(ym)}.`);
       else {
         let l = `Até hoje (dia ${day}) você gastou ${money3(spent)} em ${brMonth(ym)}.`;
@@ -1113,9 +1278,9 @@
           const c = (spent - before) * 100 / before;
           l += Math.abs(c) < 3 ? ` Praticamente o mesmo que no mesmo período de ${brMonth(prev)} (${money3(before)}).` : c > 0 ? ` São ${pct(c)} a mais que no mesmo período de ${brMonth(prev)} (${money3(before)}).` : ` São ${pct(c)} a menos que no mesmo período de ${brMonth(prev)} (${money3(before)}).`;
         }
-        lines.push(l);
+        lines.push(hl.spent = l);
       }
-      if (income > 0) lines.push(income >= spent ? `Entraram ${money3(income)}; sobram ${money3(income - spent)} até agora.` : `Entraram ${money3(income)}; as despesas já passam as receitas em ${money3(spent - income)}.`);
+      if (income > 0) lines.push(hl.income = income >= spent ? `Entraram ${money3(income)}; sobram ${money3(income - spent)} até agora.` : `Entraram ${money3(income)}; as despesas já passam as receitas em ${money3(spent - income)}.`);
       let topCat = null, topV = -1;
       for (const [c, l] of groupBy(curExp, (t) => t.category)) {
         const v = sum(l);
@@ -1126,11 +1291,11 @@
       }
       if (topCat != null && spent > 0) lines.push(`A maior categoria é ${topCat}: ${money3(topV)} (${pct(topV * 100 / spent)} das despesas).`);
       const pending2 = exp.filter((t) => !t.paid && !isCard(t) && ymOf(t.date) === ym && t.date >= today2);
-      if (pending2.length) lines.push(`Ainda faltam ${money3(sum(pending2))} em ${plural(pending2.length, "conta", "contas")} a pagar até o fim do mês.`);
+      if (pending2.length) lines.push(hl.pending = `Ainda faltam ${money3(sum(pending2))} em ${plural(pending2.length, "conta", "contas")} a pagar até o fim do mês.`);
       const toReceive = s.txs.filter((t) => t.kind === "income" && !t.paid && ymOf(t.date) === ym);
-      if (toReceive.length) lines.push(`A receber neste mês: ${money3(sum(toReceive))} em ${plural(toReceive.length, "lançamento", "lançamentos")}.`);
+      if (toReceive.length) lines.push(hl.receive = `A receber neste mês: ${money3(sum(toReceive))} em ${plural(toReceive.length, "lançamento", "lançamentos")}.`);
       const late = exp.filter((t) => !t.paid && !isCard(t) && t.date < today2);
-      if (late.length) lines.push(`${plural(late.length, "conta está", "contas estão")} em atraso (${money3(sum(late))}).`);
+      if (late.length) lines.push(hl.late = `${plural(late.length, "conta está", "contas estão")} em atraso (${money3(sum(late))}).`);
       if (day <= 7) {
         const pe = sum(exp.filter((t) => t.paid && ymOf(t.date) === prev));
         const pi = sum(s.txs.filter((t) => t.kind === "income" && t.paid && ymOf(t.date) === prev));
@@ -1139,6 +1304,7 @@
       return {
         title: `Resumo de ${brMonthYear(ym)}`,
         lines,
+        highlights: [hl.late, hl.pending, hl.spent, hl.receive, hl.income].filter(Boolean).slice(0, 2),
         why: `Considera só lançamentos realizados (pagos ou recebidos) até hoje. Compras no cartão contam na data da compra; pagamentos de fatura não contam como despesa nova. A comparação usa os mesmos dias (1 a ${day}) do mês anterior, para ser justa.`
       };
     },
@@ -2777,6 +2943,8 @@ Public License instead of this License.  But first, please read
     "category": ["0 -960 960 960", "m321.23-590.62 127.85-209.53q5.61-9.23 13.75-13.16 8.13-3.92 17.17-3.92 9.04 0 17.17 3.92 8.14 3.93 13.75 13.16l127.85 209.53q5.61 9.04 5.61 18.98 0 9.95-4.61 18.18-4.62 8.23-12.69 13.15-8.08 4.92-18.85 4.92H351.77q-10.81 0-18.92-4.97-8.11-4.97-12.62-13.1-4.61-8.11-4.61-18.02t5.61-19.14ZM700-95.39q-68.85 0-116.73-47.88-47.88-47.88-47.88-116.73t47.88-116.73q47.88-47.88 116.73-47.88t116.73 47.88q47.88 47.88 47.88 116.73t-47.88 116.73Q768.85-95.39 700-95.39Zm-564.61-56.16v-217q0-15.37 10.39-25.72 10.4-10.34 25.77-10.34h217q15.37 0 25.72 10.39 10.34 10.4 10.34 25.77v217q0 15.37-10.39 25.72-10.4 10.34-25.77 10.34h-217q-15.37 0-25.72-10.39-10.34-10.4-10.34-25.77Zm564.6-3.83q43.93 0 74.28-30.34t30.35-74.27q0-43.93-30.34-74.28t-74.27-30.35q-43.93 0-74.28 30.34t-30.35 74.27q0 43.93 30.34 74.28t74.27 30.35Zm-504.61-20h169.24v-169.24H195.38v169.24Zm198.16-420h172.92L480-734.46l-86.46 139.08Zm86.46 0ZM364.62-344.62ZM700-260Z"],
     "check": ["0 -960 960 960", "m382-339.38 345.54-345.54q8.92-8.93 20.88-9.12 11.96-.19 21.27 9.12 9.31 9.31 9.31 21.38 0 12.08-9.31 21.39l-362.38 363q-10.85 10.84-25.31 10.84-14.46 0-25.31-10.84l-167-167q-8.92-8.93-8.8-21.2.11-12.26 9.42-21.57t21.38-9.31q12.08 0 21.39 9.31L382-339.38Z"],
     "checkroom": ["0 -960 960 960", "M220.77-240h518.85L480-432.69 220.77-240Zm197.69-439.77q-3.85 8.31-10.84 13.39-7 5.07-16.8 5.07-12.8 0-21.46-8.65-8.67-8.65-8.67-21.43 0-3.76.5-6.11.5-2.35 2.12-5.58 15.43-34.38 47.19-55.65Q442.27-780 480.38-780q53 0 89.97 36.66 36.96 36.65 36.96 89.65 0 44.69-27.12 78.81-27.11 34.11-70.19 44.65v44.85l338.23 251.46q6.08 3.74 9.11 10.11 3.04 6.36 3.04 13.85 0 12.73-8.62 21.34-8.63 8.62-21.38 8.62H130q-12.75 0-21.37-8.58-8.63-8.58-8.63-21.27 0-7.46 3.04-13.88 3.04-6.42 9.12-10.19L450-485.38v-70.77q0-12.75 8.96-21.38 8.96-8.62 21.66-8.62 27.69 0 47.19-19.93 19.5-19.94 19.5-47.62 0-27.68-19.52-46.99Q508.27-720 480.38-720q-19.92 0-36.84 10.65-16.93 10.66-25.08 29.58Z"],
+    "chevron-left": ["0 -960 960 960", "m418.15-480 162.93 162.92q8.3 8.31 8.5 20.89.19 12.57-8.5 21.27-8.7 8.69-21.08 8.69-12.38 0-21.08-8.69L359.15-454.69q-5.61-5.62-7.92-11.85-2.31-6.23-2.31-13.46t2.31-13.46q2.31-6.23 7.92-11.85l179.77-179.77q8.31-8.3 20.89-8.5 12.57-.19 21.27 8.5 8.69 8.7 8.69 21.08 0 12.38-8.69 21.08L418.15-480Z"],
+    "view-list": ["0 -960 960 960", "M140-300.19v-365q0-30.12 21.24-51.31t51.07-21.19h535.38q29.83 0 51.07 21.19Q820-695.31 820-665.19v365q0 30.11-21.24 51.3-21.24 21.2-51.07 21.2H212.31q-29.83 0-51.07-21.2Q140-270.08 140-300.19Zm60-287.5h90v-90h-77.69q-5.39 0-8.85 3.46t-3.46 8.85v77.69Zm150 0h410v-77.69q0-5.39-3.46-8.85t-8.85-3.46H350v90Zm0 150h410v-90H350v90Zm0 150h397.69q5.39 0 8.85-3.46Q760-294.62 760-300v-77.69H350v90Zm-137.69 0H290v-90h-90V-300q0 5.38 3.46 8.85 3.46 3.46 8.85 3.46Zm-12.31-150h90v-90h-90v90Z"],
     "chevron-right": ["0 -960 960 960", "M517.85-480 354.92-642.92q-8.3-8.31-8.5-20.89-.19-12.57 8.5-21.27 8.7-8.69 21.08-8.69 12.38 0 21.08 8.69l179.77 179.77q5.61 5.62 7.92 11.85 2.31 6.23 2.31 13.46t-2.31 13.46q-2.31 6.23-7.92 11.85L397.08-274.92q-8.31 8.3-20.89 8.5-12.57.19-21.27-8.5-8.69-8.7-8.69-21.08 0-12.38 8.69-21.08L517.85-480Z"],
     "close": ["0 -960 960 960", "M480-437.85 277.08-234.92q-8.31 8.3-20.89 8.5-12.57.19-21.27-8.5-8.69-8.7-8.69-21.08 0-12.38 8.69-21.08L437.85-480 234.92-682.92q-8.3-8.31-8.5-20.89-.19-12.57 8.5-21.27 8.7-8.69 21.08-8.69 12.38 0 21.08 8.69L480-522.15l202.92-202.93q8.31-8.3 20.89-8.5 12.57-.19 21.27 8.5 8.69 8.7 8.69 21.08 0 12.38-8.69 21.08L522.15-480l202.93 202.92q8.3 8.31 8.5 20.89.19 12.57-8.5 21.27-8.7 8.69-21.08 8.69-12.38 0-21.08-8.69L480-437.85Z"],
     "code": ["0 -960 960 960", "m178.77-479.38 162.31 162.3q8.3 8.31 8.5 20.89.19 12.57-8.5 21.27-8.7 8.69-21.08 8.69-12.38 0-21.08-8.69L119.15-454.69q-5.61-5.62-7.92-11.85-2.31-6.23-2.31-13.46t2.31-13.46q2.31-6.23 7.92-11.85l179.77-179.77q8.93-8.92 21.2-9.11 12.26-.19 21.57 9.11 9.31 9.31 9.31 21.39 0 12.07-9.31 21.38L178.77-479.38Zm602.46-1.24-162.31-162.3q-8.3-8.31-8.5-20.89-.19-12.57 8.5-21.27 8.7-8.69 21.08-8.69 12.38 0 21.08 8.69l179.77 179.77q5.61 5.62 7.92 11.85 2.31 6.23 2.31 13.46t-2.31 13.46q-2.31 6.23-7.92 11.85L661.08-274.92q-8.93 8.92-20.89 8.8-11.96-.11-21.27-9.42-9.3-9.31-9.3-21.38 0-12.08 9.3-21.39l162.31-162.31Z"],
@@ -2979,7 +3147,7 @@ Public License instead of this License.  But first, please read
   var why = (text) => `<details class="why"><summary>${icon("help", 16)}<span>Por quê?</span></summary><p>${esc(text)}</p></details>`;
 
   // js/ctx.js
-  var APP_VERSION = "1.1.2";
+  var APP_VERSION = "1.2.0";
   var ctx = {
     state: null,
     // dados (AppState do core)
@@ -2995,6 +3163,10 @@ Public License instead of this License.  But first, please read
     locked: false,
     problem: false,
     moves: { from: null, to: null, q: "", kind: "", st: "", limit: 300 },
+    /** Lançamentos: 'list' ou 'calendar' */
+    movesView: "list",
+    /** calendário: mês mostrado (ym) e dia escolhido (null = nenhum); preenchidos na primeira abertura */
+    cal: { ym: null, day: null },
     // preenchidos por app.js
     commit: null,
     replace: null,
@@ -3687,12 +3859,84 @@ ${xref}
     return { bytes, pages: pen.pages };
   }
 
+  // js/calendarview.js
+  function calDefaults() {
+    if (ctx.cal.ym == null) {
+      ctx.cal.ym = ymOf(ctx.today);
+      ctx.cal.day = ctx.today;
+    }
+  }
+  function calendarView() {
+    calDefaults();
+    const s = ctx.state, today2 = ctx.today, ym = ctx.cal.ym;
+    const days = MonthCalendar.build(s, ym, today2);
+    const grid = calCard(days, ym, today2);
+    const totals = monthTotals(days);
+    const sel = ctx.cal.day && ymOf(ctx.cal.day) === ym ? ctx.cal.day : null;
+    const day = sel ? dayBox(sel, days.get(sel), today2) : `<div class="empty glass"><span>Toque num dia para ver os lançamentos dele.</span></div>`;
+    return ctx.cols === 1 ? grid + totals + day : `<div class="calLayout"><div>${grid}${totals}</div><div>${day}</div></div>`;
+  }
+  function calCard(days, ym, today2) {
+    const cells = MonthCalendar.cells(ym).map((d) => d ? dayCell(d, days.get(d), today2) : '<span class="calEmpty" aria-hidden="true"></span>').join("");
+    return `<section class="calCard glass" aria-label="Calendário de ${attr(MonthCalendar.monthTitle(ym))}">
+    <div class="calHead">
+      ${roundBtn("chevron-left", "Mês anterior", "cal-shift", { d: -1 })}
+      <div class="calTitle"><h3 aria-live="polite">${esc(MonthCalendar.monthTitle(ym))}</h3>
+        ${ym !== ymOf(today2) ? btn("Voltar para hoje", { act: "cal-today", cls: "link small" }) : ""}</div>
+      ${roundBtn("chevron-right", "Próximo mês", "cal-shift", { d: 1 })}
+    </div>
+    <div class="calWeek" aria-hidden="true">${MonthCalendar.WEEK_HEADER.map((w) => `<span>${w}</span>`).join("")}</div>
+    <div class="calGrid">${cells}</div>
+    <div class="calLegend" aria-hidden="true"><span><i class="dot income"></i>Receita</span><span><i class="dot expense"></i>Despesa</span>
+      <span><i class="dot card"></i>Cartão</span><span>${icon("warning", 13, "red")}Em atraso</span></div>
+    <p class="srOnly">Toque num dia para ver os lançamentos. Toque de novo no dia escolhido, ou toque e segure, para lançar nessa data.</p>
+  </section>`;
+  }
+  var roundBtn = (ic, label, act, data = {}, cls = "") => `<button type="button" class="roundBtn${cls ? " " + cls : ""}" data-act="${act}"${Object.entries(data).map(([k, v]) => ` data-${k}="${attr(v)}"`).join("")} aria-label="${attr(label)}">${icon(ic, 22)}</button>`;
+  function dayCell(d, day, today2) {
+    const sel = d === ctx.cal.day, cls = ["calDay", sel && "sel", d === today2 && "today", d < today2 && "past"].filter(Boolean).join(" ");
+    const val = day && !hidden() && (day.income || day.expense) ? `<span class="v ${day.net < 0 ? "red" : "green"}">${esc(MonthCalendar.signed(day.net))}</span>` : "";
+    const dots = day?.marks.length ? `<span class="dots">${day.marks.map((m) => `<i class="dot ${m}"></i>`).join("")}</span>` : "";
+    return `<button type="button" class="${cls}" data-act="cal-day" data-date="${d}" data-id="${d}" aria-pressed="${sel}"
+    aria-label="${attr(MonthCalendar.describe(d, day, today2, hidden()) + (sel ? ". Toque de novo para lançar nesta data" : ""))}">
+    ${day?.overdue ? `<span class="warn">${icon("warning", 11)}</span>` : ""}<span class="n">${+d.slice(8, 10)}</span>${val}${dots}</button>`;
+  }
+  function monthTotals(days) {
+    const t = MonthCalendar.totals(days);
+    return `<section class="calTotals" aria-label="Totais do mês">
+    <div class="glass"><small>Entradas</small><b class="green">${money(t.income)}</b></div>
+    <div class="glass"><small>Saídas</small><b class="red">${money(t.expense)}</b></div>
+    <div class="glass"><small>Resultado</small><b class="${t.net < 0 ? "red" : "accent"}">${money(t.net)}</b></div></section>
+    <p class="muted small calNote">Inclui o que ainda está pendente e as faturas no dia do vencimento. Compras no cartão aparecem no dia, mas só contam na fatura.</p>`;
+  }
+  function dayBox(d, day, today2) {
+    const n = day?.count || 0;
+    const count = n === 0 ? "Sem lançamentos" : n === 1 ? "1 lançamento" : `${n} lançamentos`;
+    const net = day?.net || 0;
+    const netTxt = hidden() || !day || !day.income && !day.expense ? "" : ` · saldo do dia ${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}`;
+    const forecast = d >= today2 ? (() => {
+      const f = Finance.futureBalance(ctx.state, d, today2);
+      return `<div class="forecastRow glass"><span>Saldo previsto ao fim do dia</span><b class="${f < 0 ? "negative" : ""}">${money(f)}</b></div>`;
+    })() : "";
+    const rows = day && n ? day.txs.map((t) => txRow(t, { noDate: true })).join("") + day.invoices.map(invoiceRow).join("") : `<div class="empty glass"><b>Nada neste dia</b><span>Use Receita ou Despesa para lançar algo com esta data.</span></div>`;
+    return `<section class="section calDayBox" aria-label="Lançamentos do dia">
+    <div class="sectionHead"><div>${eyebrow(d === today2 ? "Hoje" : d < today2 ? "Dia escolhido" : "Previsto")}<h3>${esc(MonthCalendar.dayTitle(d, today2))}</h3>
+      <small class="muted">${esc(count + netTxt)}</small></div></div>
+    <div class="dayBtns">${btn("Receita", { act: "new-tx", data: { kind: "income", date: d }, icon: "add", iconSize: 18 })}${btn("Despesa", { act: "new-tx", data: { kind: "expense", date: d }, icon: "remove", iconSize: 18 })}</div>
+    ${forecast}<div class="list">${rows}</div></section>`;
+  }
+  function invoiceRow(i) {
+    return `<button type="button" class="tx expense invoiceRow" data-act="pay-invoice" data-id="${attr(i.cardId)}">
+    <span class="badge cardBadge" aria-hidden="true">${icon("credit-card", 20)}</span>
+    <span class="meta"><b>Fatura ${esc(i.cardName)}</b><small>${i.overdue ? '<span class="red">Vencida · em aberto</span>' : "Vence neste dia · toque para pagar"}</small></span>
+    <span class="amount">−${money(i.amount)}</span></button>`;
+  }
+
   // js/screens.js
   var pct1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(".", ",");
   var pct0 = (v) => String(Math.round(v));
-  var sumOf2 = (l) => l.reduce((n, t) => n + t.value, 0);
   var cols = (...c) => ctx.cols === 1 ? c.flat().join("") : `<div class="cols cols${c.length}">${c.map((x) => `<div class="col">${x.join("")}</div>`).join("")}</div>`;
-  var sectionHead = (eb, title, action = "") => `<div class="sectionHead"><div>${eyebrow(eb)}<h3>${esc(title)}</h3></div>${action}</div>`;
+  var sectionHead = (eb, title, action = "") => `<div class="sectionHead"><div>${eb ? eyebrow(eb) : ""}<h3>${esc(title)}</h3></div>${action}</div>`;
   var glyph = (cat) => {
     const ic = categoryIcon(cat);
     return `<span class="badge" aria-hidden="true">${ic ? icon(ic, 20) : esc([...String(cat).trim()][0]?.toUpperCase() || "•")}</span>`;
@@ -3703,30 +3947,27 @@ ${xref}
     const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
     const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
     const fl = Finance.monthFlow(s, ym);
+    const pend = Period.monthPending(s, ym, today2);
     const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
     const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
-    const summary = fl.income > 0 ? `Neste mês você usou ${pct1(used)}% das receitas.` : s.txs.length ? "Ainda não há receitas realizadas neste mês." : "Adicione seus primeiros lançamentos.";
+    const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : "";
     const hero = `<section class="hero glass" aria-label="Resumo do mês">
-    <div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>
+    ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>` : ""}
     <div class="balanceGrid">
       <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b></div>
-      <div class="balanceCard future"><span>Previsto p/ fim do mês</span><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b></div>
+      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
     </div>
     <div class="stats">
-      <div><span>${icon("arrow-upward", 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b></div>
-      <div><span>${icon("arrow-downward", 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b></div>
+      <div><span>${icon("arrow-upward", 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub("a receber", pend.toReceive, "green")}</div>
+      <div><span>${icon("arrow-downward", 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub("a pagar", pend.toPay, "red")}</div>
     </div>
-    <div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
-    <div class="monthProgressText"><small>${esc(summary)}</small>${fl.income > 0 ? `<b class="savedPill">${pct0(saved)}% economizado</b>` : ""}</div>
+    ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
+    <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ""}
   </section>`;
-    const quick = `<section class="quick" aria-label="Ações rápidas">
-    ${btn("Receita", { act: "new-tx", data: { kind: "income" }, icon: "add" })}
-    ${btn("Despesa", { act: "new-tx", data: { kind: "expense" }, icon: "remove" })}
-    ${btn("Meta", { act: "new-goal", icon: "flag" })}</section>`;
-    const blocks = { hero: hero + quick, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection() };
-    const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals]];
-    const order2 = [[blocks.hero, blocks.due, blocks.limits], [blocks.assist, blocks.wallet, blocks.goals]];
-    const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2) : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals].join("");
+    const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
+    const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
+    const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
+    const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2) : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals, blocks.start].join("");
     return `<h2 id="homeTitle" class="srOnly">Início</h2>${body}`;
   }
   function upcoming(s, today2, days = 30) {
@@ -3750,7 +3991,7 @@ ${xref}
       <span class="meta"><b>${esc(r.title)}</b><small>${esc(r.sub)} · ${r.late ? `<span class="red">em atraso desde ${brDayMonth(r.date)}</span>` : `vence ${esc(when)}`}</small></span>
       <span class="amount ${r.kind === "income" ? "green" : ""}">${r.kind === "income" ? "+" : ""}${money(r.amount)}</span></button>`;
     }).join("");
-    return `<section class="section">${sectionHead("Próximos 30 dias", "Vencimentos", list.length ? btn("Ver todos", { act: "open-moves", data: { st: "pending" }, cls: "soft small" }) : "")}
+    return `<section class="section">${sectionHead(null, "Vencimentos (30 dias)", list.length ? btn("Ver todos", { act: "open-moves", data: { st: "pending" }, cls: "soft small" }) : "")}
     <div class="glass compactBox dueList">${rows || '<p class="muted center">Nada a pagar ou receber nos próximos 30 dias.</p>'}
     ${list.length > 8 ? `<p class="muted small center">e mais ${list.length - 8} vencimento(s)</p>` : ""}</div></section>`;
   }
@@ -3758,19 +3999,17 @@ ${xref}
     const d = ctx.device;
     if (!assistOn()) return "";
     const s = ctx.state, today2 = ctx.today;
-    let inner = "";
-    let tips = [];
+    let inner = "", tips = [];
     if (d.assistTips) {
       const rep = Insights.report(s, today2, money);
       tips = visibleTips(Insights.tips(s, today2, money));
-      inner = `<h3>${esc(rep.title)}</h3><ul class="reportLines">${rep.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${why(rep.why)}
-      ${tips.slice(0, 2).map(tipItem).join("")}
-      ${!tips.length && s.txs.length ? '<p class="muted small">Nenhuma dica no momento: nada fora do padrão.</p>' : ""}`;
-    } else inner = "<h3>Pergunte sobre seus gastos</h3>";
+      const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
+      inner = `<ul class="reportLines">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${tips[0] ? tipItem(tips[0]) : ""}`;
+    } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
+    const link = d.assistTips ? tips.length > 1 ? `Ver as ${tips.length} dicas` : "Abrir assistente" : "Perguntar";
     return `<section class="glass assistCard" aria-label="Assistente">
-    <div class="assistHead">${icon("auto-awesome", 16)}<small class="eyebrow">Assistente · no aparelho</small></div>${inner}
-    <div class="pillRow">${d.assistTips ? btn(tips.length > 2 ? `Ver as ${tips.length} dicas` : "Abrir assistente", { act: "go", data: { view: "assist" }, cls: "pill" }) : ""}
-    ${d.assistAsk ? btn("Perguntar", { act: "go", data: { view: "assist", focus: "ask" }, cls: "pill", icon: "search", iconSize: 16 }) : ""}</div></section>`;
+    <div class="assistHead">${icon("auto-awesome", 16)}<small class="eyebrow">Assistente</small></div>${inner}
+    <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? "" : ' data-focus="ask"'}><span>${esc(link)}</span>${icon("chevron-right", 18)}</button></section>`;
   }
   function tipItem(t, o = {}) {
     const canOpen = t.query != null || t.from != null;
@@ -3795,7 +4034,14 @@ ${xref}
       <span class="sub">Disponível ${money(st.available)}</span>
       <div class="cardActions">${cur ? btn("Pagar fatura", { act: "pay-invoice", data: { id: c.id }, cls: "primary small" }) : ""}${btn("", { act: "edit-card", data: { id: c.id }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
     }).join("");
-    return `<section class="section">${sectionHead("Patrimônio", "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small" }))}
+    const head = sectionHead(null, "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small" }));
+    if (s.accounts.length === 1 && !s.cards.length) {
+      const a = s.accounts[0], b = Finance.accountBalance(s, a);
+      return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
+      <span class="badge" aria-hidden="true">${icon("account-balance", 20)}</span><span class="meta"><b>${esc(a.name)}</b><small>Conta</small></span>
+      <b class="amount${b < 0 ? " negative" : ""}">${money(b)}</b></button></section>`;
+    }
+    return `<section class="section">${head}
     <div class="${ctx.cols === 1 ? "hscroll" : "walletGrid"}">${accs}${cards}</div></section>`;
   }
   function limitsSection() {
@@ -3808,8 +4054,9 @@ ${xref}
       <div><b>${esc(cat)}</b><span>${money(u)} / ${money(lim)}</span></div>
       <div class="budgetTrack"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
     }).join("");
-    return `<section class="section">${sectionHead("Orçamento · inclui pendentes", "Limites do mês", btn("", { act: "new-limit", cls: "icon small", icon: "add", label: "Novo limite" }))}
-    <div class="glass compactBox">${rows || '<p class="muted small">Defina limites em Ajustes para acompanhar seu orçamento.</p>'}</div></section>`;
+    if (!s.limits.size) return "";
+    return `<section class="section">${sectionHead(null, "Limites do mês", btn("", { act: "new-limit", cls: "icon small", icon: "add", label: "Novo limite" }))}
+    <div class="glass compactBox"><p class="muted small">Inclui o que ainda está pendente.</p>${rows}</div></section>`;
   }
   function goalsSection() {
     const s = ctx.state;
@@ -3825,8 +4072,17 @@ ${xref}
       <div class="bar2"><i style="width:${p}%"></i></div>
       <div class="goalInfo"><span>${esc(info)}</span><span>${pct0(p)}%</span></div>${planTxt ? `<small class="goalPlan">${planTxt}</small>` : ""}</button>`;
     }).join("");
-    return `<section class="section">${sectionHead("Objetivos", "Metas", btn("", { act: "new-goal", cls: "icon small", icon: "add", label: "Nova meta" }))}
-    <div class="list">${rows || `<div class="empty glass"><span>Crie uma meta com o botão “Meta”.</span></div>`}</div></section>`;
+    if (!s.goals.length) return "";
+    return `<section class="section">${sectionHead(null, "Metas", btn("", { act: "new-goal", cls: "icon small", icon: "add", label: "Nova meta" }))}
+    <div class="list">${rows}</div></section>`;
+  }
+  function startSection() {
+    const s = ctx.state;
+    const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
+    <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`;
+    const rows = (s.limits.size ? "" : row("new-limit", "payments", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")) + (s.goals.length ? "" : row("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo"));
+    if (!rows) return "";
+    return `<section class="section">${sectionHead(null, "Comece por aqui")}<div class="glass compactBox startBox">${rows}</div></section>`;
   }
   function movesDefaults() {
     const ym = ymOf(ctx.today);
@@ -3839,55 +4095,66 @@ ${xref}
     const f = ctx.moves, q = Text.fold(f.q);
     return ctx.state.txs.filter((t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to) && (!f.kind || t.kind === f.kind) && (!f.st || (f.st === "paid" ? t.paid : !t.paid)) && (!q || Text.fold(t.desc + " " + t.category).includes(q))).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
   }
+  function viewSwitch() {
+    const v = ctx.movesView;
+    const b = (id, label, ic) => `<button type="button" role="tab" data-act="moves-view" data-v="${id}" aria-selected="${v === id}" class="${v === id ? "selected" : ""}">${icon(ic, 19)}<span>${label}</span></button>`;
+    return `<div class="viewSwitch glass" role="tablist" aria-label="Modo de exibição">${b("list", "Lista", "view-list")}${b("calendar", "Calendário", "calendar-month")}</div>`;
+  }
+  function periodBar() {
+    const f = ctx.moves, custom = Period.fullMonth(f.from, f.to) == null || f.st === "paid";
+    return `<div class="periodBar">${roundBtn("chevron-left", "Mês anterior", "moves-shift", { d: -1 })}
+    <h3 class="periodLabel" aria-live="polite">${esc(Period.label(f.from, f.to))}</h3>
+    ${roundBtn("chevron-right", "Próximo mês", "moves-shift", { d: 1 })}${roundBtn("tune", "Período e filtros", "moves-filters", {}, custom ? "on" : "")}</div>`;
+  }
+  function filterChips() {
+    const f = ctx.moves;
+    const chip = (c, label, on) => `<button type="button" class="chip${on ? " on" : ""}" data-act="moves-chip" data-c="${c}" aria-pressed="${on}">${label}</button>`;
+    return `<div class="chips" role="group" aria-label="Filtros">${chip("all", "Todos", !f.kind && !f.st)}${chip("income", "Receitas", f.kind === "income")}${chip("expense", "Despesas", f.kind === "expense")}${chip("pending", "Pendentes", f.st === "pending")}</div>`;
+  }
   function movesView() {
     movesDefaults();
     const f = ctx.moves;
-    const panel = `<section class="period glass" aria-label="Período">
-      <div class="periodFields"><label class="field"><span>De</span><input type="date" id="fromDate" value="${attr(f.from || "")}"></label><span aria-hidden="true">${icon("arrow-back", 16, "flip")}</span>
-      <label class="field"><span>Até</span><input type="date" id="toDate" value="${attr(f.to || "")}"></label></div>
-      <div class="presetRow">${btn("Este mês", { act: "moves-preset", data: { p: "month" } })}${btn("30 dias", { act: "moves-preset", data: { p: "30" } })}${btn("Tudo", { act: "moves-preset", data: { p: "all" } })}</div></section>
-    <section class="filterPanel glass" aria-label="Filtros"><small class="eyebrow">Filtros da lista</small>
-      <div class="searchField">${icon("search", 20)}<input id="q" type="search" placeholder="Buscar lançamentos…" aria-label="Buscar lançamentos (descrição ou categoria)" value="${attr(f.q)}" maxlength="60"></div>
-      <div class="filterSelects">
-        <select id="kindF" aria-label="Tipo de lançamento"><option value="">Todos os tipos</option><option value="income"${f.kind === "income" ? " selected" : ""}>Receitas</option><option value="expense"${f.kind === "expense" ? " selected" : ""}>Despesas</option></select>
-        <select id="stF" aria-label="Situação"><option value="">Pagos e pendentes</option><option value="paid"${f.st === "paid" ? " selected" : ""}>Só realizados</option><option value="pending"${f.st === "pending" ? " selected" : ""}>Só pendentes</option></select></div></section>
-    <div id="movesTotals"></div>`;
-    const list = `<section class="section listSection"><div class="sectionHead"><div>${eyebrow("No período")}<h3>Todos os lançamentos</h3></div><b id="periodCount" class="countPill">0</b></div>
-    <div id="periodTransactions" class="list"></div></section>`;
-    const title = pageTitle("movesTitle", "Movimentações", "Lançamentos", "Compare suas receitas e despesas em qualquer período.");
-    return title + (ctx.cols === 1 ? panel + list : `<div class="movesGrid"><aside class="movesAside">${panel}</aside><div>${list}</div></div>`);
+    const title = `<div class="pageTitle"><h2 id="movesTitle">Lançamentos</h2></div>`;
+    if (ctx.movesView === "calendar") return title + viewSwitch() + calendarView();
+    const panel = `${periodBar()}
+    <div class="searchField">${icon("search", 20)}<input id="q" type="search" placeholder="Buscar descrição ou categoria" aria-label="Buscar lançamentos (descrição ou categoria)" value="${attr(f.q)}" maxlength="60"></div>
+    ${filterChips()}<div id="movesTotals"></div>`;
+    const list = `<section class="section listSection" aria-label="Lançamentos do período"><div id="periodTransactions" class="list"></div></section>`;
+    return title + viewSwitch() + (ctx.cols === 1 ? panel + list : `<div class="movesGrid"><aside class="movesAside">${panel}</aside><div>${list}</div></div>`);
   }
   function movesData() {
-    const all = filteredTxs(), f = ctx.moves;
-    const fl = Finance.flow(all), total = fl.income + fl.expense, bal = fl.income - fl.expense;
-    const pending2 = all.filter((t) => !t.paid && isFlow(t));
-    const pi = sumOf2(pending2.filter((t) => t.kind === "income")), pe = sumOf2(pending2.filter((t) => t.kind === "expense"));
-    const text = fl.income > 0 ? `As despesas representam ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.` : fl.expense > 0 ? "Há despesas, mas nenhuma receita neste período." : "Nenhuma movimentação no período selecionado.";
-    const pend = !pending2.length ? "" : hidden() ? " Há valores pendentes." : ` Pendente: a receber ${Money.format(pi)} · a pagar ${Money.format(pe)}.`;
-    const bar = (label, v, cls) => {
-      const p = total > 0 ? Math.round(v * 100 / total) : 0;
-      return `<div class="barRow ${cls}"><span>${label}</span><div><i style="width:${p}%"></i></div><b>${p}%</b></div>`;
-    };
-    const totals = `<section class="compareCards">
-      <article class="compare glass"><span>${icon("arrow-upward", 14)}Receitas</span><b class="green">${money(fl.income)}</b></article>
-      <article class="compare glass"><span>${icon("arrow-downward", 14)}Despesas</span><b class="red">${money(fl.expense)}</b></article>
-      <article class="compare balance glass"><span>Saldo do período</span><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b></article></section>
-    <section class="comparison glass"><div class="compareHead"><div>${eyebrow("Comparação")}<h3>Receitas × despesas</h3></div><b>${fl.income > 0 ? `${Math.trunc(fl.expense * 100 / fl.income)}% gasto` : "—"}</b></div>
-      ${bar("Receitas", fl.income, "")}${bar("Despesas", fl.expense, "expenseBar")}<small>${esc(text + pend)}</small></section>`;
-    const shown = all.slice(0, f.limit);
-    const rows = shown.map(txRow).join("");
+    const all = filteredTxs(), f = ctx.moves, today2 = ctx.today;
+    const fl = Finance.flow(all), pend = Period.pending(all), bal = fl.income - fl.expense;
+    const forecast = bal + pend.toReceive - pend.toPay, hasPend = pend.toReceive > 0 || pend.toPay > 0;
+    const col = (label, v, cls, subL, sv, scls, show) => `<div><small>${label}</small><b class="${cls}">${money(v)}</b>${show ? `<small class="statSub">${subL} <b class="${scls}">${money(sv)}</b></small>` : ""}</div>`;
+    const totals = `<section class="periodSummary glass" aria-label="Resumo do período"><div class="sumGrid">
+      ${col("Receitas", fl.income, "green", "a receber", pend.toReceive, "green", pend.toReceive > 0)}
+      ${col("Despesas", fl.expense, "red", "a pagar", pend.toPay, "red", pend.toPay > 0)}
+      ${col("Saldo", bal, bal < 0 ? "negative" : "", "previsto", forecast, forecast < 0 ? "negative" : "accent", hasPend)}</div>
+    ${fl.income > 0 && !hidden() ? `<small class="muted sumNote">As despesas são ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.</small>` : ""}</section>`;
+    const shown = all.slice(0, f.limit), groups = [];
+    for (const t of shown) {
+      const g = groups.at(-1);
+      if (g && g.date === t.date) g.txs.push(t);
+      else groups.push({ date: t.date, txs: [t] });
+    }
+    const rows = groups.map((g) => {
+      const net = Period.cashNet(g.txs), cash = g.txs.some((t) => !isCard(t));
+      return `<h4 class="dayHead"><span>${esc((g.date === today2 ? "Hoje · " : "") + MonthCalendar.dayTitle(g.date, today2))}</span>
+      ${cash && !hidden() ? `<b class="${net < 0 ? "red" : "green"}">${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}</b>` : ""}</h4>${g.txs.map((t) => txRow(t, { noDate: true })).join("")}`;
+    }).join("");
     return {
       totals,
       count: all.length,
-      list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: "moves-more", cls: "soft wide" }) : "") : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Altere as datas ou adicione uma movimentação.</span></div>`
+      list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: "moves-more", cls: "soft wide" }) : "") : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês, ajuste os filtros ou adicione uma movimentação.</span></div>`
     };
   }
-  function txRow(t) {
+  function txRow(t, o = {}) {
     const s = ctx.state, payment = !isFlow(t), cardT = isCard(t);
     const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ""}` : account(s, t.accountId)?.name ?? "";
     const late = !t.paid && !cardT && t.date < ctx.today;
     const status = payment ? "Pagamento de fatura" : cardT ? "" : t.paid ? "" : late ? '<span class="red">Em atraso</span>' : t.kind === "income" ? "A receber" : "A pagar";
-    const meta = [esc(t.category), esc(where), brDate(t.date), status].filter(Boolean).join(" · ");
+    const meta = [esc(t.category), esc(where), o.noDate ? "" : brDate(t.date), status].filter(Boolean).join(" · ");
     const toggle = cardT ? `<span class="chk card" title="Compra no cartão">${icon("credit-card", 16)}</span>` : payment ? `<span class="chk on" title="Pagamento de fatura">${icon("check", 16)}</span>` : `<button type="button" class="chk${t.paid ? " on" : ""}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-pressed="${t.paid}" aria-label="${t.paid ? t.kind === "income" ? "Recebido" : "Pago" : t.kind === "income" ? "Marcar como recebido" : "Marcar como pago"}: ${attr(t.desc)}">${icon("check", 16)}</button>`;
     return `<div class="tx ${t.kind}${t.paid ? "" : " pending"}${payment ? " payment" : ""}" data-act="edit-tx" data-id="${attr(t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${t.kind === "income" ? "receita" : "despesa"} de ${attr(money(t.value))} em ${brDate(t.date)}">
     ${glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
@@ -4126,9 +4393,9 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   }
   function mobileHeaderHtml() {
     const s = ctx.state;
-    return `<div><small class="eyebrow">Controle financeiro</small><h1>Finan+</h1></div><div class="headTools">
-    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores" : "Ocultar valores" })}
-    ${assistOn() ? btn("", { act: "go", data: { view: "assist" }, cls: "icon", icon: "auto-awesome", label: "Assistente" }) : ""}</div>`;
+    return `<div><h1>Finan+</h1><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
+    <span class="statusPill">${icon("shield", 14)}Privado</span>
+    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores" : "Ocultar valores" })}</div>`;
   }
   function bottomNavHtml() {
     const item = (id) => {
@@ -4152,6 +4419,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     exportCsv: () => exportCsv,
     goalEditor: () => goalEditor,
     limitEditor: () => limitEditor,
+    movesFiltersSheet: () => movesFiltersSheet,
     newState: () => newState,
     payInvoiceEditor: () => payInvoiceEditor,
     pdfDialog: () => pdfDialog,
@@ -4194,7 +4462,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   }
   var actions = (save, del) => `<div class="sheetActions">${del ? btn(del, { act: "sheet-delete", cls: "danger" }) : ""}${btn(save, { submit: true, cls: "primary" })}</div>`;
   var onDelete = (d, fn) => d.querySelector('[data-act="sheet-delete"]')?.addEventListener("click", fn);
-  function txEditor(kind = "expense", id = null) {
+  function txEditor(kind = "expense", id = null, date = null) {
     const s = ctx.state, t = id ? s.txs.find((x) => x.id === id) : null;
     if (id && !t) return;
     const isPayment = !!t?.cardPayment;
@@ -4213,8 +4481,8 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     <div id="payModeWrap">${field("Forma de pagamento", select("payMode", [["account", "Conta / dinheiro"], ["card", "Cartão de crédito"]], t?.cardId ? "card" : "account"))}</div>
     <div id="cardWrap">${field("Cartão", select("cardId", s.cards.map((c) => [c.id, c.name]), t?.cardId || s.cards[0]?.id || ""))}</div>
     <div id="accWrap">${field(isPayment ? "Pago com a conta" : "Conta", select("accountId", s.accounts.map((a) => [a.id, a.name]), t?.accountId ?? s.accounts[0].id))}</div>
-    ${field("Data", input("date", t?.date ?? today(), { type: "date", required: true }))}
-    <div id="paidWrap">${check("paid", "", t ? t.paid : true)}</div>
+    ${field("Data", input("date", t?.date ?? date ?? today(), { type: "date", required: true }))}
+    <div id="paidWrap">${check("paid", "", t ? t.paid : !(date && date > today()))}</div>
     ${t ? "" : `<div class="row2">${field("Parcelas", input("reps", "1", { inputmode: "numeric", max: 2 }), { hint: "Até 60" })}
       <div id="repsModeWrap" hidden>${field("O valor informado é", select("repsMode", [["TOTAL", "O total da compra (divide entre as parcelas)"], ["EACH", "O valor de cada parcela"]], "TOTAL"))}</div></div>
       ${check("recurring", "Repetir mensalmente", false, { sub: "Cria uma recorrência a partir desta data" })}`}
@@ -4302,6 +4570,45 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       closeSheet();
       toast("Lançamento excluído");
     });
+  }
+  function movesFiltersSheet() {
+    const f = ctx.moves;
+    const body = `<form id="f" novalidate>
+    <div class="row2">${field("De", input("from", f.from || "", { type: "date" }))}${field("Até", input("to", f.to || "", { type: "date" }))}</div>
+    <div class="presetRow">${btn("Este mês", { act: "moves-preset", data: { p: "month" } })}${btn("30 dias", { act: "moves-preset", data: { p: "30" } })}${btn("Tudo", { act: "moves-preset", data: { p: "all" } })}</div>
+    ${field("Situação", select("st", [["", "Todos"], ["paid", "Realizados"], ["pending", "Pendentes"]], f.st || ""))}
+    <div class="sheetActions">${btn("Pronto", { submit: true, cls: "primary" })}</div></form>`;
+    const d = openSheet({ title: "Período e filtros", subtitle: "O período também vale para Relatórios.", body });
+    const form = d.querySelector("#f");
+    const sync = () => {
+      form.from.value = f.from || "";
+      form.to.value = f.to || "";
+      form.st.value = f.st || "";
+    };
+    form.from.onchange = () => {
+      f.from = form.from.value || null;
+      f.all = !f.from && !f.to;
+      f.limit = 300;
+      ctx.render();
+    };
+    form.to.onchange = () => {
+      f.to = form.to.value || null;
+      f.all = !f.from && !f.to;
+      f.limit = 300;
+      ctx.render();
+    };
+    form.st.onchange = () => {
+      f.st = form.st.value;
+      f.limit = 300;
+      ctx.render();
+    };
+    d.addEventListener("click", (e) => {
+      if (e.target.closest('[data-act="moves-preset"]')) setTimeout(sync);
+    });
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      closeSheet();
+    };
   }
   function goalEditor(id = null) {
     const g = id ? ctx.state.goals.find((x) => x.id === id) : null;
@@ -4586,6 +4893,8 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   function whatsNew() {
     const items = [
+      "1.2.0: calendário em Lançamentos (saldo de cada dia, faturas no vencimento, atrasos; toque de novo num dia, ou segure, para lançar nessa data). No celular, deslize para o lado para trocar de aba.",
+      '1.2.0: Início e Lista mais enxutos: o que falta receber e pagar, assistente em 2 frases, "Comece por aqui", ‹ mês › com Período e filtros, filtros de um toque e lançamentos agrupados por dia.',
       "1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.",
       "1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.",
       "Novo nome: Finan+, com o ícone do app Android.",
@@ -5013,33 +5322,15 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     $("#periodCount") && ($("#periodCount").textContent = d.count);
   }
   function bindView() {
-    if (ctx.view === "moves") {
+    if (ctx.view === "moves" && $("#q")) {
       renderMovesData();
       const f = ctx.moves;
       const upd = () => {
         f.limit = 300;
         renderMovesData();
       };
-      $("#fromDate").onchange = (e) => {
-        f.from = e.target.value || null;
-        f.all = !f.from && !f.to;
-        upd();
-      };
-      $("#toDate").onchange = (e) => {
-        f.to = e.target.value || null;
-        f.all = !f.from && !f.to;
-        upd();
-      };
       $("#q").oninput = (e) => {
         f.q = e.target.value;
-        upd();
-      };
-      $("#kindF").onchange = (e) => {
-        f.kind = e.target.value;
-        upd();
-      };
-      $("#stF").onchange = (e) => {
-        f.st = e.target.value;
         upd();
       };
     }
@@ -5121,7 +5412,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     }
   }
   var ACTIONS = {
-    "new-tx": (el) => txEditor(el.dataset.kind || "expense"),
+    "new-tx": (el) => txEditor(el.dataset.kind || "expense", null, el.dataset.date || null),
     "edit-tx": (el) => txEditor("expense", el.dataset.id),
     "toggle-paid": (el) => {
       ctx.replace(Ops.togglePaid(ctx.state, el.dataset.id));
@@ -5161,6 +5452,49 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     "moves-more": () => {
       ctx.moves.limit += 300;
       renderMovesData();
+    },
+    // Lançamentos: Lista | Calendário, setas do mês, período e filtros, filtros de um toque
+    "moves-view": (el) => {
+      ctx.movesView = el.dataset.v === "calendar" ? "calendar" : "list";
+      render();
+    },
+    "moves-shift": (el) => {
+      const f = ctx.moves;
+      [f.from, f.to] = Period.shift(f.from, f.to, +el.dataset.d, ctx.today);
+      f.all = false;
+      f.limit = 300;
+      render();
+    },
+    "moves-filters": () => movesFiltersSheet(),
+    "moves-chip": (el) => {
+      const f = ctx.moves, c = el.dataset.c;
+      if (c === "all") {
+        f.kind = "";
+        f.st = "";
+      } else if (c === "pending") f.st = f.st === "pending" ? "" : "pending";
+      else f.kind = f.kind === c ? "" : c;
+      f.limit = 300;
+      render();
+    },
+    // calendário: 1º toque escolhe o dia; tocar de novo no dia escolhido abre um lançamento novo nessa data
+    "cal-day": (el) => {
+      if (suppressCalClick) {
+        suppressCalClick = false;
+        return;
+      }
+      const d = el.dataset.date;
+      if (ctx.cal.day === d) {
+        txEditor("expense", null, d);
+        return;
+      }
+      ctx.cal.day = d;
+      render();
+    },
+    "cal-shift": (el) => calShift(+el.dataset.d),
+    "cal-today": () => {
+      ctx.cal.ym = ymOf(ctx.today);
+      ctx.cal.day = ctx.today;
+      render();
     },
     "dismiss-tip": (el) => ctx.setDevice({ dismissedTips: [...ctx.device.dismissedTips, el.dataset.id] }),
     "restore-tip": (el) => ctx.setDevice({ dismissedTips: ctx.device.dismissedTips.filter((x) => x !== el.dataset.id) }),
@@ -5235,6 +5569,69 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       }
     }
   });
+  function calShift(delta) {
+    const ym = (ctx.cal.ym ?? ymOf(ctx.today)) + delta;
+    ctx.cal.ym = ym;
+    ctx.cal.day = ym === ymOf(ctx.today) ? ctx.today : null;
+    render();
+  }
+  var calHold = null;
+  var suppressCalClick = false;
+  document.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest?.(".calDay");
+    clearTimeout(calHold);
+    calHold = null;
+    if (!el || e.button > 0) return;
+    calHold = setTimeout(() => {
+      calHold = null;
+      suppressCalClick = true;
+      ctx.cal.day = el.dataset.date;
+      render();
+      txEditor("expense", null, el.dataset.date);
+      setTimeout(() => {
+        suppressCalClick = false;
+      }, 800);
+    }, 550);
+  }, { passive: true });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => document.addEventListener(ev, () => {
+    clearTimeout(calHold);
+    calHold = null;
+  }, { passive: true }));
+  document.addEventListener("pointermove", (e) => {
+    if (calHold && (Math.abs(e.movementX) > 4 || Math.abs(e.movementY) > 4)) {
+      clearTimeout(calHold);
+      calHold = null;
+    }
+  }, { passive: true });
+  document.addEventListener("contextmenu", (e) => {
+    if (e.target.closest?.(".calDay")) e.preventDefault();
+  });
+  var SWIPE_TABS = ["home", "moves", "reports", "prefs"];
+  var swipe = null;
+  document.addEventListener("touchstart", (e) => {
+    swipe = null;
+    if (ctx.cols !== 1 || e.touches.length !== 1 || ctx.locked || ctx.problem || dialogOpen()) return;
+    const t = e.target;
+    if (!t.closest?.("#main") || t.closest("input, select, textarea, .hscroll, details")) return;
+    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now(), cal: !!t.closest(".calCard") };
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    const s = swipe;
+    swipe = null;
+    if (!s || dialogOpen()) return;
+    const p = e.changedTouches[0], dx = p.clientX - s.x, dy = p.clientY - s.y;
+    if (Date.now() - s.at > 700 || Math.abs(dx) < 70 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
+    clearTimeout(calHold);
+    calHold = null;
+    if (s.cal) {
+      calShift(dx < 0 ? 1 : -1);
+      return;
+    }
+    const i = SWIPE_TABS.indexOf(ctx.view);
+    if (i < 0) return;
+    const next = SWIPE_TABS[i + (dx < 0 ? 1 : -1)];
+    if (next) ctx.go(next);
+  }, { passive: true });
   document.addEventListener("pointerdown", (e) => {
     const el = e.target.closest("button,.tx,.chk");
     if (!el) return;
@@ -5484,6 +5881,14 @@ e mais ${list.length - 5}` : "");
   function dayTick() {
     const t = todayStr();
     if (t === ctx.today || !ctx.state) return;
+    if (ctx.cal.day === ctx.today && ctx.cal.ym === ymOf(ctx.today)) {
+      ctx.cal.day = t;
+      ctx.cal.ym = ymOf(t);
+    }
+    if (Period.fullMonth(ctx.moves.from, ctx.moves.to) === ymOf(ctx.today) && ymOf(t) !== ymOf(ctx.today)) {
+      ctx.moves.from = ymFirst(ymOf(t));
+      ctx.moves.to = ymLast(ymOf(t));
+    }
     ctx.today = t;
     const [s, n] = Finance.generateRecurring(ctx.state, t);
     if (n > 0) ctx.replace(s);

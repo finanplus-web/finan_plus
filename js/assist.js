@@ -202,6 +202,8 @@ export const Insights = {
     const curInc = s.txs.filter(t => t.kind === 'income' && t.paid && inMonthUntil(t, ym, day));
     const spent = sum(curExp), before = sum(prevExp), income = sum(curInc);
     const lines = [];
+    // as 2 frases mais úteis vão para o Início (highlights), na ordem: atraso, a pagar, gasto, a receber, entrou
+    const hl = {};
     if (spent === 0) lines.push(`Ainda não há despesas realizadas em ${brMonth(ym)}.`);
     else {
       let l = `Até hoje (dia ${day}) você gastou ${money(spent)} em ${brMonth(ym)}.`;
@@ -211,19 +213,19 @@ export const Insights = {
           : c > 0 ? ` São ${pct(c)} a mais que no mesmo período de ${brMonth(prev)} (${money(before)}).`
             : ` São ${pct(c)} a menos que no mesmo período de ${brMonth(prev)} (${money(before)}).`;
       }
-      lines.push(l);
+      lines.push(hl.spent = l);
     }
-    if (income > 0) lines.push(income >= spent ? `Entraram ${money(income)}; sobram ${money(income - spent)} até agora.`
+    if (income > 0) lines.push(hl.income = income >= spent ? `Entraram ${money(income)}; sobram ${money(income - spent)} até agora.`
       : `Entraram ${money(income)}; as despesas já passam as receitas em ${money(spent - income)}.`);
     let topCat = null, topV = -1;
     for (const [c, l] of groupBy(curExp, t => t.category)) { const v = sum(l); if (v > topV) { topV = v; topCat = c; } }
     if (topCat != null && spent > 0) lines.push(`A maior categoria é ${topCat}: ${money(topV)} (${pct(topV * 100 / spent)} das despesas).`);
     const pending = exp.filter(t => !t.paid && !isCard(t) && ymOf(t.date) === ym && t.date >= today);
-    if (pending.length) lines.push(`Ainda faltam ${money(sum(pending))} em ${plural(pending.length, 'conta', 'contas')} a pagar até o fim do mês.`);
+    if (pending.length) lines.push(hl.pending = `Ainda faltam ${money(sum(pending))} em ${plural(pending.length, 'conta', 'contas')} a pagar até o fim do mês.`);
     const toReceive = s.txs.filter(t => t.kind === 'income' && !t.paid && ymOf(t.date) === ym);
-    if (toReceive.length) lines.push(`A receber neste mês: ${money(sum(toReceive))} em ${plural(toReceive.length, 'lançamento', 'lançamentos')}.`);
+    if (toReceive.length) lines.push(hl.receive = `A receber neste mês: ${money(sum(toReceive))} em ${plural(toReceive.length, 'lançamento', 'lançamentos')}.`);
     const late = exp.filter(t => !t.paid && !isCard(t) && t.date < today);
-    if (late.length) lines.push(`${plural(late.length, 'conta está', 'contas estão')} em atraso (${money(sum(late))}).`);
+    if (late.length) lines.push(hl.late = `${plural(late.length, 'conta está', 'contas estão')} em atraso (${money(sum(late))}).`);
     if (day <= 7) {
       const pe = sum(exp.filter(t => t.paid && ymOf(t.date) === prev));
       const pi = sum(s.txs.filter(t => t.kind === 'income' && t.paid && ymOf(t.date) === prev));
@@ -231,6 +233,7 @@ export const Insights = {
     }
     return {
       title: `Resumo de ${brMonthYear(ym)}`, lines,
+      highlights: [hl.late, hl.pending, hl.spent, hl.receive, hl.income].filter(Boolean).slice(0, 2),
       why: 'Considera só lançamentos realizados (pagos ou recebidos) até hoje. Compras no cartão contam na data da compra; '
         + `pagamentos de fatura não contam como despesa nova. A comparação usa os mesmos dias (1 a ${day}) do mês anterior, para ser justa.`,
     };

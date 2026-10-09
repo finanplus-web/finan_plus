@@ -434,6 +434,92 @@ dialog{color:var(--text)}
   .topbar{margin:0 -40px 22px;padding:18px 40px}
 }
 
+/* ------------------------------------------------------------------ 1.3.0: Início e Lista enxutos, calendário */
+.accent{color:var(--accent)!important}
+.mobileHeader h1{font-size:30px;margin:0;line-height:1.1}
+.headDate{display:block;color:var(--muted);font-size:14px;margin-top:3px}
+.headTools{align-items:center}
+.hero>.balanceGrid:first-child{margin-top:0}
+.statSub{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;font-weight:500}
+.statSub b{display:inline!important;font-size:inherit!important;font-weight:800}
+.moreLink{display:inline-flex;align-items:center;gap:2px;margin-top:6px;padding:8px 2px;font-weight:800;color:var(--accent)}
+.assistAskTxt{margin:6px 0}
+.walletRow{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:22px;text-align:left}
+.walletRow .meta{flex:1;min-width:0}.walletRow .meta b,.walletRow .meta small{display:block}.walletRow .meta small{color:var(--muted);font-size:12px}
+.walletRow .amount{font-size:17px;font-weight:800;white-space:nowrap}
+.startBox{padding:6px}
+.startRow{display:flex;align-items:center;gap:12px;width:100%;padding:10px;border-radius:18px;text-align:left;color:var(--muted)}
+.startRow:hover{background:var(--surface2)}
+.startRow .meta{flex:1;min-width:0;color:var(--text)}.startRow .meta b,.startRow .meta small{display:block}.startRow .meta small{color:var(--muted);font-size:12.5px}
+.startRow+.startRow{border-top:1px solid var(--line)}
+
+/* chave Lista | Calendário */
+.viewSwitch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:24px;margin:0 0 12px}
+.viewSwitch button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px;border-radius:20px;font-weight:750;color:var(--muted)}
+.viewSwitch button.selected{background:var(--accent);color:var(--onAccent)}
+
+/* Lista: ‹ mês ›, filtros de um toque, resumo, dias */
+.periodBar{display:flex;align-items:center;gap:2px;margin:2px 0 8px}
+.periodLabel{flex:1;text-align:center;font-size:18px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roundBtn{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;flex:none;padding:0;color:var(--accent);position:relative}
+.roundBtn::before{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--accent2);z-index:-1}
+.roundBtn{isolation:isolate}
+.roundBtn.on{color:var(--onAccent)}.roundBtn.on::before{background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 2px}
+.chip{padding:9px 14px;min-height:40px;border-radius:99px;background:var(--accent2);font-weight:700;font-size:13.5px}
+.chip.on{background:var(--accent);color:var(--onAccent)}
+.periodSummary{padding:14px 16px;border-radius:24px;margin:10px 0 4px}
+.sumGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sumGrid>div>small:first-child{display:block;font-size:12px;color:var(--muted)}
+.sumGrid>div>b{display:block;font-size:16px;margin-top:2px;overflow-wrap:anywhere}
+.sumNote{display:block;margin-top:10px;font-size:12.5px}
+.sumGrid .statSub b{display:block!important;margin-top:1px}
+.dayHead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:16px 4px 2px;font-size:14.5px}
+.dayHead b{font-size:14px;white-space:nowrap}
+.listSection .list{gap:8px}
+
+/* calendário */
+.calCard{padding:10px;border-radius:26px}
+.calHead{display:flex;align-items:center;margin-bottom:4px}
+.calTitle{flex:1;text-align:center}.calTitle h3{margin:0;font-size:17px}
+.calTitle .btn.link{margin:2px auto 0;padding:4px 10px;min-height:0;color:var(--accent);font-weight:800}
+.calWeek,.calGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.calWeek span{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted);padding:4px 0}
+.calDay{position:relative;min-height:54px;border-radius:14px;padding:6px 1px 5px;display:flex;flex-direction:column;align-items:center;gap:1px;container-type:inline-size;color:var(--text)}
+.calDay .n{font-size:14px;font-weight:650}
+.calDay.past .n{color:var(--muted);font-weight:450}
+.calDay .v{font-size:clamp(7px,21cqi,11px);font-weight:800;letter-spacing:-.02em;white-space:nowrap;max-width:100%;overflow:hidden}
+.calDay .dots{display:flex;gap:3px;margin-top:2px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%}
+.dot.income{background:var(--green)}.dot.expense{background:var(--red)}.dot.card{background:#7446d0}
+:root:not([data-theme=light]):not([data-theme=materialBlue]) .dot.card{background:#c3a6ff}
+.calDay.today{box-shadow:inset 0 0 0 1.5px var(--accent)}.calDay.today .n{color:var(--accent);font-weight:850}
+.calDay.sel{background:var(--accent)}.calDay.sel .n,.calDay.sel .v{color:var(--onAccent)!important;font-weight:850}
+.calDay.sel .dot{box-shadow:0 0 0 1.5px var(--onAccent)}
+.calDay .warn{position:absolute;top:2px;right:3px;color:var(--red);line-height:0}
+.calDay.sel .warn{color:var(--onAccent)}
+.calDay:hover:not(.sel){background:var(--surface2)}
+.calLegend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;margin-top:8px;font-size:11.5px;color:var(--muted)}
+.calLegend span{display:inline-flex;align-items:center;gap:4px}
+.calTotals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.calTotals>div{padding:12px;border-radius:20px;min-width:0}
+.calTotals small{display:block;font-size:12px;color:var(--muted)}.calTotals b{display:block;font-size:15px;margin-top:2px;overflow-wrap:anywhere}
+.calNote{margin:6px 4px 0}
+.calDayBox{margin-top:18px}
+.calDayBox .sectionHead small{display:block;margin-top:2px}
+.dayBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.dayBtns .btn{border-radius:16px;min-height:46px}
+.forecastRow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-radius:20px;margin-bottom:8px}
+.forecastRow span{color:var(--muted)}.forecastRow b{font-size:17px;white-space:nowrap}
+.invoiceRow{width:100%}
+.cardBadge{color:#7446d0}
+:root:not([data-theme=light]):not([data-theme=materialBlue]) .cardBadge{color:#c3a6ff}
+@media (min-width:900px){
+  .calLayout{display:grid;grid-template-columns:minmax(360px,1fr) minmax(320px,1fr);gap:24px;align-items:start}
+  .calLayout .calDayBox{margin-top:0}
+  .viewSwitch{max-width:420px}
+}
+
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* impressão: só o conteúdo */

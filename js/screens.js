@@ -14,13 +14,15 @@ import { PDF_SERIES } from './pdf.js';
 import { icon } from './icons.js';
 import { esc, attr, btn, eyebrow, pageTitle, why, check } from './ui.js';
 import { ctx, money, hidden, categoryIcon, APP_VERSION } from './ctx.js';
+import { MonthCalendar, Period } from './calendar.js';
+import { calendarView, roundBtn } from './calendarview.js';
 
 const pct1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
 const pct0 = v => String(Math.round(v));
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const sumOf = l => l.reduce((n, t) => n + t.value, 0);
 const cols = (...c) => ctx.cols === 1 ? c.flat().join('') : `<div class="cols cols${c.length}">${c.map(x => `<div class="col">${x.join('')}</div>`).join('')}</div>`;
-const sectionHead = (eb, title, action = '') => `<div class="sectionHead"><div>${eyebrow(eb)}<h3>${esc(title)}</h3></div>${action}</div>`;
+const sectionHead = (eb, title, action = '') => `<div class="sectionHead"><div>${eb ? eyebrow(eb) : ''}<h3>${esc(title)}</h3></div>${action}</div>`;
 const glyph = cat => {
   const ic = categoryIcon(cat);
   return `<span class="badge" aria-hidden="true">${ic ? icon(ic, 20) : esc([...String(cat).trim()][0]?.toUpperCase() || '•')}</span>`;
@@ -33,32 +35,30 @@ export function homeView() {
   const s = ctx.state, today = ctx.today, ym = ymOf(today);
   const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today);
   const fl = Finance.monthFlow(s, ym);
+  const pend = Period.monthPending(s, ym, today);
   const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
   const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
-  const summary = fl.income > 0 ? `Neste mês você usou ${pct1(used)}% das receitas.`
-    : s.txs.length ? 'Ainda não há receitas realizadas neste mês.' : 'Adicione seus primeiros lançamentos.';
+  // embaixo de Receitas/Despesas: o que ainda falta entrar e sair no mês (o R$ 0,00 não esconde o que vem)
+  const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : '';
   const hero = `<section class="hero glass" aria-label="Resumo do mês">
-    <div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today))}</span><span class="statusPill">${icon('shield', 14)}Privado</span></div>
+    ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today))}</span><span class="statusPill">${icon('shield', 14)}Privado</span></div>` : ''}
     <div class="balanceGrid">
       <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? 'negative' : ''}">${money(bal)}</b></div>
-      <div class="balanceCard future"><span>Previsto p/ fim do mês</span><b class="${fut < 0 ? 'negative' : ''}">${money(fut)}</b></div>
+      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? 'negative' : ''}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
     </div>
     <div class="stats">
-      <div><span>${icon('arrow-upward', 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b></div>
-      <div><span>${icon('arrow-downward', 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b></div>
+      <div><span>${icon('arrow-upward', 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub('a receber', pend.toReceive, 'green')}</div>
+      <div><span>${icon('arrow-downward', 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub('a pagar', pend.toPay, 'red')}</div>
     </div>
-    <div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ''}></i></div>
-    <div class="monthProgressText"><small>${esc(summary)}</small>${fl.income > 0 ? `<b class="savedPill">${pct0(saved)}% economizado</b>` : ''}</div>
+    ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ''}></i></div>
+    <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ''}
   </section>`;
-  const quick = `<section class="quick" aria-label="Ações rápidas">
-    ${btn('Receita', { act: 'new-tx', data: { kind: 'income' }, icon: 'add' })}
-    ${btn('Despesa', { act: 'new-tx', data: { kind: 'expense' }, icon: 'remove' })}
-    ${btn('Meta', { act: 'new-goal', icon: 'flag' })}</section>`;
-  const blocks = { hero: hero + quick, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection() };
-  const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals]];
-  const order2 = [[blocks.hero, blocks.due, blocks.limits], [blocks.assist, blocks.wallet, blocks.goals]];
+  // os botões Receita/Despesa/Meta saíram: o + da barra (celular) e os botões do topo (computador) fazem o mesmo
+  const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
+  const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
+  const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
   const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2)
-    : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals].join('');
+    : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals, blocks.start].join('');
   return `<h2 id="homeTitle" class="srOnly">Início</h2>${body}`;
 }
 
@@ -85,28 +85,27 @@ function dueCard() {
       <span class="meta"><b>${esc(r.title)}</b><small>${esc(r.sub)} · ${r.late ? `<span class="red">em atraso desde ${brDayMonth(r.date)}</span>` : `vence ${esc(when)}`}</small></span>
       <span class="amount ${r.kind === 'income' ? 'green' : ''}">${r.kind === 'income' ? '+' : ''}${money(r.amount)}</span></button>`;
   }).join('');
-  return `<section class="section">${sectionHead('Próximos 30 dias', 'Vencimentos', list.length ? btn('Ver todos', { act: 'open-moves', data: { st: 'pending' }, cls: 'soft small' }) : '')}
+  return `<section class="section">${sectionHead(null, 'Vencimentos (30 dias)', list.length ? btn('Ver todos', { act: 'open-moves', data: { st: 'pending' }, cls: 'soft small' }) : '')}
     <div class="glass compactBox dueList">${rows || '<p class="muted center">Nada a pagar ou receber nos próximos 30 dias.</p>'}
     ${list.length > 8 ? `<p class="muted small center">e mais ${list.length - 8} vencimento(s)</p>` : ''}</div></section>`;
 }
 
+/** cartão compacto: as 2 frases mais úteis do mês (Insights.report().highlights), a dica principal e um link só */
 function homeAssistCard() {
   const d = ctx.device;
   if (!assistOn()) return '';
   const s = ctx.state, today = ctx.today;
-  let inner = '';
-  let tips = [];
+  let inner = '', tips = [];
   if (d.assistTips) {
     const rep = Insights.report(s, today, money);
     tips = visibleTips(Insights.tips(s, today, money));
-    inner = `<h3>${esc(rep.title)}</h3><ul class="reportLines">${rep.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${why(rep.why)}
-      ${tips.slice(0, 2).map(tipItem).join('')}
-      ${!tips.length && s.txs.length ? '<p class="muted small">Nenhuma dica no momento: nada fora do padrão.</p>' : ''}`;
-  } else inner = '<h3>Pergunte sobre seus gastos</h3>';
+    const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
+    inner = `<ul class="reportLines">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${tips[0] ? tipItem(tips[0]) : ''}`;
+  } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
+  const link = d.assistTips ? (tips.length > 1 ? `Ver as ${tips.length} dicas` : 'Abrir assistente') : 'Perguntar';
   return `<section class="glass assistCard" aria-label="Assistente">
-    <div class="assistHead">${icon('auto-awesome', 16)}<small class="eyebrow">Assistente · no aparelho</small></div>${inner}
-    <div class="pillRow">${d.assistTips ? btn(tips.length > 2 ? `Ver as ${tips.length} dicas` : 'Abrir assistente', { act: 'go', data: { view: 'assist' }, cls: 'pill' }) : ''}
-    ${d.assistAsk ? btn('Perguntar', { act: 'go', data: { view: 'assist', focus: 'ask' }, cls: 'pill', icon: 'search', iconSize: 16 }) : ''}</div></section>`;
+    <div class="assistHead">${icon('auto-awesome', 16)}<small class="eyebrow">Assistente</small></div>${inner}
+    <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? '' : ' data-focus="ask"'}><span>${esc(link)}</span>${icon('chevron-right', 18)}</button></section>`;
 }
 
 export function tipItem(t, o = {}) {
@@ -130,7 +129,15 @@ function walletSection() {
       <span class="sub">Disponível ${money(st.available)}</span>
       <div class="cardActions">${cur ? btn('Pagar fatura', { act: 'pay-invoice', data: { id: c.id }, cls: 'primary small' }) : ''}${btn('', { act: 'edit-card', data: { id: c.id }, cls: 'icon tiny', icon: 'edit', iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
   }).join('');
-  return `<section class="section">${sectionHead('Patrimônio', 'Contas e cartões', btn('Gerenciar', { act: 'go', data: { view: 'prefs', fold: 'contas' }, cls: 'soft small' }))}
+  const head = sectionHead(null, 'Contas e cartões', btn('Gerenciar', { act: 'go', data: { view: 'prefs', fold: 'contas' }, cls: 'soft small' }));
+  // uma conta só e nenhum cartão: linha inteira
+  if (s.accounts.length === 1 && !s.cards.length) {
+    const a = s.accounts[0], b = Finance.accountBalance(s, a);
+    return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
+      <span class="badge" aria-hidden="true">${icon('account-balance', 20)}</span><span class="meta"><b>${esc(a.name)}</b><small>Conta</small></span>
+      <b class="amount${b < 0 ? ' negative' : ''}">${money(b)}</b></button></section>`;
+  }
+  return `<section class="section">${head}
     <div class="${ctx.cols === 1 ? 'hscroll' : 'walletGrid'}">${accs}${cards}</div></section>`;
 }
 
@@ -144,8 +151,9 @@ function limitsSection() {
       <div><b>${esc(cat)}</b><span>${money(u)} / ${money(lim)}</span></div>
       <div class="budgetTrack"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
   }).join('');
-  return `<section class="section">${sectionHead('Orçamento · inclui pendentes', 'Limites do mês', btn('', { act: 'new-limit', cls: 'icon small', icon: 'add', label: 'Novo limite' }))}
-    <div class="glass compactBox">${rows || '<p class="muted small">Defina limites em Ajustes para acompanhar seu orçamento.</p>'}</div></section>`;
+  if (!s.limits.size) return ''; // enquanto não há limites: atalho em "Comece por aqui"
+  return `<section class="section">${sectionHead(null, 'Limites do mês', btn('', { act: 'new-limit', cls: 'icon small', icon: 'add', label: 'Novo limite' }))}
+    <div class="glass compactBox"><p class="muted small">Inclui o que ainda está pendente.</p>${rows}</div></section>`;
 }
 
 function goalsSection() {
@@ -162,8 +170,20 @@ function goalsSection() {
       <div class="bar2"><i style="width:${p}%"></i></div>
       <div class="goalInfo"><span>${esc(info)}</span><span>${pct0(p)}%</span></div>${planTxt ? `<small class="goalPlan">${planTxt}</small>` : ''}</button>`;
   }).join('');
-  return `<section class="section">${sectionHead('Objetivos', 'Metas', btn('', { act: 'new-goal', cls: 'icon small', icon: 'add', label: 'Nova meta' }))}
-    <div class="list">${rows || `<div class="empty glass"><span>Crie uma meta com o botão “Meta”.</span></div>`}</div></section>`;
+  if (!s.goals.length) return ''; // enquanto não há metas: atalho em "Comece por aqui"
+  return `<section class="section">${sectionHead(null, 'Metas', btn('', { act: 'new-goal', cls: 'icon small', icon: 'add', label: 'Nova meta' }))}
+    <div class="list">${rows}</div></section>`;
+}
+
+/** atalhos para o que ainda não foi configurado; cada linha some quando deixa de fazer sentido */
+function startSection() {
+  const s = ctx.state;
+  const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
+    <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon('chevron-right', 20)}</button>`;
+  const rows = (s.limits.size ? '' : row('new-limit', 'payments', 'Definir um limite mensal', 'Acompanhe quanto gasta por categoria'))
+    + (s.goals.length ? '' : row('new-goal', 'flag', 'Criar uma meta', 'Junte para um objetivo com prazo'));
+  if (!rows) return '';
+  return `<section class="section">${sectionHead(null, 'Comece por aqui')}<div class="glass compactBox startBox">${rows}</div></section>`;
 }
 
 // ================================================================== Lançamentos
@@ -179,55 +199,72 @@ export function filteredTxs() {
     .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
 }
 
+/** chave Lista | Calendário */
+function viewSwitch() {
+  const v = ctx.movesView;
+  const b = (id, label, ic) => `<button type="button" role="tab" data-act="moves-view" data-v="${id}" aria-selected="${v === id}" class="${v === id ? 'selected' : ''}">${icon(ic, 19)}<span>${label}</span></button>`;
+  return `<div class="viewSwitch glass" role="tablist" aria-label="Modo de exibição">${b('list', 'Lista', 'view-list')}${b('calendar', 'Calendário', 'calendar-month')}</div>`;
+}
+
+/** ‹ Outubro de 2026 › e o botão de período livre e situação (destacado quando há algo fora do mês inteiro) */
+function periodBar() {
+  const f = ctx.moves, custom = Period.fullMonth(f.from, f.to) == null || f.st === 'paid';
+  return `<div class="periodBar">${roundBtn('chevron-left', 'Mês anterior', 'moves-shift', { d: -1 })}
+    <h3 class="periodLabel" aria-live="polite">${esc(Period.label(f.from, f.to))}</h3>
+    ${roundBtn('chevron-right', 'Próximo mês', 'moves-shift', { d: 1 })}${roundBtn('tune', 'Período e filtros', 'moves-filters', {}, custom ? 'on' : '')}</div>`;
+}
+
+/** filtros de um toque: Receitas/Despesas combinam com Pendentes; "Realizados" fica em Período e filtros */
+function filterChips() {
+  const f = ctx.moves;
+  const chip = (c, label, on) => `<button type="button" class="chip${on ? ' on' : ''}" data-act="moves-chip" data-c="${c}" aria-pressed="${on}">${label}</button>`;
+  return `<div class="chips" role="group" aria-label="Filtros">${chip('all', 'Todos', !f.kind && !f.st)}${chip('income', 'Receitas', f.kind === 'income')}${chip('expense', 'Despesas', f.kind === 'expense')}${chip('pending', 'Pendentes', f.st === 'pending')}</div>`;
+}
+
 export function movesView() {
   movesDefaults();
   const f = ctx.moves;
-  const panel = `<section class="period glass" aria-label="Período">
-      <div class="periodFields"><label class="field"><span>De</span><input type="date" id="fromDate" value="${attr(f.from || '')}"></label><span aria-hidden="true">${icon('arrow-back', 16, 'flip')}</span>
-      <label class="field"><span>Até</span><input type="date" id="toDate" value="${attr(f.to || '')}"></label></div>
-      <div class="presetRow">${btn('Este mês', { act: 'moves-preset', data: { p: 'month' } })}${btn('30 dias', { act: 'moves-preset', data: { p: '30' } })}${btn('Tudo', { act: 'moves-preset', data: { p: 'all' } })}</div></section>
-    <section class="filterPanel glass" aria-label="Filtros"><small class="eyebrow">Filtros da lista</small>
-      <div class="searchField">${icon('search', 20)}<input id="q" type="search" placeholder="Buscar lançamentos…" aria-label="Buscar lançamentos (descrição ou categoria)" value="${attr(f.q)}" maxlength="60"></div>
-      <div class="filterSelects">
-        <select id="kindF" aria-label="Tipo de lançamento"><option value="">Todos os tipos</option><option value="income"${f.kind === 'income' ? ' selected' : ''}>Receitas</option><option value="expense"${f.kind === 'expense' ? ' selected' : ''}>Despesas</option></select>
-        <select id="stF" aria-label="Situação"><option value="">Pagos e pendentes</option><option value="paid"${f.st === 'paid' ? ' selected' : ''}>Só realizados</option><option value="pending"${f.st === 'pending' ? ' selected' : ''}>Só pendentes</option></select></div></section>
-    <div id="movesTotals"></div>`;
-  const list = `<section class="section listSection"><div class="sectionHead"><div>${eyebrow('No período')}<h3>Todos os lançamentos</h3></div><b id="periodCount" class="countPill">0</b></div>
-    <div id="periodTransactions" class="list"></div></section>`;
-  const title = pageTitle('movesTitle', 'Movimentações', 'Lançamentos', 'Compare suas receitas e despesas em qualquer período.');
-  return title + (ctx.cols === 1 ? panel + list : `<div class="movesGrid"><aside class="movesAside">${panel}</aside><div>${list}</div></div>`);
+  const title = `<div class="pageTitle"><h2 id="movesTitle">Lançamentos</h2></div>`;
+  if (ctx.movesView === 'calendar') return title + viewSwitch() + calendarView();
+  const panel = `${periodBar()}
+    <div class="searchField">${icon('search', 20)}<input id="q" type="search" placeholder="Buscar descrição ou categoria" aria-label="Buscar lançamentos (descrição ou categoria)" value="${attr(f.q)}" maxlength="60"></div>
+    ${filterChips()}<div id="movesTotals"></div>`;
+  const list = `<section class="section listSection" aria-label="Lançamentos do período"><div id="periodTransactions" class="list"></div></section>`;
+  return title + viewSwitch() + (ctx.cols === 1 ? panel + list : `<div class="movesGrid"><aside class="movesAside">${panel}</aside><div>${list}</div></div>`);
 }
 
 export function movesData() {
-  const all = filteredTxs(), f = ctx.moves;
-  const fl = Finance.flow(all), total = fl.income + fl.expense, bal = fl.income - fl.expense;
-  const pending = all.filter(t => !t.paid && isFlow(t));
-  const pi = sumOf(pending.filter(t => t.kind === 'income')), pe = sumOf(pending.filter(t => t.kind === 'expense'));
-  const text = fl.income > 0 ? `As despesas representam ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.`
-    : fl.expense > 0 ? 'Há despesas, mas nenhuma receita neste período.' : 'Nenhuma movimentação no período selecionado.';
-  const pend = !pending.length ? '' : hidden() ? ' Há valores pendentes.' : ` Pendente: a receber ${Money.format(pi)} · a pagar ${Money.format(pe)}.`;
-  const bar = (label, v, cls) => { const p = total > 0 ? Math.round(v * 100 / total) : 0; return `<div class="barRow ${cls}"><span>${label}</span><div><i style="width:${p}%"></i></div><b>${p}%</b></div>`; };
-  const totals = `<section class="compareCards">
-      <article class="compare glass"><span>${icon('arrow-upward', 14)}Receitas</span><b class="green">${money(fl.income)}</b></article>
-      <article class="compare glass"><span>${icon('arrow-downward', 14)}Despesas</span><b class="red">${money(fl.expense)}</b></article>
-      <article class="compare balance glass"><span>Saldo do período</span><b class="${bal < 0 ? 'negative' : ''}">${money(bal)}</b></article></section>
-    <section class="comparison glass"><div class="compareHead"><div>${eyebrow('Comparação')}<h3>Receitas × despesas</h3></div><b>${fl.income > 0 ? `${Math.trunc(fl.expense * 100 / fl.income)}% gasto` : '—'}</b></div>
-      ${bar('Receitas', fl.income, '')}${bar('Despesas', fl.expense, 'expenseBar')}<small>${esc(text + pend)}</small></section>`;
-  const shown = all.slice(0, f.limit);
-  const rows = shown.map(txRow).join('');
+  const all = filteredTxs(), f = ctx.moves, today = ctx.today;
+  const fl = Finance.flow(all), pend = Period.pending(all), bal = fl.income - fl.expense;
+  const forecast = bal + pend.toReceive - pend.toPay, hasPend = pend.toReceive > 0 || pend.toPay > 0;
+  const col = (label, v, cls, subL, sv, scls, show) => `<div><small>${label}</small><b class="${cls}">${money(v)}</b>${show ? `<small class="statSub">${subL} <b class="${scls}">${money(sv)}</b></small>` : ''}</div>`;
+  const totals = `<section class="periodSummary glass" aria-label="Resumo do período"><div class="sumGrid">
+      ${col('Receitas', fl.income, 'green', 'a receber', pend.toReceive, 'green', pend.toReceive > 0)}
+      ${col('Despesas', fl.expense, 'red', 'a pagar', pend.toPay, 'red', pend.toPay > 0)}
+      ${col('Saldo', bal, bal < 0 ? 'negative' : '', 'previsto', forecast, forecast < 0 ? 'negative' : 'accent', hasPend)}</div>
+    ${fl.income > 0 && !hidden() ? `<small class="muted sumNote">As despesas são ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.</small>` : ''}</section>`;
+  // lista agrupada por dia (mais recentes primeiro), com o saldo de cada dia pela mesma regra do calendário
+  const shown = all.slice(0, f.limit), groups = [];
+  for (const t of shown) { const g = groups.at(-1); if (g && g.date === t.date) g.txs.push(t); else groups.push({ date: t.date, txs: [t] }); }
+  const rows = groups.map(g => {
+    const net = Period.cashNet(g.txs), cash = g.txs.some(t => !isCard(t));
+    return `<h4 class="dayHead"><span>${esc((g.date === today ? 'Hoje · ' : '') + MonthCalendar.dayTitle(g.date, today))}</span>
+      ${cash && !hidden() ? `<b class="${net < 0 ? 'red' : 'green'}">${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}</b>` : ''}</h4>${g.txs.map(t => txRow(t, { noDate: true })).join('')}`;
+  }).join('');
   return {
     totals, count: all.length,
     list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: 'moves-more', cls: 'soft wide' }) : '')
-      : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Altere as datas ou adicione uma movimentação.</span></div>`,
+      : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês, ajuste os filtros ou adicione uma movimentação.</span></div>`,
   };
 }
 
-export function txRow(t) {
+/** linha de lançamento; o: { noDate } quando o dia já aparece no título (lista por dia e calendário) */
+export function txRow(t, o = {}) {
   const s = ctx.state, payment = !isFlow(t), cardT = isCard(t);
   const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ''}` : account(s, t.accountId)?.name ?? '';
   const late = !t.paid && !cardT && t.date < ctx.today;
   const status = payment ? 'Pagamento de fatura' : cardT ? '' : t.paid ? '' : late ? '<span class="red">Em atraso</span>' : (t.kind === 'income' ? 'A receber' : 'A pagar');
-  const meta = [esc(t.category), esc(where), brDate(t.date), status].filter(Boolean).join(' · ');
+  const meta = [esc(t.category), esc(where), o.noDate ? '' : brDate(t.date), status].filter(Boolean).join(' · ');
   const toggle = cardT ? `<span class="chk card" title="Compra no cartão">${icon('credit-card', 16)}</span>`
     : payment ? `<span class="chk on" title="Pagamento de fatura">${icon('check', 16)}</span>`
       : `<button type="button" class="chk${t.paid ? ' on' : ''}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-pressed="${t.paid}" aria-label="${t.paid ? (t.kind === 'income' ? 'Recebido' : 'Pago') : (t.kind === 'income' ? 'Marcar como recebido' : 'Marcar como pago')}: ${attr(t.desc)}">${icon('check', 16)}</button>`;
@@ -483,9 +520,9 @@ export function topbarHtml() {
 }
 export function mobileHeaderHtml() {
   const s = ctx.state;
-  return `<div><small class="eyebrow">Controle financeiro</small><h1>Finan+</h1></div><div class="headTools">
-    ${btn('', { act: 'toggle-privacy', cls: 'icon', icon: s.privacy ? 'visibility' : 'visibility-off', label: s.privacy ? 'Mostrar valores' : 'Ocultar valores' })}
-    ${assistOn() ? btn('', { act: 'go', data: { view: 'assist' }, cls: 'icon', icon: 'auto-awesome', label: 'Assistente' }) : ''}</div>`;
+  return `<div><h1>Finan+</h1><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
+    <span class="statusPill">${icon('shield', 14)}Privado</span>
+    ${btn('', { act: 'toggle-privacy', cls: 'icon', icon: s.privacy ? 'visibility' : 'visibility-off', label: s.privacy ? 'Mostrar valores' : 'Ocultar valores' })}</div>`;
 }
 export function bottomNavHtml() {
   const item = id => { const [, label, ic, icOn] = NAV.find(n => n[0] === id); const on = ctx.view === id || (id === 'home' && ctx.view === 'assist'); return `<button type="button" class="${on ? 'active' : ''}" data-act="go" data-view="${id}" aria-current="${on ? 'page' : 'false'}">${icon(on ? icOn : ic, 22)}<span>${label}</span></button>`; };

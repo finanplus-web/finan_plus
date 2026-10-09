@@ -118,6 +118,16 @@ test('resumo do mês', () => {
   assert.ok(r2.lines.includes('A receber neste mês: R$ 2.113,62 em 2 lançamentos.'));
 });
 
+test('resumo: as 2 frases do Início seguem a prioridade (como no Android)', () => {
+  const r = Insights.report(st(ex('Aluguel', 'Moradia', 70000, '2026-10-20', { paid: false }), ex('Luz', 'Moradia', 31250, '2026-10-20', { paid: false }),
+    inc('Salário', 'Salário', 121362, '2026-10-20', false)), TODAY, money);
+  assert.deepEqual(r.highlights, ['Ainda faltam R$ 1.012,50 em 2 contas a pagar até o fim do mês.', 'A receber neste mês: R$ 1.213,62 em 1 lançamento.']);
+  const late = Insights.report(st(ex('Internet', 'Moradia', 11990, '2026-10-06', { paid: false }), ex('Mercado', 'Alimentação', 30000, '2026-10-05')), TODAY, money);
+  assert.equal(late.highlights.length, 2);
+  assert.ok(late.highlights[0].includes('em atraso'), late.highlights[0]);
+  assert.ok(late.highlights[1].includes('você gastou R$ 300,00'), late.highlights[1]);
+});
+
 test('dica: duplicado', () => {
   const l = of(Insights.tips(st(ex('Padaria', 'Alimentação', 1250, '2026-10-10'), ex('padaria', 'Alimentação', 1250, '2026-10-10'),
     ex('Padaria', 'Alimentação', 1250, '2026-10-11')), TODAY, money), 'DUPLICATE');
