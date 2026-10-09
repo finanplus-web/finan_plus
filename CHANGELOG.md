@@ -1,8 +1,8 @@
 # Changelog — Finan+ web (PWA)
 
-## 1.2.0 — Calendário, gestos, Início e Lista enxutos (08/10/2026, ainda não publicada)
+## 1.2.0 — Calendário, gestos, Início e Lista enxutos (08/10/2026)
 
-> **Situação:** pronta e testada no navegador, mas **não publicada**: está no branch `calendario`. O GitHub Pages só publica o que entra na `main`. Mesmas mudanças do Finan+ Android 1.3.0 (PR #4 do `finan_plus_android`), com as mesmas regras e os mesmos testes.
+> **Publicada** no GitHub Pages em 08/10/2026 (PR #4). Mesmas mudanças do Finan+ Android 1.3.0 (PR #4 do `finan_plus_android`, ainda não publicado), com as mesmas regras e os mesmos testes.
 
 **Calendário de lançamentos** (Lançamentos › Calendário; detalhes em [CALENDARIO.md](CALENDARIO.md)):
 - O mês em grade (semana começando no domingo), com o saldo de cada dia abreviado ("+5,2 mil", "−120"), pontinhos de receita (verde), despesa (vermelho) e cartão (roxo) e alerta nos dias com conta atrasada ou fatura vencida. Hoje tem contorno; o dia escolhido fica preenchido.
