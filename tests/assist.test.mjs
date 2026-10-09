@@ -166,19 +166,41 @@ test('dica: categoria acima da média', () => {
 });
 
 test('dica: ritmo do limite', () => {
-  const s = st(ex('Restaurante', 'Alimentação', 30000, '2026-10-08'), ex('Mercado', 'Alimentação', 30000, '2026-10-12'),
+  // dia 15 de 31: 3 despesas variáveis (600) + compromisso fixo (100) → 100 + 600/15*31 = 1340
+  const s = st(ex('Feira', 'Alimentação', 20000, '2026-10-03'), ex('Restaurante', 'Alimentação', 20000, '2026-10-08'), ex('Mercado', 'Alimentação', 20000, '2026-10-12'),
     ex('Assinatura comida', 'Alimentação', 10000, '2026-10-01', { rec: 'r1' }));
   s.limits.set('Alimentação', 100000);
   const l = of(Insights.tips(s, TODAY, money), 'LIMIT_PACE');
   assert.equal(l.length, 1);
   assert.ok(l[0].text.includes('R$ 1.340,00') && l[0].text.includes('R$ 18,75 por dia') && l[0].text.includes('16 dias'));
   assert.equal(of(Insights.tips(s, '2026-10-05', money), 'LIMIT_PACE').length, 0);
+  // só 2 despesas variáveis na categoria: não há ritmo para projetar
+  const s2 = st(ex('Restaurante', 'Alimentação', 30000, '2026-10-08'), ex('Mercado', 'Alimentação', 30000, '2026-10-12'));
+  s2.limits.set('Alimentação', 100000);
+  assert.equal(of(Insights.tips(s2, TODAY, money), 'LIMIT_PACE').length, 0);
 });
 
 test('dica: despesas acima das receitas', () => {
-  const l = of(Insights.tips(st(inc('Salário', 'Salário', 100000, '2026-10-05'), ex('Gastos', 'Outros', 80000, '2026-10-10')), TODAY, money), 'OVER_INCOME');
+  // 5 despesas variáveis de R$ 160 até o dia 15: 800/15*31 = 1653,33
+  const gastos = ['01', '03', '06', '09', '10'].map(d => ex('Gasto ' + d, 'Outros', 16000, `2026-10-${d}`));
+  const l = of(Insights.tips(st(inc('Salário', 'Salário', 100000, '2026-10-05'), ...gastos), TODAY, money), 'OVER_INCOME');
   assert.equal(l.length, 1);
   assert.match(l[0].text, /R\$ 1\.653,33/);
+});
+
+test('dica: ritmo não dispara com poucos dados nem multiplica gasto pontual', () => {
+  // o caso relatado: dia 8, R$ 500 de receita e uma despesa só de R$ 200 → antes projetava R$ 775
+  const caso = st(inc('Salário', 'Salário', 50000, '2026-10-05'), ex('Mercado', 'Alimentação', 20000, '2026-10-06'));
+  assert.equal(of(Insights.tips(caso, '2026-10-08', money), 'OVER_INCOME').length, 0);
+  // uma despesa grande isolada (R$ 600 de R$ 800) conta uma vez: 600 + 200/15*31 = 1013,33
+  const s = st(inc('Salário', 'Salário', 100000, '2026-10-05'), ex('Notebook', 'Outros', 60000, '2026-10-02'),
+    ...['03', '06', '09', '10'].map(d => ex('Café ' + d, 'Alimentação', 5000, `2026-10-${d}`)));
+  const l = of(Insights.tips(s, TODAY, money), 'OVER_INCOME');
+  assert.equal(l.length, 1);
+  assert.match(l[0].text, /R\$ 1\.013,33/);
+  assert.match(l[0].why, /gasto pontual R\$ 600,00 \(conta uma vez\)/);
+  const p = Insights.project(s.txs.filter(t => t.kind === 'expense'), TODAY);
+  assert.deepEqual([p.oneOff, p.count, p.enough], [60000, 5, true]);
 });
 
 test('dica: pequenos gastos', () => {

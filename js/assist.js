@@ -185,6 +185,9 @@ export const INSIGHT_LABELS = {
   DUPLICATE: 'Possível duplicado', PRICE_UP: 'Aumento de preço', LIMIT_PACE: 'Ritmo do limite', OVER_INCOME: 'Ritmo do mês',
   CATEGORY_SPIKE: 'Acima da média', SMALL_SPENDS: 'Pequenos gastos', SUBSCRIPTIONS: 'Gastos fixos',
 };
+/** ritmo: mínimo de despesas variáveis pagas no mês para projetar (mês inteiro; por categoria com limite) e
+ *  parte do gasto variável acima da qual uma despesa sozinha é "pontual" (conta uma vez, não é multiplicada pelos dias) */
+export const PACE_MIN_COUNT = 5, PACE_MIN_COUNT_CAT = 3, ONE_OFF_SHARE = 0.5;
 export const SMALL_VALUE = 2000, SMALL_MIN_COUNT = 10, SPIKE_RATIO = 1.30, SPIKE_MIN_DIFF = 5000, PACE_MIN_DAY = 7,
   SUB_MIN_MONTHS = 3, SUB_TOLERANCE = 0.30, PRICE_UP_RATIO = 1.05, DUP_DAYS = 60;
 
@@ -310,12 +313,28 @@ export const Insights = {
   },
 
   /** compromissos do mês (recorrências, parcelas, contas agendadas) + gasto variável no ritmo diário atual */
-  project(list, today) {
+  /**
+   * Projeção das despesas até o fim do mês: compromissos (recorrências, parcelas e contas pendentes) pelo valor
+   * + gasto variável pago até hoje ÷ dias passados × dias do mês. Uma despesa que sozinha passa de metade do gasto
+   * variável é pontual: conta uma vez, sem ser multiplicada. Com menos de [minCount] despesas variáveis não há
+   * "ritmo" para projetar (enough = false) e as dicas não aparecem.
+   */
+  project(list, today, minCount = PACE_MIN_COUNT) {
     const ym = ymOf(today), day = dom(today), len = ymLen(ym);
     const month = list.filter(t => ymOf(t.date) === ym);
     const committed = sum(month.filter(t => isFixed(t) || !t.paid));
-    const variable = sum(month.filter(t => !isFixed(t) && t.paid && dom(t.date) <= day));
-    return { committed, variable, projected: committed + Math.round(variable / day * len) };
+    const vars = month.filter(t => !isFixed(t) && t.paid && dom(t.date) <= day);
+    const variable = sum(vars), biggest = vars.reduce((m, t) => Math.max(m, t.value), 0);
+    const oneOff = variable > 0 && biggest > variable * ONE_OFF_SHARE ? biggest : 0;
+    return { committed, variable, oneOff, count: vars.length, enough: vars.length >= minCount,
+      projected: committed + oneOff + Math.round((variable - oneOff) / day * len) };
+  },
+  /** texto do "Por quê?" com a conta da projeção */
+  projectionWhy(p, day, len, money, minCount) {
+    return `Conta: compromissos do mês (recorrências, parcelas e contas agendadas) ${money(p.committed)}`
+      + (p.oneOff ? ` + gasto pontual ${money(p.oneOff)} (conta uma vez) + resto do gasto variável até hoje ${money(p.variable - p.oneOff)}`
+        : ` + gasto variável até hoje ${money(p.variable)}`) + ` ÷ ${day} dias × ${len} dias. `
+      + `Só é calculada a partir do dia ${PACE_MIN_DAY} e com pelo menos ${minCount} despesas variáveis pagas no mês.`;
   },
 
   limitPace(s, today, money) {
@@ -326,14 +345,13 @@ export const Insights = {
       const l = exp.filter(t => t.category === cat);
       const used = sum(l.filter(t => ymOf(t.date) === ym));
       if (used >= lim) continue;
-      const p = Insights.project(l, today);
-      if (p.projected <= lim || p.projected - lim < 1000) continue;
+      const p = Insights.project(l, today, PACE_MIN_COUNT_CAT);
+      if (!p.enough || p.projected <= lim || p.projected - lim < 1000) continue;
       const left = len - day, perDay = Math.trunc(Math.max(0, lim - used) / left);
       out.push(insight(`pace:${ymOf(today)}:${cat}`, 'LIMIT_PACE', `${cat} pode passar do limite`,
         `No ritmo atual, ${cat} deve fechar ${brMonth(ym)} em cerca de ${money(p.projected)}, acima do limite de ${money(lim)}. `
         + `Para ficar dentro, gaste até ${money(perDay)} por dia nos ${left} dias restantes.`,
-        `Conta: compromissos do mês (recorrências, parcelas e contas agendadas) ${money(p.committed)} + gasto variável até hoje `
-        + `${money(p.variable)} ÷ ${day} dias × ${len} dias. Já usado: ${money(used)} de ${money(lim)}.`,
+        Insights.projectionWhy(p, day, len, money, PACE_MIN_COUNT_CAT) + ` Já usado: ${money(used)} de ${money(lim)}.`,
         8, { query: cat, from: ymFirst(ym), to: today }));
     }
     return out;
@@ -344,13 +362,12 @@ export const Insights = {
     if (day < PACE_MIN_DAY || day >= len) return null;
     const income = sum(s.txs.filter(t => t.kind === 'income' && ymOf(t.date) === ym));
     if (income <= 0) return null;
-    const p = Insights.project(expenses(s), today);
-    if (p.projected <= income) return null;
+    const p = Insights.project(expenses(s), today, PACE_MIN_COUNT);
+    if (!p.enough || p.projected <= income) return null;
     return insight(`over:${ym}`, 'OVER_INCOME', 'Despesas podem passar das receitas',
       `No ritmo atual, as despesas de ${brMonth(ym)} chegam a cerca de ${money(p.projected)}, acima das receitas previstas para o mês (${money(income)}). `
       + `Diferença estimada: ${money(p.projected - income)}.`,
-      `Conta: compromissos do mês ${money(p.committed)} + gasto variável até hoje ${money(p.variable)} ÷ ${day} dias × ${len} dias. `
-      + 'Receitas previstas = recebidas + a receber neste mês.', 8, { from: ymFirst(ym), to: today });
+      Insights.projectionWhy(p, day, len, money, PACE_MIN_COUNT) + ' Receitas previstas = recebidas + a receber neste mês.', 8, { from: ymFirst(ym), to: today });
   },
 
   spikes(s, today, money) {
