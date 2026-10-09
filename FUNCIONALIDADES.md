@@ -39,23 +39,29 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 
 ## Início
 
-- **Data completa do dia** ("04 de Outubro de 2026") no cartão principal. Ela muda sozinha na virada do dia e quando o app volta a ficar visível.
+- **Data do dia**: no celular, embaixo do nome ("Quinta, 8 de outubro"), junto do selo "Privado" e do botão de ocultar valores; no computador, no cartão principal ("08 de Outubro de 2026"). Muda sozinha na virada do dia e quando o app volta a ficar visível.
 - Saldo atual (soma das contas) e saldo previsto para o fim do mês (inclui pendências e faturas que vencem até lá).
-- Receitas e despesas realizadas no mês, barra de uso das receitas e selo "% economizado".
-- Botões rápidos: Receita, Despesa, Meta.
-- **Vencimentos dos próximos 30 dias**: contas a pagar, valores a receber e faturas; atrasados em vermelho. Um toque abre o lançamento ou o pagamento da fatura.
-- Cartão do assistente com o resumo do mês e as 2 dicas mais importantes.
-- Contas (com saldo) e cartões (fatura atual, vencimento, disponível e "Pagar fatura").
-- Limites do mês com barra que muda de cor (80%: atenção; acima do limite: vermelha).
-- Metas: guardado, quanto falta por mês até o prazo, mês previsto pelo plano e aviso "após o prazo".
+- Receitas e despesas realizadas no mês e, embaixo, **o que ainda falta**: "a receber" e "a pagar" (contas pendentes fora do cartão e faturas em aberto que vencem no mês). A barra de uso das receitas e o selo "% economizado" aparecem quando já entrou alguma receita.
+- Sem botões rápidos: o **+** da barra inferior (celular) e os botões Despesa/Receita do topo (computador) fazem o mesmo em qualquer tela.
+- **Vencimentos dos próximos 30 dias**: contas a pagar, valores a receber e faturas; atrasados em vermelho. Um toque abre o lançamento ou o pagamento da fatura. (Só na versão web.)
+- Cartão do assistente compacto: as **2 frases mais úteis** do mês, a dica principal (se houver) e um link só ("Abrir assistente" ou "Ver as N dicas").
+- Contas (com saldo) e cartões (fatura atual, vencimento, disponível e "Pagar fatura"). Com uma conta só e nenhum cartão, ela ocupa a linha inteira.
+- Limites do mês com barra que muda de cor (80%: atenção; acima do limite: vermelha). A seção só aparece quando há limites.
+- Metas: guardado, quanto falta por mês até o prazo, mês previsto pelo plano e aviso "após o prazo". A seção só aparece quando há metas.
+- **Comece por aqui**: enquanto não há limites ou metas, atalhos "Definir um limite mensal" e "Criar uma meta"; cada linha some quando deixa de fazer sentido.
 
 ## Lançamentos
 
-- Período De/Até e atalhos Este mês, 30 dias e Tudo.
-- Busca por descrição ou categoria **sem diferenciar acento** ("cafe" encontra "Café"). Filtros por tipo e situação.
-- Totais do período (receitas, despesas, saldo), comparação receitas × despesas e pendentes à parte.
-- Lista com ícone da categoria, descrição, categoria · conta ou cartão, data, situação ("Em atraso" em vermelho), valor e botão de pago/recebido. Compras no cartão mostram o ícone do cartão.
-- Mostra 300 por vez, com "Mostrar mais".
+- Chave **Lista | Calendário** no alto.
+- **Lista**:
+  - **‹ Outubro de 2026 ›**: as setas andam um mês inteiro. O botão de ajuste ao lado abre **Período e filtros** (De/Até livres, Este mês, 30 dias, Tudo e a situação, inclusive "Realizados"); ele fica destacado quando há período livre ou "Realizados". Um período livre aparece como "01/10/2026 a 15/10/2026".
+  - Busca por descrição ou categoria **sem diferenciar acento** ("cafe" encontra "Café").
+  - Filtros de um toque: **Todos, Receitas, Despesas, Pendentes** (Receitas/Despesas combinam com Pendentes).
+  - Resumo do período num cartão só: receitas, despesas e saldo realizados, com "a receber", "a pagar" e o saldo "previsto" embaixo, e a frase "As despesas são X% das receitas".
+  - Lançamentos **agrupados por dia** ("Quinta, 15 de outubro"), com o saldo do dia à direita (mesma regra do calendário). Cada linha tem ícone da categoria, descrição, categoria · conta ou cartão, situação ("Em atraso" em vermelho), valor e botão de pago/recebido. Compras no cartão mostram o ícone do cartão.
+  - Mostra 300 por vez, com "Mostrar mais".
+- **Calendário**: o mês em grade com o saldo de cada dia, faturas no vencimento e atrasos; toque num dia para ver os lançamentos, toque de novo (ou segure) para lançar nessa data. Detalhes em [CALENDARIO.md](CALENDARIO.md).
+- **Celular**: deslizar para o lado troca de aba (Início › Lançamentos › Relatórios › Ajustes); sobre o calendário, troca de mês.
 
 ## Editor de lançamento
 

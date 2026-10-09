@@ -35,7 +35,8 @@ const actions = (save, del) => `<div class="sheetActions">${del ? btn(del, { act
 const onDelete = (d, fn) => d.querySelector('[data-act="sheet-delete"]')?.addEventListener('click', fn);
 
 // ------------------------------------------------------------------ lançamento
-export function txEditor(kind = 'expense', id = null) {
+/** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário); numa data futura ele começa pendente */
+export function txEditor(kind = 'expense', id = null, date = null) {
   const s = ctx.state, t = id ? s.txs.find(x => x.id === id) : null;
   if (id && !t) return;
   const isPayment = !!t?.cardPayment;
@@ -51,8 +52,8 @@ export function txEditor(kind = 'expense', id = null) {
     <div id="payModeWrap">${field('Forma de pagamento', select('payMode', [['account', 'Conta / dinheiro'], ['card', 'Cartão de crédito']], t?.cardId ? 'card' : 'account'))}</div>
     <div id="cardWrap">${field('Cartão', select('cardId', s.cards.map(c => [c.id, c.name]), t?.cardId || s.cards[0]?.id || ''))}</div>
     <div id="accWrap">${field(isPayment ? 'Pago com a conta' : 'Conta', select('accountId', s.accounts.map(a => [a.id, a.name]), t?.accountId ?? s.accounts[0].id))}</div>
-    ${field('Data', input('date', t?.date ?? today(), { type: 'date', required: true }))}
-    <div id="paidWrap">${check('paid', '', t ? t.paid : true)}</div>
+    ${field('Data', input('date', t?.date ?? date ?? today(), { type: 'date', required: true }))}
+    <div id="paidWrap">${check('paid', '', t ? t.paid : !(date && date > today()))}</div>
     ${t ? '' : `<div class="row2">${field('Parcelas', input('reps', '1', { inputmode: 'numeric', max: 2 }), { hint: 'Até 60' })}
       <div id="repsModeWrap" hidden>${field('O valor informado é', select('repsMode', [['TOTAL', 'O total da compra (divide entre as parcelas)'], ['EACH', 'O valor de cada parcela']], 'TOTAL'))}</div></div>
       ${check('recurring', 'Repetir mensalmente', false, { sub: 'Cria uma recorrência a partir desta data' })}`}
@@ -109,6 +110,26 @@ export function txEditor(kind = 'expense', id = null) {
     if (r == null) return;
     ctx.replace(Ops.deleteTx(ctx.state, t.id, r === 'ok')); closeSheet(); toast('Lançamento excluído');
   });
+}
+
+// ------------------------------------------------------------------ período e filtros da Lista
+/** Lançamentos › Lista: datas livres, atalhos e situação (inclui "Realizados"). As mudanças valem na hora. */
+export function movesFiltersSheet() {
+  const f = ctx.moves;
+  const body = `<form id="f" novalidate>
+    <div class="row2">${field('De', input('from', f.from || '', { type: 'date' }))}${field('Até', input('to', f.to || '', { type: 'date' }))}</div>
+    <div class="presetRow">${btn('Este mês', { act: 'moves-preset', data: { p: 'month' } })}${btn('30 dias', { act: 'moves-preset', data: { p: '30' } })}${btn('Tudo', { act: 'moves-preset', data: { p: 'all' } })}</div>
+    ${field('Situação', select('st', [['', 'Todos'], ['paid', 'Realizados'], ['pending', 'Pendentes']], f.st || ''))}
+    <div class="sheetActions">${btn('Pronto', { submit: true, cls: 'primary' })}</div></form>`;
+  const d = openSheet({ title: 'Período e filtros', subtitle: 'O período também vale para Relatórios.', body });
+  const form = d.querySelector('#f');
+  const sync = () => { form.from.value = f.from || ''; form.to.value = f.to || ''; form.st.value = f.st || ''; };
+  form.from.onchange = () => { f.from = form.from.value || null; f.all = !f.from && !f.to; f.limit = 300; ctx.render(); };
+  form.to.onchange = () => { f.to = form.to.value || null; f.all = !f.from && !f.to; f.limit = 300; ctx.render(); };
+  form.st.onchange = () => { f.st = form.st.value; f.limit = 300; ctx.render(); };
+  // os atalhos (data-act moves-preset) mudam o período pelo app.js; a folha só acompanha
+  d.addEventListener('click', e => { if (e.target.closest('[data-act="moves-preset"]')) setTimeout(sync); });
+  form.onsubmit = e => { e.preventDefault(); closeSheet(); };
 }
 
 // ------------------------------------------------------------------ meta
@@ -343,6 +364,8 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.2.0: calendário em Lançamentos (saldo de cada dia, faturas no vencimento, atrasos; toque de novo num dia, ou segure, para lançar nessa data). No celular, deslize para o lado para trocar de aba.',
+    '1.2.0: Início e Lista mais enxutos: o que falta receber e pagar, assistente em 2 frases, "Comece por aqui", ‹ mês › com Período e filtros, filtros de um toque e lançamentos agrupados por dia.',
     '1.1.2: reativar uma recorrência pausada não cria mais os lançamentos dos meses parados; backups com valores gigantes são recusados.',
     '1.1.1: em Ajustes › Sobre, links para o código-fonte desta versão web e para baixar a versão Linux (.deb). Gráfico do relatório em PDF não trava mais com valores de centavos.',
     'Novo nome: Finan+, com o ícone do app Android.',

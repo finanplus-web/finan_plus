@@ -40,7 +40,9 @@ Testes: os 26 casos do assistente em `tests/assist.test.mjs` (os mesmos do app A
 
 ## 2. Resumo do mês
 
-**Onde aparece:** cartão "Assistente" no Início e na tela Assistente (no computador, Ctrl+4 ou a barra lateral; no celular, o botão de brilho no topo do Início).
+**Onde aparece:** completo na tela Assistente (no computador, Ctrl+4 ou a barra lateral; no celular, o link do cartão do Início); no cartão do Início, só as **2 frases mais úteis** (desde a 1.2.0).
+
+**Quais frases vão para o Início** (`highlights`), nesta ordem de prioridade, as 2 primeiras que existirem: contas em atraso; contas a pagar até o fim do mês; quanto já gastou no mês; quanto falta receber; quanto entrou e quanto sobra. "Ainda não há despesas realizadas" e o fechamento do mês anterior ficam só no resumo completo. Mesma regra do app Android.
 
 Mostra, quando houver dados:
 - quanto foi gasto no mês até hoje, comparado com **os mesmos dias** do mês anterior (dia 1 ao dia de hoje), para a comparação ser justa;
@@ -55,7 +57,7 @@ Convenções (as mesmas dos Relatórios): conta só o que foi **realizado** (pag
 
 ## 3. Dicas de economia
 
-Aparecem só quando há algo fora do padrão. As duas mais importantes ficam no Início e todas ficam na tela Assistente. Cada dica pode ser **dispensada** (e restaurada depois) e, quando faz sentido, tem **"Ver lançamentos"**, que abre a lista já filtrada.
+Aparecem só quando há algo fora do padrão. A mais importante fica no Início (o link vira "Ver as N dicas" quando há mais de uma) e todas ficam na tela Assistente. Sem dicas, o Início não mostra aviso. Cada dica pode ser **dispensada** (e restaurada depois) e, quando faz sentido, tem **"Ver lançamentos"**, que abre a lista já filtrada.
 
 | Dica | Regra exata | Constantes (em `assist.js`) |
 |---|---|---|
@@ -73,7 +75,7 @@ As dicas dispensadas ficam só neste aparelho, nas configurações locais do nav
 
 ## 4. Perguntas rápidas
 
-**Onde:** tela Assistente ou "Perguntar" no cartão do Início (no computador, atalho Ctrl+K).
+**Onde:** tela Assistente (no computador, atalho Ctrl+K). Com o resumo e as dicas desligados, o link do cartão do Início vira "Perguntar".
 
 É um **interpretador de palavras-chave em português**, não um chatbot. Toda resposta mostra uma linha **"Como entendi"**, com a intenção, o período e os filtros usados, para o usuário conferir.
 
@@ -104,4 +106,4 @@ Exemplos: "quanto gastei com mercado em agosto?", "maior gasto da semana", "quan
 
 ## Diferenças em relação ao app Android e à versão Linux
 
-Nenhuma nas regras: `assist.js` é uma tradução direta do Kotlin e passa nos mesmos 26 testes. Muda só onde aparece: no computador o assistente tem uma tela própria na barra lateral, com perguntas e resumo à esquerda e dicas à direita; no celular, ele abre pelo cartão do Início ou pelo botão de brilho no topo.
+Nenhuma nas regras: `assist.js` é uma tradução direta do Kotlin e passa nos mesmos 26 testes. Muda só onde aparece: no computador o assistente tem uma tela própria na barra lateral, com perguntas e resumo à esquerda e dicas à direita; no celular, ele abre pelo link do cartão do Início.

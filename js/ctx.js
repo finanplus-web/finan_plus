@@ -5,7 +5,7 @@
 import { Money, todayStr, CARD_PAYMENT_CAT } from './core.js';
 import { Text } from './assist.js';
 
-export const APP_VERSION = '1.1.2';
+export const APP_VERSION = '1.2.0';
 
 export const ctx = {
   state: null,        // dados (AppState do core)
@@ -18,6 +18,10 @@ export const ctx = {
   locked: false,
   problem: false,
   moves: { from: null, to: null, q: '', kind: '', st: '', limit: 300 },
+  /** Lançamentos: 'list' ou 'calendar' */
+  movesView: 'list',
+  /** calendário: mês mostrado (ym) e dia escolhido (null = nenhum); preenchidos na primeira abertura */
+  cal: { ym: null, day: null },
   // preenchidos por app.js
   commit: null, replace: null, render: null, setDevice: null, go: null, openMoves: null, lockNow: null,
 };
