@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Finan+ — ícone oficial (F+) · Copyright (C) 2026 Juscelino Be · GPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 512 512" width="512" height="512">
+  <title>Finan+</title>
+  <defs>
+    <radialGradient id="brilhoAzul" cx="0.18" cy="0.12" r="0.8"><stop offset="0" stop-color="#d9e5ff"/><stop offset="1" stop-color="#d9e5ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="brilhoRosa" cx="0.92" cy="0.95" r="0.7"><stop offset="0" stop-color="#ffe7ed"/><stop offset="1" stop-color="#ffe7ed" stop-opacity="0"/></radialGradient><linearGradient id="degradeF" gradientUnits="userSpaceOnUse" x1="132" y1="128" x2="388" y2="384"><stop offset="0" stop-color="#5E83EC"/><stop offset="1" stop-color="#3456C4"/></linearGradient><filter id="sombra" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#3A4B6E" flood-opacity="0.25"/></filter>
+  </defs>
+  <g id="fundo" inkscape:label="Fundo" inkscape:groupmode="layer">
+      <rect width="512" height="512" rx="116" fill="#eef4ff"/>
+      <rect width="512" height="512" rx="116" fill="url(#brilhoAzul)"/>
+      <rect width="512" height="512" rx="116" fill="url(#brilhoRosa)"/>
+      <rect x="5" y="5" width="502" height="502" rx="112" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+    </g>
+  <g filter="url(#sombra)"><g id="letra-F" inkscape:label="Letra F" inkscape:groupmode="layer">
+      <rect x="132" y="128" width="70" height="256" rx="24" fill="url(#degradeF)"/>
+      <rect x="132" y="128" width="166" height="68" rx="24" fill="url(#degradeF)"/>
+      <rect x="132" y="232" width="128" height="60" rx="22" fill="url(#degradeF)"/>
+    </g>
+    <g id="sinal-mais" inkscape:label="Sinal de mais" inkscape:groupmode="layer">
+      <circle cx="360" cy="318" r="70" fill="#4269d8"/>
+      <circle cx="360" cy="318" r="62" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="4"/>
+      <rect x="348" y="278" width="24" height="80" rx="12" fill="#FFFFFF"/>
+      <rect x="320" y="306" width="80" height="24" rx="12" fill="#FFFFFF"/>
+    </g></g>
+</svg>
