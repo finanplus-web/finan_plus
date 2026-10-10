@@ -309,7 +309,9 @@ dialog{color:var(--text)}
 .closeX{flex:none;box-shadow:none!important;background:var(--accent2)!important;width:40px!important;height:40px!important}
 .appDialog{width:min(calc(100% - 32px),460px);border:1px solid var(--line);border-radius:28px;padding:0;background:var(--solid);box-shadow:0 24px 70px rgba(0,0,0,.28)}
 .appDialog form{padding:20px}
-.appDialogActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.appDialogActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;align-items:stretch}
+/* os dois botões (Cancelar e a ação, inclusive a de excluir) sempre com a mesma altura e largura */
+.appDialogActions .btn{width:100%;height:100%;min-height:48px;margin:0;padding:12px 14px;line-height:1.2;text-align:center}
 .appDialog.notice .appDialogActions{grid-template-columns:1fr}
 .appDialog .field input{font-size:18px}
 .shortcuts{display:grid;gap:4px}

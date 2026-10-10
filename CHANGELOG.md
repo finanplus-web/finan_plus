@@ -1,5 +1,9 @@
 # Changelog — Finan+ web (PWA)
 
+## Correção — botões das janelas de confirmação (10/10/2026)
+
+- Nas janelas de confirmação (ex.: **Excluir lançamento**), o botão da ação (como "Excluir") aparecia mais alto que o "Cancelar". Agora os dois têm sempre a mesma altura e largura. Só `style.css` mudou (`.appDialogActions`).
+
 ## 1.3.0 — Simulador "E se…?" e Relatórios renovados (09/10/2026)
 
 Mesmas mudanças do app Android 1.3.0, sem mexer em nenhum tema (tudo usa as cores do tema escolhido). Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
