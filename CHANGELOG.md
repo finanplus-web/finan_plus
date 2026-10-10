@@ -1,5 +1,12 @@
 # Changelog — Finan+ web (PWA)
 
+## Ícone novo: F+ (10/10/2026)
+
+- O ícone do Finan+ passou a ser o monograma **F+**: o F em azul (`#4269d8`) com o "+" num círculo, sobre o fundo claro do app (`#eef4ff`, com os brilhos azul e rosa). É o mesmo ícone do app Android e do Finan+ para Linux.
+- Trocados todos os arquivos de `icons/`: `icon-192`/`icon-512` (instalação e barra lateral), as versões **maskable** (o símbolo fica dentro da zona segura, então nada é cortado no Android), `apple-touch-icon` (iPhone e iPad, sem transparência), `favicon-32` (aba do navegador) e `badge-96` (silhueta branca do F+ nas notificações).
+- Nenhum código mudou: os nomes dos arquivos são os mesmos. O service worker já ganha uma versão nova a cada publicação, então quem tem o app instalado recebe o ícone novo na próxima atualização. Alguns sistemas só trocam o ícone da tela inicial depois de um tempo ou ao reinstalar o atalho.
+- Fontes em vetor (com e sem sombra, só o símbolo e uma cor) em [`docs/icone/`](docs/icone/).
+
 ## Correção — botões das janelas de confirmação (10/10/2026)
 
 - Nas janelas de confirmação (ex.: **Excluir lançamento**), o botão da ação (como "Excluir") aparecia mais alto que o "Cancelar". Agora os dois têm sempre a mesma altura e largura. Só `style.css` mudou (`.appDialogActions`).

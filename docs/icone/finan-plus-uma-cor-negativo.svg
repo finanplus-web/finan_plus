@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Finan+ — ícone oficial (F+) · Copyright (C) 2026 Juscelino Be · GPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 512 512" width="512" height="512">
+  <title>Finan+ — uma cor (negativo)</title>
+  <defs>
+    
+  </defs>
+  <g id="letra-F" inkscape:label="Letra F" inkscape:groupmode="layer">
+      <rect x="132" y="128" width="70" height="256" rx="24" fill="#FFFFFF"/>
+      <rect x="132" y="128" width="166" height="68" rx="24" fill="#FFFFFF"/>
+      <rect x="132" y="232" width="128" height="60" rx="22" fill="#FFFFFF"/>
+    </g>
+    <g id="sinal-mais" inkscape:label="Sinal de mais" inkscape:groupmode="layer">
+      <circle cx="360" cy="318" r="70" fill="#FFFFFF"/>
+      
+      <rect x="348" y="278" width="24" height="80" rx="12" fill="#182238"/>
+      <rect x="320" y="306" width="80" height="24" rx="12" fill="#182238"/>
+    </g>
+</svg>

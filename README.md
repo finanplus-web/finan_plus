@@ -106,6 +106,6 @@ Finan+ — Copyright (C) 2026 Juscelino Be.
 
 Software livre sob a **GNU GPL v3 ou posterior** (`GPL-3.0-or-later`). O texto completo está em `LICENSE` e dentro do app, em *Ajustes › Sobre*. Todos os arquivos de código trazem o aviso de copyright e `SPDX-License-Identifier: GPL-3.0-or-later`.
 
-Ícones: Material Symbols Rounded, © Google, Licença Apache 2.0 (compatível com a GPL v3). Detalhes em `third_party/material-symbols/`. Larguras das fontes padrão do PDF: métricas AFM públicas da Adobe, ver `third_party/adobe-core14-metrics/`.
+Ícone do app (F+): desenho próprio do Finan+, GPL-3.0-or-later, com as fontes em vetor em [`docs/icone/`](docs/icone/). Ícones da interface: Material Symbols Rounded, © Google, Licença Apache 2.0 (compatível com a GPL v3). Detalhes em `third_party/material-symbols/`. Larguras das fontes padrão do PDF: métricas AFM públicas da Adobe, ver `third_party/adobe-core14-metrics/`.
 
 Finan+ é um projeto independente idealizado e desenvolvido por Juscelino Be, com auxílio de inteligência artificial na implementação, revisão e evolução do código.
