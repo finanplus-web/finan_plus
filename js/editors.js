@@ -133,14 +133,15 @@ export function movesFiltersSheet() {
 }
 
 // ------------------------------------------------------------------ meta
-export function goalEditor(id = null) {
+/** [pre]: valores iniciais de uma meta nova ({ name, target, monthly }), ex.: vindos do simulador "E se…?" */
+export function goalEditor(id = null, pre = null) {
   const g = id ? ctx.state.goals.find(x => x.id === id) : null;
   const body = `<form id="f" novalidate>
-    ${field('Nome', input('name', g?.name ?? '', { max: 60 }))}
-    ${field('Valor da meta (R$)', moneyInput('target', g ? Money.input(g.target) : ''))}
+    ${field('Nome', input('name', g?.name ?? pre?.name ?? '', { max: 60 }))}
+    ${field('Valor da meta (R$)', moneyInput('target', g ? Money.input(g.target) : pre?.target > 0 ? Money.input(pre.target) : ''))}
     ${g ? field('Guardar ou retirar agora (R$)', moneyInput('move', '', 'Ex.: 100 ou -50')) : ''}
     ${field('Prazo (opcional)', input('deadline', g?.deadline ?? '', { type: 'date' }))}
-    ${field('Contribuição mensal planejada (opcional)', moneyInput('monthly', g?.monthly > 0 ? Money.input(g.monthly) : ''))}
+    ${field('Contribuição mensal planejada (opcional)', moneyInput('monthly', g?.monthly > 0 ? Money.input(g.monthly) : !g && pre?.monthly > 0 ? Money.input(pre.monthly) : ''))}
     ${actions('Salvar', g ? 'Excluir meta' : null)}</form>`;
   const d = openSheet({ title: g ? 'Editar meta' : 'Nova meta', subtitle: g ? `Guardado até agora: ${money(g.saved)}` : 'Dê um nome e um valor ao seu objetivo.', body });
   guard(d.querySelector('#f'), v => apply(Ops.saveGoal(ctx.state, g?.id ?? null, v.name, v.target, v.move ?? '', v.deadline || null, v.monthly), 'Meta salva'));
@@ -364,6 +365,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.3.0: simulador "E se…?" em Relatórios: economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida, sem mudar seus dados (dá para transformar em meta). Relatórios com o mesmo ‹ mês › de Lançamentos e comparação justa (mês atual contra os mesmos dias do mês anterior).',
     '1.2.1: o assistente não avisa mais que as despesas vão passar das receitas com base em uma ou duas compras: a projeção precisa de pelo menos 5 despesas no mês (3 por categoria com limite), e uma compra grande isolada conta uma vez.',
     '1.2.0: calendário em Lançamentos (saldo de cada dia, faturas no vencimento, atrasos; toque de novo num dia, ou segure, para lançar nessa data). No celular, deslize para o lado para trocar de aba.',
     '1.2.0: Início e Lista mais enxutos: o que falta receber e pagar, assistente em 2 frases, "Comece por aqui", ‹ mês › com Período e filtros, filtros de um toque e lançamentos agrupados por dia.',
