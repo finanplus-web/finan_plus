@@ -13,7 +13,7 @@
 
 ## 1.3.0 — Simulador "E se…?" e Relatórios renovados (09/10/2026)
 
-Mesmas mudanças do app Android 1.3.0, sem mexer em nenhum tema (tudo usa as cores do tema escolhido). Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
+Mesmas mudanças do app Android 1.4.0, sem mexer em nenhum tema (tudo usa as cores do tema escolhido). Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
 
 - **E se…?** (em Relatórios): quatro perguntas — economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida parcelada. Parte da média dos 3 meses completos anteriores (só realizados), que dá para ajustar. **Nada é gravado.** "Transformar em meta" abre o formulário de meta já preenchido.
 - **Relatórios:** mesmo ‹ mês › da aba Lançamentos, botão **PDF** no título, Receitas e Despesas realizadas com comparação justa (mês atual contra os mesmos dias do mês anterior; outro mês contra o anterior inteiro; período livre contra o mesmo tamanho logo antes), cartão "Nada realizado… ainda" com o que falta receber e pagar e o link **Ver no calendário**, e texto no lugar do gráfico de evolução vazio. Saíram o cartão "Este mês × mês anterior" e o cartão grande de exportar PDF.
