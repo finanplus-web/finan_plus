@@ -12,6 +12,7 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 
 - Lista completa do que o app faz: [FUNCIONALIDADES.md](FUNCIONALIDADES.md)
 - Calendário de lançamentos: [CALENDARIO.md](CALENDARIO.md)
+- Simulador "E se…?": [SIMULADOR.md](SIMULADOR.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - O que foi feito nesta versão: [CHANGELOG.md](CHANGELOG.md)
 
@@ -80,6 +81,8 @@ js/report.js, js/pdf.js   números do relatório e gerador de PDF próprio
 js/store.js               armazenamento criptografado, migração, PIN
 js/app.js                 início, bloqueio, navegação, atalhos, avisos, virada do dia
 js/screens.js             telas (Início, Lançamentos, Relatórios, Assistente, Ajustes)
+js/simulator.js           contas do simulador "E se…?" e comparação dos Relatórios
+js/simsheet.js            folha do simulador
 js/editors.js             editores e diálogos (lançamento, meta, conta, cartão, fatura…)
 js/ui.js, js/ctx.js       utilidades de interface e estado compartilhado
 js/icons.js               ícones Material Symbols embutidos

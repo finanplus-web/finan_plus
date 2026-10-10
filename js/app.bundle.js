@@ -5,14 +5,14 @@
 // Ícones: Material Symbols, © Google LLC, Licença Apache 2.0.
 (() => {
   var __defProp = Object.defineProperty;
-  var __typeError = (msg) => {
-    throw TypeError(msg);
+  var __typeError = (msg2) => {
+    throw TypeError(msg2);
   };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
   };
-  var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
+  var __accessCheck = (obj, member, msg2) => member.has(obj) || __typeError("Cannot " + msg2);
   var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
   var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
 
@@ -97,11 +97,11 @@
   var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   function validDate(s) {
     if (typeof s !== "string" || !DATE_RE.test(s)) return false;
-    const y = +s.slice(0, 4), m = +s.slice(5, 7), d = +s.slice(8, 10);
-    return y >= 1 && m >= 1 && m <= 12 && d >= 1 && d <= ymLen(y * 12 + m - 1);
+    const y = +s.slice(0, 4), m2 = +s.slice(5, 7), d = +s.slice(8, 10);
+    return y >= 1 && m2 >= 1 && m2 <= 12 && d >= 1 && d <= ymLen(y * 12 + m2 - 1);
   }
   var MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-  var MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
+  var MONTHS_SHORT = MONTHS.map((m2) => m2.slice(0, 3));
   var brMonth = (ym) => MONTHS[ymMonth(ym) - 1];
   var brMonthYear = (ym) => `${brMonth(ym)} de ${ymYear(ym)}`;
   var brMonthLabel = (ym) => `${MONTHS_SHORT[ymMonth(ym) - 1]} de ${ymYear(ym)}`;
@@ -281,14 +281,14 @@
       const recs = s.recurring.map((r) => {
         if (!r.active) return r;
         const startYm = r.start ? ymOf(r.start) : r.last != null ? r.last + 1 : cur;
-        let m = r.last != null && r.last + 1 > startYm ? r.last + 1 : startYm;
+        let m2 = r.last != null && r.last + 1 > startYm ? r.last + 1 : startYm;
         let last = r.last, guard2 = 0;
-        while (m <= cur && guard2 < 24) {
-          const date = ymDay(m, r.day);
-          last = m;
+        while (m2 <= cur && guard2 < 24) {
+          const date = ymDay(m2, r.day);
+          last = m2;
           if (!r.start || date >= r.start)
             add.push(tx({ id: newId(), kind: r.kind, value: r.value, date, desc: r.desc, category: r.category, paid: !!r.cardId, accountId: r.accountId, cardId: r.cardId, recurringId: r.id }));
-          m++;
+          m2++;
           guard2++;
         }
         if (last === r.last) return r;
@@ -300,8 +300,8 @@
     },
     /** divide [total] em [n] parcelas; a diferença de centavos fica na primeira */
     splitInstallments(total, n) {
-      const base = Math.trunc(total / n), rest = total - base * n;
-      return Array.from({ length: n }, (_, i) => base + (i === 0 ? rest : 0));
+      const base2 = Math.trunc(total / n), rest = total - base2 * n;
+      return Array.from({ length: n }, (_, i) => base2 + (i === 0 ? rest : 0));
     },
     // ---- metas
     goalPlan(g, today2) {
@@ -331,15 +331,15 @@
     monthFlow: (s, ym) => Finance.flow(s.txs.filter((t) => ymOf(t.date) === ym)),
     /** despesas do mês por categoria, incluindo pendentes (para limites) */
     budgetUsage(s, ym) {
-      const m = /* @__PURE__ */ new Map();
-      for (const t of s.txs) if (t.kind === "expense" && isFlow(t) && ymOf(t.date) === ym) m.set(t.category, (m.get(t.category) || 0) + t.value);
-      return m;
+      const m2 = /* @__PURE__ */ new Map();
+      for (const t of s.txs) if (t.kind === "expense" && isFlow(t) && ymOf(t.date) === ym) m2.set(t.category, (m2.get(t.category) || 0) + t.value);
+      return m2;
     },
     /** despesas realizadas por categoria no período, decrescente */
     categoryTotals(s, from, to) {
-      const m = /* @__PURE__ */ new Map();
-      for (const t of s.txs) if (t.kind === "expense" && t.paid && isFlow(t) && (!from || t.date >= from) && (!to || t.date <= to)) m.set(t.category, (m.get(t.category) || 0) + t.value);
-      return [...m.entries()].sort((a, b) => b[1] - a[1]);
+      const m2 = /* @__PURE__ */ new Map();
+      for (const t of s.txs) if (t.kind === "expense" && t.paid && isFlow(t) && (!from || t.date >= from) && (!to || t.date <= to)) m2.set(t.category, (m2.get(t.category) || 0) + t.value);
+      return [...m2.entries()].sort((a, b) => b[1] - a[1]);
     },
     lastMonths: (s, today2, n = 6) => Array.from({ length: n }, (_, i) => {
       const ym = ymOf(today2) - (n - 1 - i);
@@ -422,14 +422,14 @@
       }
       const n = Math.min(60, Math.max(1, d.reps || 1));
       if (n > 1 && d.recurring) return err("Escolha parcelas ou repetição mensal, não os dois.", "Revise o lançamento");
-      const base = tx({ id: newId(), kind: d.kind, value, date: d.date, desc, category, paid, accountId, cardId });
+      const base2 = tx({ id: newId(), kind: d.kind, value, date: d.date, desc, category, paid, accountId, cardId });
       let added;
       if (n > 1) {
         const values = d.repsMode === "EACH" ? Array(n).fill(value) : Finance.splitInstallments(value, n);
         if (values.some((v) => v <= 0)) return err("O valor é pequeno demais para tantas parcelas.", "Valor inválido");
         const group = newId();
         added = values.map((v, i) => ({
-          ...base,
+          ...base2,
           id: newId(),
           value: v,
           date: plusMonths(d.date, i),
@@ -439,7 +439,7 @@
           parcelN: i + 1,
           parcelTotal: n
         }));
-      } else added = [base];
+      } else added = [base2];
       let rec = s.recurring;
       if (d.recurring) rec = [...rec, { id: newId(), kind: d.kind, desc, value, category, accountId, cardId, day: dom(d.date), active: true, start: d.date, last: ymOf(d.date) }];
       return ok({ ...s, txs: [...s.txs, ...added], recurring: rec });
@@ -458,15 +458,15 @@
     canTogglePaid: (t) => !isCard(t) && isFlow(t),
     togglePaid: (s, id) => ({ ...s, txs: s.txs.map((x) => x.id === id && Ops.canTogglePaid(x) ? { ...x, paid: !x.paid } : x) }),
     saveGoal(s, id, name, target, move, deadline, monthly) {
-      const n = clean(name, 60), t = Money.parse(target), m = blank(monthly) ? 0 : Money.parse(monthly);
+      const n = clean(name, 60), t = Money.parse(target), m2 = blank(monthly) ? 0 : Money.parse(monthly);
       if (!n) return err("Informe o nome da meta.");
       if (t == null || t <= 0) return err("Informe um valor de meta maior que zero. Ex.: 1500,50");
-      if (m == null || m < 0) return err("Contribuição mensal inválida.");
+      if (m2 == null || m2 < 0) return err("Contribuição mensal inválida.");
       const mv = blank(move) ? 0 : Money.parse(move);
       if (mv == null) return err("Valor a guardar inválido.");
       if (deadline && !validDate(deadline)) return err("Informe um prazo válido ou deixe em branco.");
-      if (id == null) return ok({ ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m }] });
-      return ok({ ...s, goals: s.goals.map((g) => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m, saved: Math.max(0, g.saved + mv) } : g) });
+      if (id == null) return ok({ ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m2 }] });
+      return ok({ ...s, goals: s.goals.map((g) => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m2, saved: Math.max(0, g.saved + mv) } : g) });
     },
     deleteGoal: (s, id) => ({ ...s, goals: s.goals.filter((g) => g.id !== id) }),
     saveAccount(s, id, name, initial) {
@@ -547,15 +547,15 @@
       const v = Money.parse(value);
       if (blank(category)) return err("Escolha uma categoria.");
       if (v == null || v <= 0) return err("Informe um valor maior que zero.");
-      const m = new Map(s.limits);
-      if (old != null && old !== category) m.delete(old);
-      m.set(category, v);
-      return ok({ ...s, limits: m });
+      const m2 = new Map(s.limits);
+      if (old != null && old !== category) m2.delete(old);
+      m2.set(category, v);
+      return ok({ ...s, limits: m2 });
     },
     deleteLimit: (s, category) => {
-      const m = new Map(s.limits);
-      m.delete(category);
-      return { ...s, limits: m };
+      const m2 = new Map(s.limits);
+      m2.delete(category);
+      return { ...s, limits: m2 };
     },
     addCategory(s, kind, name) {
       const n = clean(name, 40);
@@ -889,7 +889,7 @@
           expense,
           net: income - expense,
           overdue,
-          marks: ["income", "expense", "card"].filter((m) => marks.has(m)),
+          marks: ["income", "expense", "card"].filter((m2) => marks.has(m2)),
           count: txs.length + g.invoices.length
         });
       }
@@ -959,8 +959,8 @@
     },
     /** setas ‹ ›: anda um mês inteiro; um período livre vai para o mês vizinho de onde começa (ou de hoje) */
     shift(from, to, delta, today2) {
-      const base = Period.fullMonth(from, to) ?? ymOf(from || to || today2);
-      const ym = base + delta;
+      const base2 = Period.fullMonth(from, to) ?? ymOf(from || to || today2);
+      const ym = base2 + delta;
       return [ymFirst(ym), ymLast(ym)];
     },
     /** pendências do mês: receitas a receber e contas a pagar fora do cartão + faturas em aberto que vencem no mês */
@@ -991,14 +991,14 @@
   // js/assist.js
   var sum = (l) => l.reduce((n, t) => n + t.value, 0);
   function groupBy(list, key) {
-    const m = /* @__PURE__ */ new Map();
+    const m2 = /* @__PURE__ */ new Map();
     for (const x of list) {
       const k = key(x);
-      const g = m.get(k);
+      const g = m2.get(k);
       if (g) g.push(x);
-      else m.set(k, [x]);
+      else m2.set(k, [x]);
     }
-    return m;
+    return m2;
   }
   var byDesc = (f) => (a, b) => f(b) - f(a);
   var Text = {
@@ -1104,8 +1104,8 @@
         if (hits.length) found.push({ category: cat, terms: hits, section: s });
       }
       if (!found.length) return null;
-      const weight = (m) => m.terms.reduce((n, t) => n + t.split(" ").length, 0);
-      const byCat = [...groupBy(found, (m) => m.category)].map(([c, l]) => ({ category: c, terms: [...new Set(l.flatMap((m) => m.terms))], section: l[0].section })).sort(byDesc(weight));
+      const weight = (m2) => m2.terms.reduce((n, t) => n + t.split(" ").length, 0);
+      const byCat = [...groupBy(found, (m2) => m2.category)].map(([c, l]) => ({ category: c, terms: [...new Set(l.flatMap((m2) => m2.terms))], section: l[0].section })).sort(byDesc(weight));
       if (byCat.length > 1 && weight(byCat[0]) === weight(byCat[1])) return null;
       return byCat[0];
     }
@@ -1134,8 +1134,8 @@
         this.docs++;
         const uniq = [...new Set(toks)], k = uniq.join(" ");
         if (!this.exact.has(k)) this.exact.set(k, /* @__PURE__ */ new Map());
-        const m = this.exact.get(k), prev = m.get(t.category), d = dayNum(t.date);
-        m.set(t.category, [(prev?.[0] ?? 0) + 1, Math.max(prev?.[1] ?? -Infinity, d)]);
+        const m2 = this.exact.get(k), prev = m2.get(t.category), d = dayNum(t.date);
+        m2.set(t.category, [(prev?.[0] ?? 0) + 1, Math.max(prev?.[1] ?? -Infinity, d)]);
         this.catDocs.set(t.category, (this.catDocs.get(t.category) || 0) + 1);
         this.catWords.set(t.category, (this.catWords.get(t.category) || 0) + toks.length);
         for (const w of uniq) {
@@ -1163,8 +1163,8 @@
       const out = [];
       for (const c of this.categories) {
         const words = [];
-        for (const [w, m] of this.wordDocs) {
-          const n = m.get(c);
+        for (const [w, m2] of this.wordDocs) {
+          const n = m2.get(c);
           if (n >= MIN_WORD_DOCS) words.push([w, n]);
         }
         words.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
@@ -1175,11 +1175,11 @@
   };
   _Categorizer_instances = new WeakSet();
   same_fn = function(toks) {
-    const m = this.exact.get([...new Set(toks)].join(" "));
-    if (!m) return null;
+    const m2 = this.exact.get([...new Set(toks)].join(" "));
+    if (!m2) return null;
     let total = 0;
-    for (const v of m.values()) total += v[0];
-    const [cat, [n]] = [...m].sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1])[0];
+    for (const v of m2.values()) total += v[0];
+    const [cat, [n]] = [...m2].sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1])[0];
     const share = n / total;
     if (share < 0.6) return null;
     return {
@@ -1229,13 +1229,13 @@
   };
   dictionary_fn = function(desc) {
     if (!this.dict) return null;
-    const m = this.dict.match(desc, this.kind, this.categories);
-    if (!m) return null;
+    const m2 = this.dict.match(desc, this.kind, this.categories);
+    if (!m2) return null;
     return {
-      category: m.category,
+      category: m2.category,
       source: "DICTIONARY",
       confidence: 0.6,
-      why: `${m.terms.map((t) => `“${t}”`).join(", ")} está no dicionário aberto do assistente, na seção de ${m.category} (linha ${m.section.line} de dicionario.txt).`
+      why: `${m2.terms.map((t) => `“${t}”`).join(", ")} está no dicionário aberto do assistente, na seção de ${m2.category} (linha ${m2.section.line} de dicionario.txt).`
     };
   };
   var Categorizer = _Categorizer;
@@ -1354,7 +1354,7 @@
         let run = 1;
         while (run < months.length && months[months.length - 1 - run] === end - run) run++;
         if (run < SUB_MIN_MONTHS) continue;
-        const seq2 = months.slice(-run).map((m) => [m, byM.get(m)[0]]);
+        const seq2 = months.slice(-run).map((m2) => [m2, byM.get(m2)[0]]);
         const vals = seq2.map((x) => x[1].value).sort((a, b) => a - b), median = vals[Math.floor(vals.length / 2)];
         if (vals.some((v) => v < median * (1 - SUB_TOLERANCE) || v > median * (1 + SUB_TOLERANCE))) continue;
         out.push({ name: cleanParcel(seq2.at(-1)[1].desc), key, byMonth: seq2, get last() {
@@ -1364,26 +1364,26 @@
       return out.map((x, i) => [x, i]).sort((a, b) => b[0].last.value - a[0].last.value || a[1] - b[1]).map((x) => x[0]);
     },
     priceUps(subs, money3) {
-      return subs.flatMap((m) => {
-        if (m.byMonth.length < 2) return [];
-        const [ymLastM, last] = m.byMonth.at(-1), before = m.byMonth.at(-2)[1];
+      return subs.flatMap((m2) => {
+        if (m2.byMonth.length < 2) return [];
+        const [ymLastM, last] = m2.byMonth.at(-1), before = m2.byMonth.at(-2)[1];
         if (last.value < before.value * PRICE_UP_RATIO || last.value - before.value < 100) return [];
         const c = (last.value - before.value) * 100 / before.value;
         return [insight(
-          `up:${m.key}:${ymLastM}`,
+          `up:${m2.key}:${ymLastM}`,
           "PRICE_UP",
-          `${m.name} ficou mais caro`,
-          `“${m.name}” passou de ${money3(before.value)} para ${money3(last.value)} em ${brMonth(ymLastM)} (+${pct(c)}). Vale conferir se houve reajuste ou mudança de plano.`,
-          `Regra: gasto mensal (1 vez por mês, ${m.byMonth.length} meses seguidos) cujo último valor ficou pelo menos ${pct((PRICE_UP_RATIO - 1) * 100)} e R$ 1,00 acima do mês anterior.`,
+          `${m2.name} ficou mais caro`,
+          `“${m2.name}” passou de ${money3(before.value)} para ${money3(last.value)} em ${brMonth(ymLastM)} (+${pct(c)}). Vale conferir se houve reajuste ou mudança de plano.`,
+          `Regra: gasto mensal (1 vez por mês, ${m2.byMonth.length} meses seguidos) cujo último valor ficou pelo menos ${pct((PRICE_UP_RATIO - 1) * 100)} e R$ 1,00 acima do mês anterior.`,
           9,
-          { query: m.name }
+          { query: m2.name }
         )];
       });
     },
     subscriptionsSummary(subs, today2, money3) {
       if (!subs.length) return null;
-      const total = subs.reduce((n, m) => n + m.last.value, 0);
-      const list = subs.slice(0, 5).map((m) => `${m.name} (${money3(m.last.value)})`).join(", ") + (subs.length > 5 ? ` e mais ${subs.length - 5}` : "");
+      const total = subs.reduce((n, m2) => n + m2.last.value, 0);
+      const list = subs.slice(0, 5).map((m2) => `${m2.name} (${money3(m2.last.value)})`).join(", ") + (subs.length > 5 ? ` e mais ${subs.length - 5}` : "");
       return insight(
         `subs:${ymOf(today2)}:${subs.length}:${total}`,
         "SUBSCRIPTIONS",
@@ -1405,7 +1405,7 @@
       const month = list.filter((t) => ymOf(t.date) === ym);
       const committed = sum(month.filter((t) => isFixed(t) || !t.paid));
       const vars = month.filter((t) => !isFixed(t) && t.paid && dom(t.date) <= day);
-      const variable = sum(vars), biggest = vars.reduce((m, t) => Math.max(m, t.value), 0);
+      const variable = sum(vars), biggest = vars.reduce((m2, t) => Math.max(m2, t.value), 0);
       const oneOff = variable > 0 && biggest > variable * ONE_OFF_SHARE ? biggest : 0;
       return {
         committed,
@@ -1464,7 +1464,7 @@
       const ym = ymOf(today2), exp = expenses(s).filter((t) => t.paid), months = [ym - 1, ym - 2, ym - 3], out = [];
       for (const [cat, curList] of groupBy(exp.filter((t) => ymOf(t.date) === ym && t.date <= today2), (t) => t.category)) {
         const cur = sum(curList);
-        const hist = months.map((m) => sum(exp.filter((t) => t.category === cat && ymOf(t.date) === m)));
+        const hist = months.map((m2) => sum(exp.filter((t) => t.category === cat && ymOf(t.date) === m2)));
         if (hist.filter((v) => v > 0).length < 2) continue;
         const avg = Math.trunc((hist[0] + hist[1] + hist[2]) / 3);
         if (avg <= 0 || cur < avg * SPIKE_RATIO || cur - avg < SPIKE_MIN_DIFF) continue;
@@ -1544,10 +1544,10 @@
   var per = (from, to, label) => ({ from, to, label });
   function period(w, today2, used) {
     const f = ` ${w.join(" ")} `, has = (...p) => p.some((x) => f.includes(` ${x} `)), ym = ymOf(today2), year = ymYear(ym);
-    const m = / ultimos (\d{1,3}) dias /.exec(f);
-    if (m) {
-      const n = Math.min(366, Math.max(1, +m[1]));
-      used.add(m[1]);
+    const m2 = / ultimos (\d{1,3}) dias /.exec(f);
+    if (m2) {
+      const n = Math.min(366, Math.max(1, +m2[1]));
+      used.add(m2[1]);
       return per(addDays(today2, 1 - n), today2, `últimos ${n} dias`);
     }
     if (has("hoje")) return per(today2, today2, "hoje");
@@ -2721,9 +2721,9 @@ Public License instead of this License.  But first, please read
           const box = await encrypt(this.key, json);
           box.rev = newRev();
           await new Promise((res, rej) => {
-            const t = this.db.transaction("kv", "readwrite"), st = t.objectStore("kv");
+            const t = this.db.transaction("kv", "readwrite"), st2 = t.objectStore("kv");
             let conflict = false;
-            const g = st.get("data");
+            const g = st2.get("data");
             g.onsuccess = () => {
               const cur = g.result;
               if (cur && cur.rev !== this.rev) {
@@ -2731,8 +2731,8 @@ Public License instead of this License.  But first, please read
                 t.abort();
                 return;
               }
-              if (cur) st.put(cur, "previous");
-              st.put(box, "data");
+              if (cur) st2.put(cur, "previous");
+              st2.put(box, "data");
             };
             t.oncomplete = () => res();
             t.onabort = () => rej(conflict ? new ConflictError("Os dados foram alterados em outra aba.") : t.error || new Error("Gravação cancelada"));
@@ -2814,16 +2814,16 @@ Public License instead of this License.  But first, please read
     return { status: "problem", message, state: newState() };
   };
   ensureKey_fn = async function() {
-    const fresh = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    const fresh2 = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
     return new Promise((res, rej) => {
-      const t = this.db.transaction("kv", "readwrite"), st = t.objectStore("kv");
+      const t = this.db.transaction("kv", "readwrite"), st2 = t.objectStore("kv");
       let key = null;
-      const g = st.get("key");
+      const g = st2.get("key");
       g.onsuccess = () => {
         if (g.result) key = g.result;
         else {
-          key = fresh;
-          st.put(fresh, "key");
+          key = fresh2;
+          st2.put(fresh2, "key");
         }
       };
       t.oncomplete = () => res(key);
@@ -2909,8 +2909,8 @@ Public License instead of this License.  But first, please read
   var pinValidFormat = (p) => /^\d{4,8}$/.test(String(p ?? ""));
   var b64d = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
   async function pbkdf2(pin, salt, iterations) {
-    const base = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
-    return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base, 256));
+    const base2 = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base2, 256));
   }
   var sameBytes = (a, b) => {
     if (a.length !== b.length) return false;
@@ -3044,12 +3044,12 @@ Public License instead of this License.  But first, please read
   var ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
   var esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
   var attr = esc;
-  function toast(msg, ms = 2600) {
+  function toast(msg2, ms = 2600) {
     const box = $("#toasts");
     if (!box) return;
     const t = document.createElement("div");
     t.className = "toast";
-    t.textContent = msg;
+    t.textContent = msg2;
     box.append(t);
     requestAnimationFrame(() => t.classList.add("show"));
     setTimeout(() => {
@@ -3087,9 +3087,9 @@ Public License instead of this License.  But first, please read
     ${o.input ? `<label class="field"><span>${esc(o.input.label || "")}</span><input id="appDialogInput" autocomplete="off" maxlength="${o.input.max || 60}" value="${attr(o.input.value || "")}" ${o.input.type ? `type="${o.input.type}" inputmode="${o.input.inputmode || ""}"` : ""}></label>` : ""}
     <div class="appDialogActions">${o.notice ? "" : `<button type="button" class="btn soft" data-cancel>${esc(o.cancel || "Cancelar")}</button>`}
       <button class="btn ${o.danger ? "danger" : "primary"}" data-ok value="ok">${esc(o.ok || "OK")}</button></div></form>`;
-    let result = null;
+    let result2 = null;
     const done = (r) => {
-      result = r;
+      result2 = r;
       d.close();
     };
     d.querySelector("[data-x]").onclick = () => done(null);
@@ -3101,7 +3101,7 @@ Public License instead of this License.  But first, please read
     };
     d.onclose = () => {
       dlgBusy = false;
-      resolve(result);
+      resolve(result2);
       setTimeout(pump, 0);
     };
     d.oncancel = (e) => {
@@ -3169,7 +3169,7 @@ Public License instead of this License.  But first, please read
   var why = (text) => `<details class="why"><summary>${icon("help", 16)}<span>Por quê?</span></summary><p>${esc(text)}</p></details>`;
 
   // js/ctx.js
-  var APP_VERSION = "1.2.1";
+  var APP_VERSION = "1.3.0";
   var ctx = {
     state: null,
     // dados (AppState do core)
@@ -3231,6 +3231,121 @@ Public License instead of this License.  But first, please read
     return f ? f[0] : null;
   }
 
+  // js/simulator.js
+  var Simulator = {
+    /**
+     * Base: média dos 3 meses completos antes do mês de hoje, só realizados, só meses com algum valor.
+     * { income, expense, left, months } — months = quantos meses entraram (0 = sem histórico).
+     */
+    base(s, today2) {
+      const flows = [1, 2, 3].map((i) => Finance.monthFlow(s, ymOf(today2) - i)).filter((f) => f.income > 0 || f.expense > 0);
+      if (!flows.length) return mkBase(0, 0, 0);
+      const n = flows.length;
+      return mkBase(Math.round(flows.reduce((a, f) => a + f.income, 0) / n), Math.round(flows.reduce((a, f) => a + f.expense, 0) / n), n);
+    },
+    mkBase: (income, expense, months = 0) => mkBase(income, expense, months),
+    /** guardar perMonth por months meses */
+    save(base2, perMonth, months) {
+      return { perMonth, months, total: perMonth * months, newLeft: base2.left - perMonth, overLeft: perMonth > base2.left };
+    },
+    /** meses até juntar (a partir do mês que vem); null se nada a guardar e ainda falta dinheiro. doneYm = mês em que completa */
+    buy(price, have, perMonth, today2) {
+      const missing = Math.max(0, price - have);
+      if (missing === 0) return { missing: 0, months: 0, doneYm: ymOf(today2) };
+      if (perMonth <= 0) return null;
+      const months = Math.ceil(missing / perMonth);
+      return { missing, months, doneYm: ymOf(today2) + months };
+    },
+    /** renda muda percent% (ex.: −15) */
+    income(base2, percent, goalsMonthly) {
+      const newIncome = Math.round(base2.income * (1 + percent / 100));
+      const diff = newIncome - base2.income;
+      return { newIncome, diff, newLeft: base2.left + diff, yearDiff: diff * 12, goalsMonthly };
+    },
+    /** soma das contribuições mensais das metas não concluídas */
+    goalsMonthly: (s) => s.goals.filter((g) => g.saved < g.target).reduce((n, g) => n + (g.monthly || 0), 0),
+    /**
+     * Parcelamentos com parcelas a pagar: na conta, as pendentes; no cartão, as com data depois de hoje.
+     * Ordenados pelo que falta pagar (maior primeiro).
+     */
+    debts(s, today2) {
+      const groups = /* @__PURE__ */ new Map();
+      for (const t of s.txs) {
+        if (!t.groupId || !(t.parcelTotal > 1) || t.kind !== "expense") continue;
+        if (!groups.has(t.groupId)) groups.set(t.groupId, []);
+        groups.get(t.groupId).push(t);
+      }
+      const out = [];
+      for (const [groupId, l] of groups) {
+        const rest = l.filter((t) => isCard(t) ? t.date > today2 : !t.paid);
+        if (!rest.length) continue;
+        const first = l.reduce((a, b) => b.parcelN < a.parcelN ? b : a);
+        const name = first.desc.replace(/\s*\(?\d+\/\d+\)?\s*$/, "").trim() || first.desc;
+        out.push({ groupId, name, parcel: Math.max(...rest.map((t) => t.value)), remaining: rest.length, total: first.parcelTotal, left: rest.reduce((n, t) => n + t.value, 0), card: isCard(first) });
+      }
+      return out.sort((a, b) => b.left - a.left);
+    },
+    /** quitar hoje por payNow: o app não conhece os juros, a economia é a diferença entre o que falta e o valor oferecido */
+    payoff: (debt, payNow, balance) => ({ payNow, saved: Math.max(0, debt.left - payNow), freedPerMonth: debt.parcel, months: debt.remaining, balanceAfter: balance - payNow }),
+    /** "janeiro de 2028" */
+    monthYear: (ym) => `${MONTHS[ymMonth(ym) - 1]} de ${ymYear(ym)}`
+  };
+  function mkBase(income, expense, months) {
+    return { income, expense, left: income - expense, months };
+  }
+  var PeriodCompare = {
+    /**
+     * mês atual inteiro → mês anterior até o mesmo dia; outro mês inteiro → mês anterior inteiro;
+     * período livre → mesmo tamanho logo antes; sem início ou fim → null. { from, to, label }
+     */
+    of(from, to, today2) {
+      const ym = Period.fullMonth(from, to);
+      if (ym != null) {
+        const prev = ym - 1;
+        if (ym === ymOf(today2)) return { from: ymFirst(prev), to: ymDay(prev, Math.min(dom(today2), ymLen(prev))), label: `vs. ${MONTHS_SHORT[ymMonth(prev) - 1]} (mesmos dias)` };
+        return { from: ymFirst(prev), to: ymLast(prev), label: `vs. ${MONTHS[ymMonth(prev) - 1]}` };
+      }
+      if (!from || !to || to < from) return null;
+      const days = dayNum(to) - dayNum(from) + 1;
+      return { from: addDays(from, -days), to: addDays(from, -1), label: "vs. período anterior" };
+    },
+    /** "+12% vs. …", "−9% vs. …"; sem valor na referência: "Sem base para comparar" */
+    text(cur, prev, c) {
+      if (prev <= 0) return "Sem base para comparar";
+      const pct3 = Math.round((cur - prev) * 100 / prev);
+      return (pct3 > 0 ? "+" : pct3 < 0 ? "−" : "") + Math.abs(pct3) + "% " + c.label;
+    }
+  };
+
+  // js/editors.js
+  var editors_exports = {};
+  __export(editors_exports, {
+    CARD_PAYMENT_CAT: () => CARD_PAYMENT_CAT,
+    SHORTCUTS: () => SHORTCUTS,
+    accountEditor: () => accountEditor,
+    cardEditor: () => cardEditor,
+    deleteCategory: () => deleteCategory,
+    download: () => download,
+    exportBackup: () => exportBackup,
+    exportCsv: () => exportCsv,
+    goalEditor: () => goalEditor,
+    limitEditor: () => limitEditor,
+    movesFiltersSheet: () => movesFiltersSheet,
+    newState: () => newState,
+    payInvoiceEditor: () => payInvoiceEditor,
+    pdfDialog: () => pdfDialog,
+    pickFile: () => pickFile,
+    recurringEditor: () => recurringEditor,
+    removePin: () => removePin,
+    renameCategory: () => renameCategory,
+    restoreBackup: () => restoreBackup,
+    setPin: () => setPin,
+    shortcutsDialog: () => shortcutsDialog,
+    txEditor: () => txEditor,
+    whatsNew: () => whatsNew,
+    ymOf: () => ymOf
+  });
+
   // js/report.js
   var TOP = 10;
   var MAX_CHART_MONTHS = 24;
@@ -3247,9 +3362,9 @@ Public License instead of this License.  But first, please read
     const prevTo = addDays(from, -1), prevFrom = addDays(prevTo, 1 - days);
     const prevDone = s.txs.filter((t) => isFlow(t) && t.paid && inRange(t, prevFrom, prevTo));
     let span = 0;
-    for (let m = ymOf(from); m <= ymOf(to); m++) {
-      const a = from > ymFirst(m) ? from : ymFirst(m), b = to < ymLast(m) ? to : ymLast(m);
-      span += (dayNum(b) - dayNum(a) + 1) / ymLen(m);
+    for (let m2 = ymOf(from); m2 <= ymOf(to); m2++) {
+      const a = from > ymFirst(m2) ? from : ymFirst(m2), b = to < ymLast(m2) ? to : ymLast(m2);
+      span += (dayNum(b) - dayNum(a) + 1) / ymLen(m2);
     }
     const byCategory = (l, limits) => {
       const total = sum2(l), g = /* @__PURE__ */ new Map();
@@ -3274,10 +3389,10 @@ Public License instead of this License.  But first, please read
       }).sort((a, b) => b.value - a.value || cmp(a.name, b.name));
     };
     const months = [];
-    for (let m = ymOf(from); m <= ymOf(to); m++) {
-      const l = done.filter((t) => ymOf(t.date) === m);
+    for (let m2 = ymOf(from); m2 <= ymOf(to); m2++) {
+      const l = done.filter((t) => ymOf(t.date) === m2);
       const income2 = sum2(l.filter((t) => t.kind === "income")), expense2 = sum2(l.filter((t) => t.kind === "expense"));
-      months.push({ ym: m, income: income2, expense: expense2, balance: income2 - expense2 });
+      months.push({ ym: m2, income: income2, expense: expense2, balance: income2 - expense2 });
     }
     const income = sum2(inc), expense = sum2(exp);
     return {
@@ -3476,12 +3591,12 @@ Public License instead of this License.  But first, please read
       while (s.length > 1 && this.measure(s.join("") + "…") > maxW) s.pop();
       return s.join("") + "…";
     }
-    text(t, x, base, size, color, o = {}) {
+    text(t, x, base2, size, color, o = {}) {
       this.font(size, !!o.bold);
       const s = o.maxW > 0 ? this.fit(t, o.maxW) : t;
       if (!this.draw) return;
       const w = this.measure(s), xx = o.align === "right" ? x - w : o.align === "center" ? x - w / 2 : x;
-      this.ops.push(`BT ${rgb(color, "rg")} /${o.bold ? "F2" : "F1"} ${n2(size)} Tf ${n2(xx)} ${n2(H - base)} Td ${pdfStr(winAnsi(s))} Tj ET`);
+      this.ops.push(`BT ${rgb(color, "rg")} /${o.bold ? "F2" : "F1"} ${n2(size)} Tf ${n2(xx)} ${n2(H - base2)} Td ${pdfStr(winAnsi(s))} Tj ET`);
     }
     rect(x, y0, w, h, color, radius = 0) {
       if (!this.draw || w <= 0 || h <= 0) return;
@@ -3613,21 +3728,21 @@ Public License instead of this License.  But first, please read
   }
   function para(pen, t) {
     pen.font(8.5, false);
-    let line = "";
+    let line2 = "";
     const flush = () => {
       pen.need(13);
-      pen.text(line, M, pen.y + 10, 8.5, MUTED);
+      pen.text(line2, M, pen.y + 10, 8.5, MUTED);
       pen.y += 13;
     };
     for (const w of t.split(" ")) {
-      const cand = line ? `${line} ${w}` : w;
+      const cand = line2 ? `${line2} ${w}` : w;
       pen.font(8.5, false);
       if (pen.measure(cand) > CW) {
         flush();
-        line = w;
-      } else line = cand;
+        line2 = w;
+      } else line2 = cand;
     }
-    if (line) flush();
+    if (line2) flush();
     pen.y += 3;
   }
   function donut(pen, rows, total) {
@@ -3677,31 +3792,31 @@ Public License instead of this License.  But first, please read
     tableHeader(pen, cols2, 2);
     rows.forEach((row, i) => {
       rowBreak(pen, 18, cols2, 2);
-      const base = pen.y + 11, color = SERIES[Math.min(i, 7) % SERIES.length];
+      const base2 = pen.y + 11, color = SERIES[Math.min(i, 7) % SERIES.length];
       let x = M + 6;
-      pen.text(row.name, x, base, 9, INK, { maxW: cols2[0][1] - 8 });
+      pen.text(row.name, x, base2, 9, INK, { maxW: cols2[0][1] - 8 });
       x += cols2[0][1];
       pen.rect(x, pen.y + 5, cols2[1][1] - 10, 6, TRACK, 3);
       pen.rect(x, pen.y + 5, Math.max(2, (cols2[1][1] - 10) * row.percent / 100), 6, color, 3);
       x += cols2[1][1];
-      pen.text(pct2(row.percent), x + cols2[2][1] - 8, base, 8.5, MUTED, { align: "right" });
+      pen.text(pct2(row.percent), x + cols2[2][1] - 8, base2, 8.5, MUTED, { align: "right" });
       x += cols2[2][1];
-      pen.text(String(row.count), x + cols2[3][1] - 8, base, 8.5, MUTED, { align: "right" });
+      pen.text(String(row.count), x + cols2[3][1] - 8, base2, 8.5, MUTED, { align: "right" });
       x += cols2[3][1];
       if (withLimit) {
-        pen.text(money2(row.monthlyAverage), x + cols2[4][1] - 8, base, 8.5, row.overLimit ? RED : INK, { align: "right" });
+        pen.text(money2(row.monthlyAverage), x + cols2[4][1] - 8, base2, 8.5, row.overLimit ? RED : INK, { align: "right" });
         x += cols2[4][1];
         pen.text(
           row.monthlyLimit != null ? money2(row.monthlyLimit) + (row.overLimit ? " · acima" : "") : "—",
           x + cols2[5][1] - 8,
-          base,
+          base2,
           8,
           row.overLimit ? RED : MUTED,
           { align: "right", maxW: cols2[5][1] - 6 }
         );
         x += cols2[5][1];
       }
-      pen.text(money2(row.value), x + cols2.at(-1)[1] - 8, base, 9, INK, { bold: true, align: "right" });
+      pen.text(money2(row.value), x + cols2.at(-1)[1] - 8, base2, 9, INK, { bold: true, align: "right" });
       pen.line(M, pen.y + 17, W2 - M, pen.y + 17);
       pen.y += 18;
     });
@@ -3711,7 +3826,7 @@ Public License instead of this License.  But first, please read
   function monthChart(pen, r) {
     const months = r.months.slice(-MAX_CHART_MONTHS), ch = 150;
     pen.need(ch + 40);
-    const max = Math.max(...months.map((m) => Math.max(m.income, m.expense)));
+    const max = Math.max(...months.map((m2) => Math.max(m2.income, m2.expense)));
     const step = niceStep(max), top = Math.max(step, Math.ceil(max / step) * step);
     const left = M + 52, right = W2 - M, y0 = pen.y + 6, y1 = y0 + ch;
     for (let v = 0; v <= top; v += step) {
@@ -3720,11 +3835,11 @@ Public License instead of this License.  But first, please read
       pen.text(compact(v), left - 6, yy + 3, 7.5, MUTED, { align: "right" });
     }
     const slot = (right - left) / months.length, bw = Math.min(14, slot * 0.32);
-    months.forEach((m, i) => {
-      const x = left + i * slot + slot / 2, hi = ch * m.income / top, he = ch * m.expense / top;
+    months.forEach((m2, i) => {
+      const x = left + i * slot + slot / 2, hi = ch * m2.income / top, he = ch * m2.expense / top;
       if (hi > 0) pen.rect(x - bw - 1, y1 - hi, bw, hi, GREEN, 2);
       if (he > 0) pen.rect(x + 1, y1 - he, bw, he, RED, 2);
-      if (months.length <= 12 || i % 2 === 0) pen.text(monthLabel(m.ym), x, y1 + 12, 7.5, MUTED, { align: "center" });
+      if (months.length <= 12 || i % 2 === 0) pen.text(monthLabel(m2.ym), x, y1 + 12, 7.5, MUTED, { align: "center" });
     });
     pen.y = y1 + 22;
     pen.rect(left, pen.y - 7, 8, 8, GREEN, 2);
@@ -3737,17 +3852,17 @@ Public License instead of this License.  But first, please read
   function monthTable(pen, r) {
     const cols2 = [["Mês", 160], ["Receitas", 120], ["Despesas", 120], ["Saldo", CW - 400]];
     tableHeader(pen, cols2, 1);
-    for (const m of r.months) {
+    for (const m2 of r.months) {
       rowBreak(pen, 18, cols2, 1);
-      const base = pen.y + 11;
+      const base2 = pen.y + 11;
       let x = M + 6;
-      pen.text(cap(brMonthYear(m.ym)), x, base, 9, INK);
+      pen.text(cap(brMonthYear(m2.ym)), x, base2, 9, INK);
       x += cols2[0][1];
-      pen.text(money2(m.income), x + cols2[1][1] - 8, base, 9, GREEN, { align: "right" });
+      pen.text(money2(m2.income), x + cols2[1][1] - 8, base2, 9, GREEN, { align: "right" });
       x += cols2[1][1];
-      pen.text(money2(m.expense), x + cols2[2][1] - 8, base, 9, RED, { align: "right" });
+      pen.text(money2(m2.expense), x + cols2[2][1] - 8, base2, 9, RED, { align: "right" });
       x += cols2[2][1];
-      pen.text(money2(m.balance), x + cols2[3][1] - 8, base, 9, m.balance < 0 ? RED : INK, { bold: true, align: "right" });
+      pen.text(money2(m2.balance), x + cols2[3][1] - 8, base2, 9, m2.balance < 0 ? RED : INK, { bold: true, align: "right" });
       pen.line(M, pen.y + 17, W2 - M, pen.y + 17);
       pen.y += 18;
     }
@@ -3758,15 +3873,15 @@ Public License instead of this License.  But first, please read
     tableHeader(pen, cols2, 3);
     for (const t of list) {
       rowBreak(pen, 18, cols2, 3);
-      const base = pen.y + 11;
+      const base2 = pen.y + 11;
       let x = M + 6;
-      pen.text(brDate(t.date), x, base, 8.5, MUTED);
+      pen.text(brDate(t.date), x, base2, 8.5, MUTED);
       x += cols2[0][1];
-      pen.text(t.desc, x, base, 9, INK, { maxW: cols2[1][1] - 8 });
+      pen.text(t.desc, x, base2, 9, INK, { maxW: cols2[1][1] - 8 });
       x += cols2[1][1];
-      pen.text(t.category, x, base, 8.5, MUTED, { maxW: cols2[2][1] - 8 });
+      pen.text(t.category, x, base2, 8.5, MUTED, { maxW: cols2[2][1] - 8 });
       x += cols2[2][1];
-      pen.text(money2(t.value), x + cols2[3][1] - 8, base, 9, RED, { bold: true, align: "right" });
+      pen.text(money2(t.value), x + cols2[3][1] - 8, base2, 9, RED, { bold: true, align: "right" });
       pen.line(M, pen.y + 17, W2 - M, pen.y + 17);
       pen.y += 18;
     }
@@ -3802,22 +3917,22 @@ Public License instead of this License.  But first, please read
     r.txs.forEach((t, i) => {
       rowBreak(pen, 17, cols2, 5);
       if (i % 2 === 1) pen.rect(M, pen.y, CW, 17, ZEBRA);
-      const base = pen.y + 11.5, payment = !isFlow(t);
+      const base2 = pen.y + 11.5, payment = !isFlow(t);
       let x = M + 6;
       const where = isCard(t) ? "Cartão " + (card(s, t.cardId)?.name ?? "") : account(s, t.accountId)?.name ?? "";
       const status = payment ? "Pag. fatura" : isCard(t) ? "Cartão" : t.paid ? t.kind === "income" ? "Recebido" : "Pago" : t.kind === "income" ? "A receber" : "A pagar";
-      pen.text(brDate(t.date), x, base, 8, MUTED);
+      pen.text(brDate(t.date), x, base2, 8, MUTED);
       x += cols2[0][1];
-      pen.text(t.desc, x, base, 8.5, payment ? MUTED : INK, { maxW: cols2[1][1] - 8 });
+      pen.text(t.desc, x, base2, 8.5, payment ? MUTED : INK, { maxW: cols2[1][1] - 8 });
       x += cols2[1][1];
-      pen.text(t.category, x, base, 8, MUTED, { maxW: cols2[2][1] - 8 });
+      pen.text(t.category, x, base2, 8, MUTED, { maxW: cols2[2][1] - 8 });
       x += cols2[2][1];
-      pen.text(where, x, base, 8, MUTED, { maxW: cols2[3][1] - 8 });
+      pen.text(where, x, base2, 8, MUTED, { maxW: cols2[3][1] - 8 });
       x += cols2[3][1];
-      pen.text(status, x, base, 8, !t.paid && !payment ? ACCENT : MUTED, { maxW: cols2[4][1] - 6 });
+      pen.text(status, x, base2, 8, !t.paid && !payment ? ACCENT : MUTED, { maxW: cols2[4][1] - 6 });
       x += cols2[4][1];
       const color = payment ? MUTED : t.kind === "income" ? GREEN : RED;
-      pen.text((t.kind === "income" ? "+ " : "− ") + money2(t.value), x + cols2[5][1] - 8, base, 8.5, color, { bold: !payment, align: "right" });
+      pen.text((t.kind === "income" ? "+ " : "− ") + money2(t.value), x + cols2[5][1] - 8, base2, 8.5, color, { bold: !payment, align: "right" });
       pen.y += 17;
     });
     pen.line(M, pen.y, W2 - M, pen.y);
@@ -3881,590 +3996,16 @@ ${xref}
     return { bytes, pages: pen.pages };
   }
 
-  // js/calendarview.js
-  function calDefaults() {
-    if (ctx.cal.ym == null) {
-      ctx.cal.ym = ymOf(ctx.today);
-      ctx.cal.day = ctx.today;
-    }
-  }
-  function calendarView() {
-    calDefaults();
-    const s = ctx.state, today2 = ctx.today, ym = ctx.cal.ym;
-    const days = MonthCalendar.build(s, ym, today2);
-    const grid = calCard(days, ym, today2);
-    const totals = monthTotals(days);
-    const sel = ctx.cal.day && ymOf(ctx.cal.day) === ym ? ctx.cal.day : null;
-    const day = sel ? dayBox(sel, days.get(sel), today2) : `<div class="empty glass"><span>Toque num dia para ver os lançamentos dele.</span></div>`;
-    return ctx.cols === 1 ? grid + totals + day : `<div class="calLayout"><div>${grid}${totals}</div><div>${day}</div></div>`;
-  }
-  function calCard(days, ym, today2) {
-    const cells = MonthCalendar.cells(ym).map((d) => d ? dayCell(d, days.get(d), today2) : '<span class="calEmpty" aria-hidden="true"></span>').join("");
-    return `<section class="calCard glass" aria-label="Calendário de ${attr(MonthCalendar.monthTitle(ym))}">
-    <div class="calHead">
-      ${roundBtn("chevron-left", "Mês anterior", "cal-shift", { d: -1 })}
-      <div class="calTitle"><h3 aria-live="polite">${esc(MonthCalendar.monthTitle(ym))}</h3>
-        ${ym !== ymOf(today2) ? btn("Voltar para hoje", { act: "cal-today", cls: "link small" }) : ""}</div>
-      ${roundBtn("chevron-right", "Próximo mês", "cal-shift", { d: 1 })}
-    </div>
-    <div class="calWeek" aria-hidden="true">${MonthCalendar.WEEK_HEADER.map((w) => `<span>${w}</span>`).join("")}</div>
-    <div class="calGrid">${cells}</div>
-    <div class="calLegend" aria-hidden="true"><span><i class="dot income"></i>Receita</span><span><i class="dot expense"></i>Despesa</span>
-      <span><i class="dot card"></i>Cartão</span><span>${icon("warning", 13, "red")}Em atraso</span></div>
-    <p class="srOnly">Toque num dia para ver os lançamentos. Toque de novo no dia escolhido, ou toque e segure, para lançar nessa data.</p>
-  </section>`;
-  }
-  var roundBtn = (ic, label, act, data = {}, cls = "") => `<button type="button" class="roundBtn${cls ? " " + cls : ""}" data-act="${act}"${Object.entries(data).map(([k, v]) => ` data-${k}="${attr(v)}"`).join("")} aria-label="${attr(label)}">${icon(ic, 22)}</button>`;
-  function dayCell(d, day, today2) {
-    const sel = d === ctx.cal.day, cls = ["calDay", sel && "sel", d === today2 && "today", d < today2 && "past"].filter(Boolean).join(" ");
-    const val = day && !hidden() && (day.income || day.expense) ? `<span class="v ${day.net < 0 ? "red" : "green"}">${esc(MonthCalendar.signed(day.net))}</span>` : "";
-    const dots = day?.marks.length ? `<span class="dots">${day.marks.map((m) => `<i class="dot ${m}"></i>`).join("")}</span>` : "";
-    return `<button type="button" class="${cls}" data-act="cal-day" data-date="${d}" data-id="${d}" aria-pressed="${sel}"
-    aria-label="${attr(MonthCalendar.describe(d, day, today2, hidden()) + (sel ? ". Toque de novo para lançar nesta data" : ""))}">
-    ${day?.overdue ? `<span class="warn">${icon("warning", 11)}</span>` : ""}<span class="n">${+d.slice(8, 10)}</span>${val}${dots}</button>`;
-  }
-  function monthTotals(days) {
-    const t = MonthCalendar.totals(days);
-    return `<section class="calTotals" aria-label="Totais do mês">
-    <div class="glass"><small>Entradas</small><b class="green">${money(t.income)}</b></div>
-    <div class="glass"><small>Saídas</small><b class="red">${money(t.expense)}</b></div>
-    <div class="glass"><small>Resultado</small><b class="${t.net < 0 ? "red" : "accent"}">${money(t.net)}</b></div></section>
-    <p class="muted small calNote">Inclui o que ainda está pendente e as faturas no dia do vencimento. Compras no cartão aparecem no dia, mas só contam na fatura.</p>`;
-  }
-  function dayBox(d, day, today2) {
-    const n = day?.count || 0;
-    const count = n === 0 ? "Sem lançamentos" : n === 1 ? "1 lançamento" : `${n} lançamentos`;
-    const net = day?.net || 0;
-    const netTxt = hidden() || !day || !day.income && !day.expense ? "" : ` · saldo do dia ${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}`;
-    const forecast = d >= today2 ? (() => {
-      const f = Finance.futureBalance(ctx.state, d, today2);
-      return `<div class="forecastRow glass"><span>Saldo previsto ao fim do dia</span><b class="${f < 0 ? "negative" : ""}">${money(f)}</b></div>`;
-    })() : "";
-    const rows = day && n ? day.txs.map((t) => txRow(t, { noDate: true })).join("") + day.invoices.map(invoiceRow).join("") : `<div class="empty glass"><b>Nada neste dia</b><span>Use Receita ou Despesa para lançar algo com esta data.</span></div>`;
-    return `<section class="section calDayBox" aria-label="Lançamentos do dia">
-    <div class="sectionHead"><div>${eyebrow(d === today2 ? "Hoje" : d < today2 ? "Dia escolhido" : "Previsto")}<h3>${esc(MonthCalendar.dayTitle(d, today2))}</h3>
-      <small class="muted">${esc(count + netTxt)}</small></div></div>
-    <div class="dayBtns">${btn("Receita", { act: "new-tx", data: { kind: "income", date: d }, icon: "add", iconSize: 18 })}${btn("Despesa", { act: "new-tx", data: { kind: "expense", date: d }, icon: "remove", iconSize: 18 })}</div>
-    ${forecast}<div class="list">${rows}</div></section>`;
-  }
-  function invoiceRow(i) {
-    return `<button type="button" class="tx expense invoiceRow" data-act="pay-invoice" data-id="${attr(i.cardId)}">
-    <span class="badge cardBadge" aria-hidden="true">${icon("credit-card", 20)}</span>
-    <span class="meta"><b>Fatura ${esc(i.cardName)}</b><small>${i.overdue ? '<span class="red">Vencida · em aberto</span>' : "Vence neste dia · toque para pagar"}</small></span>
-    <span class="amount">−${money(i.amount)}</span></button>`;
-  }
-
-  // js/screens.js
-  var pct1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(".", ",");
-  var pct0 = (v) => String(Math.round(v));
-  var cols = (...c) => ctx.cols === 1 ? c.flat().join("") : `<div class="cols cols${c.length}">${c.map((x) => `<div class="col">${x.join("")}</div>`).join("")}</div>`;
-  var sectionHead = (eb, title, action = "") => `<div class="sectionHead"><div>${eb ? eyebrow(eb) : ""}<h3>${esc(title)}</h3></div>${action}</div>`;
-  var glyph = (cat) => {
-    const ic = categoryIcon(cat);
-    return `<span class="badge" aria-hidden="true">${ic ? icon(ic, 20) : esc([...String(cat).trim()][0]?.toUpperCase() || "•")}</span>`;
-  };
-  var assistOn = () => ctx.device.assistTips || ctx.device.assistAsk;
-  var visibleTips = (all) => all.filter((t) => !ctx.device.dismissedTips.includes(t.id));
-  function homeView() {
-    const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
-    const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
-    const fl = Finance.monthFlow(s, ym);
-    const pend = Period.monthPending(s, ym, today2);
-    const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
-    const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
-    const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : "";
-    const hero = `<section class="hero glass" aria-label="Resumo do mês">
-    ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>` : ""}
-    <div class="balanceGrid">
-      <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b></div>
-      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
-    </div>
-    <div class="stats">
-      <div><span>${icon("arrow-upward", 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub("a receber", pend.toReceive, "green")}</div>
-      <div><span>${icon("arrow-downward", 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub("a pagar", pend.toPay, "red")}</div>
-    </div>
-    ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
-    <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ""}
-  </section>`;
-    const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
-    const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
-    const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
-    const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2) : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals, blocks.start].join("");
-    return `<h2 id="homeTitle" class="srOnly">Início</h2>${body}`;
-  }
-  function upcoming(s, today2, days = 30) {
-    const limit = addDays(today2, days), out = [];
-    for (const t of s.txs) {
-      if (t.paid || isCard(t) || !isFlow(t) || t.date > limit) continue;
-      out.push({ kind: t.kind, title: t.desc, amount: t.value, date: t.date, late: t.date < today2, act: "edit-tx", id: t.id, sub: t.category });
-    }
-    for (const c of s.cards) for (const inv of Finance.cardStatus(s, c, today2).invoices)
-      if (inv.open > 0 && inv.due <= limit) out.push({ kind: "invoice", title: `Fatura ${c.name}`, amount: inv.open, date: inv.due, late: inv.due < today2, act: "pay-invoice", id: c.id, sub: `${brMonthLabel(inv.ym)}${inv.closed ? " · fechada" : " · aberta"}` });
-    return out.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
-  }
-  function dueCard() {
-    const list = upcoming(ctx.state, ctx.today);
-    if (!list.length && ctx.cols === 1) return "";
-    const rows = list.slice(0, 8).map((r) => {
-      const ic = r.kind === "invoice" ? "credit-card" : r.kind === "income" ? "arrow-upward" : "receipt-long";
-      const when = r.date === ctx.today ? "hoje" : r.date === addDays(ctx.today, 1) ? "amanhã" : brDayMonth(r.date);
-      return `<button type="button" class="dueRow${r.late ? " late" : ""}" data-act="${r.act}" data-id="${attr(r.id)}">
-      <span class="dueIc ${r.kind}">${icon(ic, 18)}</span>
-      <span class="meta"><b>${esc(r.title)}</b><small>${esc(r.sub)} · ${r.late ? `<span class="red">em atraso desde ${brDayMonth(r.date)}</span>` : `vence ${esc(when)}`}</small></span>
-      <span class="amount ${r.kind === "income" ? "green" : ""}">${r.kind === "income" ? "+" : ""}${money(r.amount)}</span></button>`;
-    }).join("");
-    return `<section class="section">${sectionHead(null, "Vencimentos (30 dias)", list.length ? btn("Ver todos", { act: "open-moves", data: { st: "pending" }, cls: "soft small" }) : "")}
-    <div class="glass compactBox dueList">${rows || '<p class="muted center">Nada a pagar ou receber nos próximos 30 dias.</p>'}
-    ${list.length > 8 ? `<p class="muted small center">e mais ${list.length - 8} vencimento(s)</p>` : ""}</div></section>`;
-  }
-  function homeAssistCard() {
-    const d = ctx.device;
-    if (!assistOn()) return "";
-    const s = ctx.state, today2 = ctx.today;
-    let inner = "", tips = [];
-    if (d.assistTips) {
-      const rep = Insights.report(s, today2, money);
-      tips = visibleTips(Insights.tips(s, today2, money));
-      const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
-      inner = `<ul class="reportLines">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${tips[0] ? tipItem(tips[0]) : ""}`;
-    } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
-    const link = d.assistTips ? tips.length > 1 ? `Ver as ${tips.length} dicas` : "Abrir assistente" : "Perguntar";
-    return `<section class="glass assistCard" aria-label="Assistente">
-    <div class="assistHead">${icon("auto-awesome", 16)}<small class="eyebrow">Assistente</small></div>${inner}
-    <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? "" : ' data-focus="ask"'}><span>${esc(link)}</span>${icon("chevron-right", 18)}</button></section>`;
-  }
-  function tipItem(t, o = {}) {
-    const canOpen = t.query != null || t.from != null;
-    return `<article class="tip${o.dismissed ? " dismissed" : ""}">
-    <div class="tipHead"><span class="tipType">${esc(INSIGHT_LABELS[t.type])}</span>
-      ${o.dismissed ? btn("Mostrar de novo", { act: "restore-tip", data: { id: t.id }, cls: "link small" }) : btn("", { act: "dismiss-tip", data: { id: t.id }, cls: "icon tiny", icon: "close", iconSize: 16, label: "Dispensar dica" })}</div>
-    <b>${esc(t.title)}</b><p>${esc(t.text)}</p>
-    <div class="tipFoot">${why(t.why)}${canOpen && !o.dismissed ? btn("Ver lançamentos", { act: "open-moves", data: { q: t.query ?? "", from: t.from ?? "", to: t.to ?? "" }, cls: "link small", icon: "chevron-right", iconSize: 16 }) : ""}</div></article>`;
-  }
-  function walletSection() {
-    const s = ctx.state, today2 = ctx.today;
-    const accs = s.accounts.map((a) => {
-      const b = Finance.accountBalance(s, a);
-      return `<button type="button" class="walletCard" data-act="edit-account" data-id="${attr(a.id)}">
-    <small>${icon("account-balance-wallet", 14)}Conta</small><b class="${b < 0 ? "negative" : ""}">${money(b)}</b><span class="sub">${esc(a.name)}</span></button>`;
-    }).join("");
-    const cards = s.cards.map((c) => {
-      const st = Finance.cardStatus(s, c, today2), cur = st.current;
-      return `<div class="walletCard cardItem"><small>${icon("credit-card", 14)}${esc(c.name)}</small>
-      <b>${cur ? money(cur.open) : money(0)}</b>
-      <span class="sub">${cur ? `Fatura ${esc(brMonthLabel(cur.ym))} · vence ${brDayMonth(cur.due)}${cur.closed ? " · fechada" : ""}` : "Sem fatura em aberto"}</span>
-      <span class="sub">Disponível ${money(st.available)}</span>
-      <div class="cardActions">${cur ? btn("Pagar fatura", { act: "pay-invoice", data: { id: c.id }, cls: "primary small" }) : ""}${btn("", { act: "edit-card", data: { id: c.id }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
-    }).join("");
-    const head = sectionHead(null, "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small" }));
-    if (s.accounts.length === 1 && !s.cards.length) {
-      const a = s.accounts[0], b = Finance.accountBalance(s, a);
-      return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
-      <span class="badge" aria-hidden="true">${icon("account-balance", 20)}</span><span class="meta"><b>${esc(a.name)}</b><small>Conta</small></span>
-      <b class="amount${b < 0 ? " negative" : ""}">${money(b)}</b></button></section>`;
-    }
-    return `<section class="section">${head}
-    <div class="${ctx.cols === 1 ? "hscroll" : "walletGrid"}">${accs}${cards}</div></section>`;
-  }
-  function limitsSection() {
-    const s = ctx.state, usage = Finance.budgetUsage(s, ymOf(ctx.today));
-    const rows = [...s.limits].map(([cat, lim]) => {
-      const u = usage.get(cat) || 0, p = lim > 0 ? u * 100 / lim : 0;
-      const cls = u > lim ? "over" : p >= 80 ? "warn" : "";
-      const status = u > lim ? "Limite ultrapassado" : p >= 100 ? "Limite atingido" : p >= 80 ? `Atenção: ${pct0(p)}% usado` : `${pct0(p)}% usado`;
-      return `<button type="button" class="budgetLine ${cls}" data-act="edit-limit" data-cat="${attr(cat)}">
-      <div><b>${esc(cat)}</b><span>${money(u)} / ${money(lim)}</span></div>
-      <div class="budgetTrack"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
-    }).join("");
-    if (!s.limits.size) return "";
-    return `<section class="section">${sectionHead(null, "Limites do mês", btn("", { act: "new-limit", cls: "icon small", icon: "add", label: "Novo limite" }))}
-    <div class="glass compactBox"><p class="muted small">Inclui o que ainda está pendente.</p>${rows}</div></section>`;
-  }
-  function goalsSection() {
-    const s = ctx.state;
-    const rows = s.goals.map((g) => {
-      const p = g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0, plan = Finance.goalPlan(g, ctx.today);
-      const info = (g.deadline ? `Até ${brDate(g.deadline)}` : "Sem prazo") + (plan.pastDue ? " · prazo vencido" : "");
-      const planTxt = plan.done ? `${icon("check", 14)} Meta atingida` : [
-        plan.needed != null ? `Precisa de ${esc(money(plan.needed))}/mês` : null,
-        plan.eta != null ? `Plano: conclui em ${esc(brMonthLabel(plan.eta))}${plan.late ? ` ${icon("warning", 14)} após o prazo` : ""}` : null
-      ].filter(Boolean).join(" · ");
-      return `<button type="button" class="tx goal" data-act="edit-goal" data-id="${attr(g.id)}">
-      <div class="goalTop"><b>${esc(g.name)}</b><span>${money(g.saved)} / ${money(g.target)}</span></div>
-      <div class="bar2"><i style="width:${p}%"></i></div>
-      <div class="goalInfo"><span>${esc(info)}</span><span>${pct0(p)}%</span></div>${planTxt ? `<small class="goalPlan">${planTxt}</small>` : ""}</button>`;
-    }).join("");
-    if (!s.goals.length) return "";
-    return `<section class="section">${sectionHead(null, "Metas", btn("", { act: "new-goal", cls: "icon small", icon: "add", label: "Nova meta" }))}
-    <div class="list">${rows}</div></section>`;
-  }
-  function startSection() {
-    const s = ctx.state;
-    const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
-    <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`;
-    const rows = (s.limits.size ? "" : row("new-limit", "payments", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")) + (s.goals.length ? "" : row("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo"));
-    if (!rows) return "";
-    return `<section class="section">${sectionHead(null, "Comece por aqui")}<div class="glass compactBox startBox">${rows}</div></section>`;
-  }
-  function movesDefaults() {
-    const ym = ymOf(ctx.today);
-    if (!ctx.moves.from && !ctx.moves.to && !ctx.moves.all) {
-      ctx.moves.from = ymFirst(ym);
-      ctx.moves.to = ymLast(ym);
-    }
-  }
-  function filteredTxs() {
-    const f = ctx.moves, q = Text.fold(f.q);
-    return ctx.state.txs.filter((t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to) && (!f.kind || t.kind === f.kind) && (!f.st || (f.st === "paid" ? t.paid : !t.paid)) && (!q || Text.fold(t.desc + " " + t.category).includes(q))).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
-  }
-  function viewSwitch() {
-    const v = ctx.movesView;
-    const b = (id, label, ic) => `<button type="button" role="tab" data-act="moves-view" data-v="${id}" aria-selected="${v === id}" class="${v === id ? "selected" : ""}">${icon(ic, 19)}<span>${label}</span></button>`;
-    return `<div class="viewSwitch glass" role="tablist" aria-label="Modo de exibição">${b("list", "Lista", "view-list")}${b("calendar", "Calendário", "calendar-month")}</div>`;
-  }
-  function periodBar() {
-    const f = ctx.moves, custom = Period.fullMonth(f.from, f.to) == null || f.st === "paid";
-    return `<div class="periodBar">${roundBtn("chevron-left", "Mês anterior", "moves-shift", { d: -1 })}
-    <h3 class="periodLabel" aria-live="polite">${esc(Period.label(f.from, f.to))}</h3>
-    ${roundBtn("chevron-right", "Próximo mês", "moves-shift", { d: 1 })}${roundBtn("tune", "Período e filtros", "moves-filters", {}, custom ? "on" : "")}</div>`;
-  }
-  function filterChips() {
-    const f = ctx.moves;
-    const chip = (c, label, on) => `<button type="button" class="chip${on ? " on" : ""}" data-act="moves-chip" data-c="${c}" aria-pressed="${on}">${label}</button>`;
-    return `<div class="chips" role="group" aria-label="Filtros">${chip("all", "Todos", !f.kind && !f.st)}${chip("income", "Receitas", f.kind === "income")}${chip("expense", "Despesas", f.kind === "expense")}${chip("pending", "Pendentes", f.st === "pending")}</div>`;
-  }
-  function movesView() {
-    movesDefaults();
-    const f = ctx.moves;
-    const title = `<div class="pageTitle"><h2 id="movesTitle">Lançamentos</h2></div>`;
-    if (ctx.movesView === "calendar") return title + viewSwitch() + calendarView();
-    const panel = `${periodBar()}
-    <div class="searchField">${icon("search", 20)}<input id="q" type="search" placeholder="Buscar descrição ou categoria" aria-label="Buscar lançamentos (descrição ou categoria)" value="${attr(f.q)}" maxlength="60"></div>
-    ${filterChips()}<div id="movesTotals"></div>`;
-    const list = `<section class="section listSection" aria-label="Lançamentos do período"><div id="periodTransactions" class="list"></div></section>`;
-    return title + viewSwitch() + (ctx.cols === 1 ? panel + list : `<div class="movesGrid"><aside class="movesAside">${panel}</aside><div>${list}</div></div>`);
-  }
-  function movesData() {
-    const all = filteredTxs(), f = ctx.moves, today2 = ctx.today;
-    const fl = Finance.flow(all), pend = Period.pending(all), bal = fl.income - fl.expense;
-    const forecast = bal + pend.toReceive - pend.toPay, hasPend = pend.toReceive > 0 || pend.toPay > 0;
-    const col = (label, v, cls, subL, sv, scls, show) => `<div><small>${label}</small><b class="${cls}">${money(v)}</b>${show ? `<small class="statSub">${subL} <b class="${scls}">${money(sv)}</b></small>` : ""}</div>`;
-    const totals = `<section class="periodSummary glass" aria-label="Resumo do período"><div class="sumGrid">
-      ${col("Receitas", fl.income, "green", "a receber", pend.toReceive, "green", pend.toReceive > 0)}
-      ${col("Despesas", fl.expense, "red", "a pagar", pend.toPay, "red", pend.toPay > 0)}
-      ${col("Saldo", bal, bal < 0 ? "negative" : "", "previsto", forecast, forecast < 0 ? "negative" : "accent", hasPend)}</div>
-    ${fl.income > 0 && !hidden() ? `<small class="muted sumNote">As despesas são ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.</small>` : ""}</section>`;
-    const shown = all.slice(0, f.limit), groups = [];
-    for (const t of shown) {
-      const g = groups.at(-1);
-      if (g && g.date === t.date) g.txs.push(t);
-      else groups.push({ date: t.date, txs: [t] });
-    }
-    const rows = groups.map((g) => {
-      const net = Period.cashNet(g.txs), cash = g.txs.some((t) => !isCard(t));
-      return `<h4 class="dayHead"><span>${esc((g.date === today2 ? "Hoje · " : "") + MonthCalendar.dayTitle(g.date, today2))}</span>
-      ${cash && !hidden() ? `<b class="${net < 0 ? "red" : "green"}">${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}</b>` : ""}</h4>${g.txs.map((t) => txRow(t, { noDate: true })).join("")}`;
-    }).join("");
-    return {
-      totals,
-      count: all.length,
-      list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: "moves-more", cls: "soft wide" }) : "") : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês, ajuste os filtros ou adicione uma movimentação.</span></div>`
-    };
-  }
-  function txRow(t, o = {}) {
-    const s = ctx.state, payment = !isFlow(t), cardT = isCard(t);
-    const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ""}` : account(s, t.accountId)?.name ?? "";
-    const late = !t.paid && !cardT && t.date < ctx.today;
-    const status = payment ? "Pagamento de fatura" : cardT ? "" : t.paid ? "" : late ? '<span class="red">Em atraso</span>' : t.kind === "income" ? "A receber" : "A pagar";
-    const meta = [esc(t.category), esc(where), o.noDate ? "" : brDate(t.date), status].filter(Boolean).join(" · ");
-    const toggle = cardT ? `<span class="chk card" title="Compra no cartão">${icon("credit-card", 16)}</span>` : payment ? `<span class="chk on" title="Pagamento de fatura">${icon("check", 16)}</span>` : `<button type="button" class="chk${t.paid ? " on" : ""}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-pressed="${t.paid}" aria-label="${t.paid ? t.kind === "income" ? "Recebido" : "Pago" : t.kind === "income" ? "Marcar como recebido" : "Marcar como pago"}: ${attr(t.desc)}">${icon("check", 16)}</button>`;
-    return `<div class="tx ${t.kind}${t.paid ? "" : " pending"}${payment ? " payment" : ""}" data-act="edit-tx" data-id="${attr(t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${t.kind === "income" ? "receita" : "despesa"} de ${attr(money(t.value))} em ${brDate(t.date)}">
-    ${glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
-    <span class="amount">${t.kind === "income" ? "+" : "−"}${money(t.value)}</span>${toggle}</div>`;
-  }
-  function reportsView() {
-    movesDefaults();
-    const s = ctx.state, f = ctx.moves, today2 = ctx.today, ym = ymOf(today2);
-    const period2 = !f.from && !f.to ? "Todo o histórico." : `Período: ${f.from ? brDate(f.from) : "início"} a ${f.to ? brDate(f.to) : "hoje"} (datas da aba Lançamentos).`;
-    const cats = Finance.categoryTotals(s, f.from, f.to), total = cats.reduce((n, [, v]) => n + v, 0);
-    const slices = cats.slice(0, 7).map(([n, v]) => [n, v]);
-    if (cats.length > 7) slices.push([`Outras (${cats.length - 7})`, cats.slice(7).reduce((n, [, v]) => n + v, 0)]);
-    const catCard = `<section class="comparison glass">${eyebrow("Despesas")}<h3>Por categoria</h3>
-    ${cats.length ? `<div class="donutWrap">${donutSvg(slices, total)}<ul class="legend">${slices.map(([n, v], i) => `<li><i style="background:${PDF_SERIES[i % 8]}"></i><span>${esc(n)}</span><b>${money(v)}</b><small>${pct1(total ? v * 100 / total : 0)}%</small></li>`).join("")}</ul></div>
-    <div class="catBars">${cats.map(([c, v], i) => {
-      const lim = s.limits.get(c), p = total ? v * 100 / total : 0;
-      return `<div class="catBar"><div class="catTop">${glyph(c)}<b>${esc(c)}</b><span>${money(v)}</span></div><div class="budgetTrack"><i style="width:${p}%;background:${PDF_SERIES[Math.min(i, 7)]}"></i></div>
-        ${lim != null ? `<small class="${v > lim ? "red" : "muted"}">${v > lim ? `${icon("warning", 13)} Acima do` : "Dentro do"} limite mensal de ${esc(money(lim))}</small>` : ""}</div>`;
-    }).join("")}</div>` : '<p class="muted small">Sem despesas no período.</p>'}</section>`;
-    const months = Finance.lastMonths(s, today2, 6), max = Math.max(1, ...months.map(([, m]) => Math.max(m.income, m.expense)));
-    const desc = months.map(([m, x]) => brMonthYear(m) + (hidden() ? "" : `: receitas ${Money.format(x.income)}, despesas ${Money.format(x.expense)}`)).join("; ");
-    const evo = `<section class="comparison glass">${eyebrow("Evolução")}<h3>Últimos 6 meses</h3>
-    <div class="evo${hidden() ? " sensitive" : ""}" role="img" aria-label="Gráfico de receitas e despesas. ${attr(desc)}">${months.map(([m, x]) => `<div class="evoCol"><div class="pair"><i class="inc" style="height:${x.income * 100 / max}%"></i><i class="exp" style="height:${x.expense * 100 / max}%"></i></div><span>${MONTHS_SHORT[m % 12]}</span></div>`).join("")}</div>
-    <small class="legendLine"><i class="dot inc"></i>Receitas <i class="dot exp"></i>Despesas</small></section>`;
-    const cur = Finance.monthFlow(s, ym), prev = Finance.monthFlow(s, ym - 1);
-    const chg2 = (a, b) => b === 0 ? "Sem base" : `${icon(a >= b ? "arrow-upward" : "arrow-downward", 13)}${pct0(Math.abs((a - b) * 100 / b))}% vs. mês anterior`;
-    const cmp2 = `<section class="comparison glass">${eyebrow("Comparação")}<h3>Este mês × mês anterior</h3>
-    <div class="reportStat">${[["Receitas", cur.income, prev.income, "green"], ["Despesas", cur.expense, prev.expense, "red"]].map(([l, a, b, c]) => `<div><small>${l}</small><b class="${c}">${money(a)}</b><small class="chg">${chg2(a, b)}</small></div>`).join("")}</div></section>`;
-    const exp = `<section class="comparison glass exportCard"><div><h3>${icon("picture-as-pdf", 20)} Relatório em PDF</h3><p class="muted small">Resumo, gráficos, maiores despesas, contas, metas e a lista de lançamentos de qualquer período. Gerado neste aparelho.</p></div>
-    ${btn("Exportar relatório em PDF", { act: "pdf", cls: "primary", icon: "download" })}</section>`;
-    const title = pageTitle("reportsTitle", "Análise", "Relatórios", `${period2} Considera só valores realizados.`);
-    return title + (ctx.cols === 1 ? exp + catCard + evo + cmp2 : cols([catCard], [exp, evo, cmp2]));
-  }
-  function donutSvg(slices, total) {
-    const r = 52, c = 2 * Math.PI * r;
-    let off = 0;
-    const arcs = slices.map(([, v], i) => {
-      const len = total > 0 ? c * v / total : 0;
-      const el = `<circle r="${r}" cx="70" cy="70" fill="none" stroke="${PDF_SERIES[i % 8]}" stroke-width="22" stroke-dasharray="${Math.max(0, len - 1.2).toFixed(2)} ${(c - Math.max(0, len - 1.2)).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 70 70)"/>`;
-      off += len;
-      return el;
-    }).join("");
-    return `<svg class="donut" viewBox="0 0 140 140" role="img" aria-label="Despesas por categoria: ${attr(slices.map(([n, v]) => `${n} ${hidden() ? "" : Money.format(v)}`).join(", "))}">
-    <circle r="${r}" cx="70" cy="70" fill="none" class="donutTrack" stroke-width="22"/>${arcs}
-    <text x="70" y="66" text-anchor="middle" class="donutLabel">Total</text><text x="70" y="84" text-anchor="middle" class="donutValue">${esc(hidden() ? "R$ ••••" : compact(total))}</text></svg>`;
-  }
-  function assistView() {
-    const d = ctx.device, s = ctx.state, today2 = ctx.today;
-    const back = ctx.cols === 1 ? btn("Início", { act: "go", data: { view: "home" }, cls: "link back", icon: "arrow-back", iconSize: 18 }) : "";
-    const head = back + pageTitle("assistTitle", "No aparelho, sem internet", "Assistente", "Tudo é calculado neste aparelho, sem internet, a partir dos seus lançamentos. Toque em “Por quê?” para ver a regra usada.");
-    const askBox = d.assistAsk ? `<section class="comparison glass" aria-label="Perguntas">${eyebrow("Pergunte")}
-    <form id="askForm" class="askForm" novalidate><div class="searchField">${icon("search", 20)}<input id="askInput" type="search" maxlength="120" placeholder="Ex.: quanto gastei com mercado em agosto?" aria-label="Sua pergunta" value="${attr(ctx.lastQuestion || "")}"></div>
-    ${btn("Perguntar", { submit: true, cls: "primary", icon: "send", iconSize: 18 })}</form>
-    <div class="examples">${ASK_EXAMPLES.map((x) => btn(x, { act: "ask-example", data: { q: x }, cls: "pill small" })).join("")}</div>
-    <div id="askAnswer">${ctx.lastQuestion ? answerHtml(ctx.lastQuestion) : ""}</div></section>` : "";
-    let summary = "", tipsBox = "";
-    if (d.assistTips) {
-      const rep = Insights.report(s, today2, money);
-      summary = `<section class="comparison glass">${eyebrow("Resumo")}<h3>${esc(rep.title)}</h3><ul class="reportLines">${rep.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${why(rep.why)}</section>`;
-      const all = Insights.tips(s, today2, money), vis = visibleTips(all), dis = all.filter((t) => d.dismissedTips.includes(t.id));
-      tipsBox = `<section class="comparison glass">${eyebrow("Dicas")}<h3>Dicas de economia</h3>
-      ${vis.length ? vis.map((t) => tipItem(t)).join("") : '<p class="muted small">Nenhuma dica no momento: nada fora do padrão nos seus lançamentos.</p>'}
-      ${dis.length ? `<details class="dismissedBox"><summary>${icon("expand-more", 18)}Mostrar dispensadas (${dis.length})</summary>${dis.map((t) => tipItem(t, { dismissed: true })).join("")}</details>` : ""}</section>`;
-    }
-    const off = !d.assistAsk && !d.assistTips ? `<section class="comparison glass"><p class="muted">O resumo, as dicas e as perguntas estão desligados em Ajustes › Assistente.</p>${btn("Abrir Ajustes", { act: "go", data: { view: "prefs", fold: "assistente" }, cls: "soft" })}</section>` : "";
-    return head + off + (ctx.cols === 1 ? askBox + summary + tipsBox : cols([askBox, summary], [tipsBox]));
-  }
-  function answerHtml(q) {
-    const a = Ask.answer(q, ctx.state, ctx.today, money);
-    const p = a.parsed;
-    return `<div class="answer"><b>${esc(a.text)}</b><small>${esc(a.understood)}</small>
-    ${a.matches.length ? btn("Ver lançamentos", { act: "open-moves", data: { q: p.category ?? p.words[0] ?? "", from: p.period.from, to: p.period.to, kind: p.kind ?? "" }, cls: "pill small", icon: "chevron-right", iconSize: 16 }) : ""}</div>`;
-  }
-  var openFolds = /* @__PURE__ */ new Set();
-  function fold(id, title, sub, body, ic) {
-    const open = openFolds.has(id);
-    return `<section class="fold glass${open ? " open" : ""}" id="fold-${id}">
-    <button type="button" class="foldHead" data-act="fold" data-id="${id}" aria-expanded="${open}" aria-controls="foldBody-${id}">
-      <span class="foldIc">${icon(ic, 20)}</span><span class="foldTxt"><b>${esc(title)}</b><small>${esc(sub)}</small></span>
-      <span class="foldBtn" aria-hidden="true">${icon(open ? "remove" : "add", 20)}</span></button>
-    <div class="foldBody" id="foldBody-${id}"${open ? "" : " hidden"}>${body}</div></section>`;
-  }
-  var manage = (title, sub, actions2) => `<div class="manageItem"><div><b>${esc(title)}</b><small>${esc(sub)}</small></div><div class="manageActions">${actions2}</div></div>`;
-  function prefsView(env2) {
-    const s = ctx.state, d = ctx.device;
-    const appearance = fold("aparencia", "Aparência", `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? " active" : ""}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
-      <span>${esc(label)}${s.theme === id ? icon("check", 16) : ""}</span><span class="swatches t-${id}"><i></i><i></i><i></i><i></i></span></button>`).join("")}</div>
-    <p class="muted small">“Sistema” acompanha o modo claro/escuro do aparelho.</p>`, "palette");
-    const hasPin = !!d.pinHash;
-    const privacy = fold("privacidade", "Privacidade e segurança", (hasPin ? "Bloqueio ativo" : "Bloqueio desativado") + (s.privacy ? " · valores ocultos" : ""), `
-    <div class="manageItem"><div><b>Bloqueio por PIN</b><small>${hasPin ? "Ativo: o PIN é pedido ao abrir o Finan+" : "Desativado. Defina um PIN de 4 a 8 números."}</small></div>
-      <div class="manageActions">${btn(hasPin ? "Remover PIN" : "Definir PIN", { act: hasPin ? "pin-remove" : "pin-set", cls: "soft small" })}${hasPin ? btn("Trocar", { act: "pin-set", cls: "soft small" }) : ""}</div></div>
-    ${check("privacy", "Ocultar valores", s.privacy, { sub: "Esconde os valores em reais na tela e nos avisos (Ctrl+H)" })}
-    <label class="field"><span>Bloqueio automático</span><select id="autoLockSel"${hasPin ? "" : " disabled"}>${AUTOLOCK_OPTIONS.map((m) => `<option value="${m}"${s.autoLock === m ? " selected" : ""}>${m === 0 ? "Desativado" : `${m} minuto${m > 1 ? "s" : ""} sem usar`}</option>`).join("")}</select>${hasPin ? "" : '<small class="hint">Precisa de um PIN.</small>'}</label>
-    ${env2.remote ? `<div class="manageItem"><div><b>Conectado ao celular</b><small>Acesso pela rede do Finan+ Android</small></div><div class="manageActions">${btn("Desconectar", { act: "remote-logout", cls: "soft small" })}</div></div>` : ""}
-    <div class="infoBox">${icon("lock", 18)}<p>${env2.remote ? "Modo remoto: os dados ficam no celular (criptografados lá) e chegam por conexão criptografada (HTTPS). Nada financeiro é gravado neste navegador; o PIN abaixo vale só para ele." : env2.encrypted ? "Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores." : "Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia."} O PIN nunca vai para o backup.</p></div>
-    <p class="muted small">Navegadores não permitem bloquear capturas de tela. Ao compartilhar a tela, ligue “Ocultar valores”.</p>`, "shield");
-    const nperm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
-    const notif = env2.remote ? fold("avisos", "Avisos de vencimento", "Feitos pelo celular", `
-    <p class="muted small">No modo remoto, os avisos de vencimento chegam pelo próprio celular.</p>
-    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
-    ${check("notifications", "Avisar vencimentos", d.notifications && nperm === "granted", { sub: "Contas a pagar, valores a receber e faturas, uma vez por dia a partir das 9h, com o Finan+ aberto", disabled: nperm === "unsupported" })}
-    ${nperm === "denied" ? '<p class="muted small">As notificações estão bloqueadas para este site. Libere nas configurações do navegador.</p>' : ""}
-    ${nperm === "unsupported" ? '<p class="muted small">Este navegador não oferece notificações.</p>' : ""}
-    ${btn("Avisar agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}
-    <p class="muted small">Sites não podem rodar com o navegador fechado sem um servidor. Para manter tudo no aparelho, os avisos aparecem quando o Finan+ é aberto (ou fica aberto) a partir das 9h. O cartão “Vencimentos” do Início mostra os próximos 30 dias.</p>`, "notifications");
-    const n = [d.assistCategory, d.assistTips, d.assistAsk].filter(Boolean).length;
-    const assist = fold("assistente", "Assistente", `${n} de 3 funções ligadas`, `
-    <p class="muted small">Funciona só neste aparelho, sem internet e sem enviar dados. Cada função pode ser desligada.</p>
-    ${check("assistCategory", "Sugerir categoria", d.assistCategory, { sub: "Ao digitar a descrição de um lançamento novo" })}
-    ${check("assistTips", "Resumo e dicas", d.assistTips, { sub: "No Início: resumo do mês, gastos fora do padrão, fixos, duplicados" })}
-    ${check("assistAsk", "Perguntas rápidas", d.assistAsk, { sub: "Ex.: “quanto gastei com mercado em agosto?”" })}
-    ${d.dismissedTips.length ? btn(`Restaurar ${d.dismissedTips.length} dica(s) dispensada(s)`, { act: "restore-all-tips", cls: "soft small" }) : ""}
-    <details class="learned"><summary>${icon("expand-more", 18)}Ver o que o assistente aprendeu</summary>${learnedHtml()}</details>`, "auto-awesome");
-    const accounts = fold("contas", "Contas e cartões", `${s.accounts.length} conta(s) · ${s.cards.length} cartão(ões)`, `
-    <div class="manageList">${s.accounts.map((a) => manage(a.name, `Saldo ${money(Finance.accountBalance(s, a))}`, btn("Editar", { act: "edit-account", data: { id: a.id }, cls: "soft small" }))).join("")}
-    ${s.cards.map((c) => {
-      const st = Finance.cardStatus(s, c, ctx.today);
-      return manage(`Cartão ${c.name}`, `Limite ${money(c.limit)} · usado ${money(st.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn("Editar", { act: "edit-card", data: { id: c.id }, cls: "soft small" }));
-    }).join("")}</div>
-    <div class="btnGrid">${btn("Conta", { act: "new-account", icon: "add", iconSize: 18 })}${btn("Cartão", { act: "new-card", icon: "add", iconSize: 18 })}</div>`, "account-balance-wallet");
-    const recurring = fold("recorrencias", "Recorrências", s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : "Nenhuma recorrência cadastrada", `
-    <div class="foldTools">${btn("Nova", { act: "new-recurring", icon: "add", iconSize: 18, cls: "soft small" })}</div>
-    ${s.recurring.length ? `<div class="manageList">${s.recurring.map((r) => {
-      const where = r.cardId ? `Cartão ${card(s, r.cardId)?.name ?? ""}` : account(s, r.accountId)?.name ?? "";
-      return manage(r.desc, `${r.kind === "income" ? "Receita" : "Despesa"} · ${money(r.value)} · dia ${r.day} · ${r.category} · ${where}${r.active ? "" : " · pausada"}`, btn("Editar", { act: "edit-recurring", data: { id: r.id }, cls: "soft small" }));
-    }).join("")}</div>` : '<p class="muted small">Você também pode marcar “Repetir mensalmente” ao criar um lançamento.</p>'}`, "repeat");
-    const limits = fold("limites", "Limites mensais", s.limits.size ? `${s.limits.size} limite(s) definido(s)` : "Nenhum limite definido", `
-    <div class="foldTools">${btn("Adicionar", { act: "new-limit", icon: "add", iconSize: 18, cls: "soft small" })}</div>
-    ${s.limits.size ? `<div class="manageList">${[...s.limits].map(([c, v]) => manage(c, `${money(v)} por mês`, btn("Editar", { act: "edit-limit", data: { cat: c }, cls: "soft small" }))).join("")}</div>` : '<p class="muted small">Defina apenas os limites que quiser acompanhar. Despesas pendentes do mês também contam.</p>'}`, "donut-large");
-    const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map((c) => manage(
-      c,
-      `${k === "expense" ? "Despesa" : "Receita"}${categoryUse(k, c)}`,
-      btn("", { act: "rename-cat", data: { kind: k, cat: c }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Renomear ${c}` }) + btn("", { act: "delete-cat", data: { kind: k, cat: c }, cls: "icon tiny dangerIc", icon: "delete", iconSize: 16, label: `Excluir ${c}` })
-    )).join("")}</div>`;
-    const cats = fold("categorias", "Categorias", `${s.cats.expense.length + s.cats.income.length} categorias cadastradas`, `
-    <form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== "income" ? " selected" : ""}>Despesa</option><option value="income"${ctx.catKind === "income" ? " selected" : ""}>Receita</option></select>
-    ${btn("Adicionar categoria", { submit: true, cls: "primary wide" })}</form>${catList("expense", "Despesas")}${catList("income", "Receitas")}`, "category");
-    const data = fold("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
-    <div class="btnGrid">${btn("Exportar CSV", { act: "csv", icon: "table-view", iconSize: 18 })}${btn("Backup JSON", { act: "backup", icon: "download", iconSize: 18 })}
-    ${btn("Restaurar", { act: "restore", icon: "upload", iconSize: 18 })}${btn("Relatório em PDF", { act: "pdf", icon: "picture-as-pdf", iconSize: 18 })}
-    ${env2.remote ? "" : btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
-    <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, "database");
-    const about = fold("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
-    const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.remote ? "Tudo é salvo no celular, pela rede local." : env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
-    const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
-    return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
-  }
-  function categoryUse(k, c) {
-    const n = ctx.state.txs.filter((t) => t.kind === k && t.category === c).length;
-    return n ? ` · ${n} lançamento(s)` : "";
-  }
-  function learnedHtml() {
-    const s = ctx.state;
-    const part = (k) => {
-      const c = new Categorizer(s, k, ctx.dict), w = c.learnedWords();
-      return `<small class="eyebrow">${k === "expense" ? "Despesas" : "Receitas"} · ${c.trainingSize} lançamento(s) analisado(s)</small>
-      ${w.length ? `<div class="manageList">${w.map(([cat, ws]) => manage(cat, ws.map(([x, n]) => `${x} (${n})`).join(", "), "")).join("")}</div>` : '<p class="muted small">Ainda não há palavras repetidas o suficiente.</p>'}`;
-    };
-    return `<p class="muted small">O aprendizado vem dos seus próprios lançamentos (que ficam criptografados no aparelho). Não existe uma cópia separada: corrigir a categoria de um lançamento corrige o aprendizado, e apagar o lançamento apaga o que ele ensinou.</p>
-    ${part("expense")}${part("income")}
-    <p class="muted small">Dicionário inicial: ${ctx.dict ? ctx.dict.sections.length : 0} seções, arquivo aberto assistente/dicionario.txt. As regras de cada função estão descritas em ASSISTENTE.md no código-fonte.</p>`;
-  }
-  var REPO_WEB = "https://github.com/finanplus-web/finan_plus";
-  var REPO_LINUX = "https://github.com/finanplus-web/finan_plus_linux";
-  var LINUX_DOWNLOAD = "https://github.com/finanplus-web/finan_plus_linux/releases/latest";
-  var extLink = (href, ic, title, sub) => `<a class="extLink" href="${attr(href)}" target="_blank" rel="noopener noreferrer">${icon(ic, 22)}<span><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("open-in-new", 18)}</a>`;
-  function aboutHtml(env2) {
-    const paras = [
-      "Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.",
-      "O aplicativo permite organizar receitas, despesas, contas, cartões, categorias, limites mensais, metas e lançamentos recorrentes, além de acompanhar saldos e relatórios financeiros.",
-      "Esta é a versão web (PWA): funciona no navegador do celular ou do computador, pode ser instalada como aplicativo e continua funcionando sem internet. Os dados ficam no aparelho, criptografados com AES-256-GCM e chave não extraível guardada pelo próprio navegador, sem conta, cadastro ou servidor.",
-      "Inclui avisos de vencimento, bloqueio por PIN, relatório em PDF e backup em JSON compatível com o app Android e com a versão Linux.",
-      "O assistente (sugestão de categoria, resumo do mês, dicas de economia e perguntas rápidas) funciona inteiro no aparelho, sem internet e sem modelo de IA externo: são regras e um classificador simples, com código aberto e explicação em cada resposta.",
-      "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com layout próprio para computador e notebook e os temas Material You, OLED, Tokyo Night e Nord."
-    ];
-    return `${paras.map((p) => `<p class="muted">${esc(p)}</p>`).join("")}
-    <p><b>Privacidade em primeiro lugar: seus dados financeiros permanecem no seu dispositivo.</b></p>
-    <h4 class="subhead">Desenvolvimento</h4>
-    <p class="muted">Finan+ é um projeto independente desenvolvido de forma colaborativa com auxílio de inteligência artificial. A concepção, as decisões de produto, os testes e o direcionamento da experiência são realizados por Juscelino Be, autor e idealizador do projeto, enquanto a inteligência artificial auxilia na implementação, revisão e evolução do código.</p>
-    <div class="soft">${eyebrow("Idealizado e desenvolvido por")}<b class="big">Juscelino Be</b></div>
-    <h4 class="subhead">Licença</h4>
-    <p class="muted pre">Finan+ — Copyright (C) 2026 Juscelino Be.
-
-Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da Licença Pública Geral GNU (GNU GPL), publicada pela Free Software Foundation, na versão 3 da licença ou (a seu critério) qualquer versão posterior.
-
-Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA GARANTIA, nem mesmo a garantia implícita de COMERCIABILIDADE ou de ADEQUAÇÃO A UMA FINALIDADE ESPECÍFICA. Veja a licença completa para mais detalhes.</p>
-    <details class="license" data-src="licenca/LICENSE.txt"><summary>${icon("expand-more", 18)}Ver licença completa (GNU GPL v3)</summary><pre class="licenseText">Carregando…</pre></details>
-    <p class="muted">Ícones: Material Symbols, © Google, sob a Licença Apache 2.0 (compatível com a GPL v3).</p>
-    <details class="license" data-src="licenca/APACHE-2.0.txt"><summary>${icon("expand-more", 18)}Ver licença dos ícones (Apache 2.0)</summary><pre class="licenseText">Carregando…</pre></details>
-    <h4 class="subhead">Código-fonte e outras versões</h4>
-    <p class="muted">O código do Finan+ é aberto. Aqui estão o repositório desta versão web e a versão para computadores Linux, com os mesmos recursos e backup compatível.</p>
-    <div class="linkList">
-      ${extLink(REPO_WEB, "code", "Código-fonte do Finan+ web (PWA)", "github.com/finanplus-web/finan_plus")}
-      ${extLink(LINUX_DOWNLOAD, "computer", "Baixar para Linux (.deb)", "Ubuntu 24.04+, Linux Mint 22, Debian 13, KDE neon")}
-      ${extLink(REPO_LINUX, "code", "Código-fonte do Finan+ para Linux", "github.com/finanplus-web/finan_plus_linux")}
-    </div>
-    <p class="muted small">Também publicado junto com o app, na pasta js/ (módulos legíveis; js/app.bundle.js é a junção deles, sem minificar). ${env2.storageNote || ""}</p>
-    <div class="btnGrid">${btn("Atalhos de teclado", { act: "shortcuts", icon: "keyboard", iconSize: 18 })}${btn("Novidades desta versão", { act: "whatsnew", icon: "history", iconSize: 18 })}</div>`;
-  }
-  var NAV = [
-    ["home", "Início", "home", "home-fill"],
-    ["moves", "Lançamentos", "swap-horiz", "swap-horiz-fill"],
-    ["reports", "Relatórios", "pie-chart", "pie-chart-fill"],
-    ["assist", "Assistente", "auto-awesome", "auto-awesome"],
-    ["prefs", "Ajustes", "settings", "settings-fill"]
-  ];
-  var VIEW_TITLES = { home: "Início", moves: "Lançamentos", reports: "Relatórios", assist: "Assistente", prefs: "Ajustes" };
-  function sideNavHtml() {
-    return NAV.map(([id, label, ic, icOn], i) => `<button type="button" class="${ctx.view === id ? "active" : ""}" data-act="go" data-view="${id}" aria-current="${ctx.view === id ? "page" : "false"}">
-    ${icon(ctx.view === id ? icOn : ic, 22)}<span>${label}</span><kbd>${i + 1}</kbd></button>`).join("");
-  }
-  function sideFootHtml() {
-    const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
-    const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
-    return `<div class="sideBal"><small>Saldo atual</small><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b>
-    <small>Previsto para ${ymLen(ym)}/${String(ym % 12 + 1).padStart(2, "0")}</small><b class="future ${fut < 0 ? "negative" : ""}">${money(fut)}</b></div>
-    <div class="sideTools">${btn("", { act: "toggle-privacy", cls: "icon small", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores (Ctrl+H)" : "Ocultar valores (Ctrl+H)" })}
-    ${ctx.device.pinHash ? btn("", { act: "lock", cls: "icon small", icon: "lock", label: "Bloquear agora (Ctrl+L)" }) : ""}
-    ${btn("", { act: "shortcuts", cls: "icon small", icon: "keyboard", label: "Atalhos de teclado (?)" })}</div>
-    <small class="sideNote">${icon("shield", 12)} ${ctx.remote ? "Dados no celular (conexão segura)" : "Dados só neste aparelho"}</small>`;
-  }
-  function topbarHtml() {
-    const s = ctx.state;
-    const title = ctx.view === "home" ? `<div><small class="eyebrow">Controle financeiro</small><h1>Finan+</h1></div>` : `<div><small class="eyebrow">Finan+</small><h1>${VIEW_TITLES[ctx.view]}</h1></div>`;
-    return `<div class="topTitle">${title}</div><div class="topActions">
-    ${btn("Despesa", { act: "new-tx", data: { kind: "expense" }, cls: "soft", icon: "remove", iconSize: 18 })}
-    ${btn("Receita", { act: "new-tx", data: { kind: "income" }, cls: "primary", icon: "add", iconSize: 18 })}
-    ${btn("", { act: "search", cls: "icon", icon: "search", label: "Buscar lançamentos (Ctrl+F)" })}
-    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores (Ctrl+H)" : "Ocultar valores (Ctrl+H)" })}
-    ${ctx.device.pinHash ? btn("", { act: "lock", cls: "icon", icon: "lock", label: "Bloquear agora (Ctrl+L)" }) : ""}
-    <div class="menuWrap">${btn("", { act: "menu", cls: "icon", icon: "more-horiz", label: "Mais opções", id: "menuBtn" })}
-      <div class="menu glass" id="menu" role="menu" hidden>
-        ${[["pdf", "Relatório em PDF", "picture-as-pdf", "Ctrl+P"], ["csv", "Exportar CSV", "table-view", "Ctrl+E"], ["backup", "Salvar backup JSON", "download", "Ctrl+S"], ["restore", "Restaurar backup", "upload", "Ctrl+O"], ["shortcuts", "Atalhos de teclado", "keyboard", "Ctrl+/"], ["about", "Sobre o Finan+", "info", ""]].map(([a, l, ic, k]) => `<button type="button" role="menuitem" data-act="${a}">${icon(ic, 18)}<span>${l}</span>${k ? `<kbd>${k}</kbd>` : ""}</button>`).join("")}
-      </div></div></div>`;
-  }
-  function mobileHeaderHtml() {
-    const s = ctx.state;
-    return `<div><h1>Finan+</h1><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
-    <span class="statusPill">${icon("shield", 14)}Privado</span>
-    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores" : "Ocultar valores" })}</div>`;
-  }
-  function bottomNavHtml() {
-    const item = (id) => {
-      const [, label, ic, icOn] = NAV.find((n) => n[0] === id);
-      const on = ctx.view === id || id === "home" && ctx.view === "assist";
-      return `<button type="button" class="${on ? "active" : ""}" data-act="go" data-view="${id}" aria-current="${on ? "page" : "false"}">${icon(on ? icOn : ic, 22)}<span>${label}</span></button>`;
-    };
-    return `${item("home")}${item("moves")}<button type="button" class="fab" data-act="new-tx" data-kind="expense" aria-label="Novo lançamento">${icon("add", 28)}</button>${item("reports")}${item("prefs")}`;
-  }
-
   // js/editors.js
-  var editors_exports = {};
-  __export(editors_exports, {
-    CARD_PAYMENT_CAT: () => CARD_PAYMENT_CAT,
-    SHORTCUTS: () => SHORTCUTS,
-    accountEditor: () => accountEditor,
-    cardEditor: () => cardEditor,
-    deleteCategory: () => deleteCategory,
-    download: () => download,
-    exportBackup: () => exportBackup,
-    exportCsv: () => exportCsv,
-    goalEditor: () => goalEditor,
-    limitEditor: () => limitEditor,
-    movesFiltersSheet: () => movesFiltersSheet,
-    newState: () => newState,
-    payInvoiceEditor: () => payInvoiceEditor,
-    pdfDialog: () => pdfDialog,
-    pickFile: () => pickFile,
-    recurringEditor: () => recurringEditor,
-    removePin: () => removePin,
-    renameCategory: () => renameCategory,
-    restoreBackup: () => restoreBackup,
-    setPin: () => setPin,
-    shortcutsDialog: () => shortcutsDialog,
-    txEditor: () => txEditor,
-    whatsNew: () => whatsNew,
-    ymOf: () => ymOf
-  });
   var today = () => ctx.today;
-  function apply(o, msg) {
+  function apply(o, msg2) {
     if (!o.ok) {
       notice(o.title, o.message);
       return false;
     }
     ctx.replace(o.state);
     closeSheet();
-    if (msg) toast(msg);
+    if (msg2) toast(msg2);
     return true;
   }
   function guard(form, fn) {
@@ -4632,14 +4173,14 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       closeSheet();
     };
   }
-  function goalEditor(id = null) {
+  function goalEditor(id = null, pre = null) {
     const g = id ? ctx.state.goals.find((x) => x.id === id) : null;
     const body = `<form id="f" novalidate>
-    ${field("Nome", input("name", g?.name ?? "", { max: 60 }))}
-    ${field("Valor da meta (R$)", moneyInput("target", g ? Money.input(g.target) : ""))}
+    ${field("Nome", input("name", g?.name ?? pre?.name ?? "", { max: 60 }))}
+    ${field("Valor da meta (R$)", moneyInput("target", g ? Money.input(g.target) : pre?.target > 0 ? Money.input(pre.target) : ""))}
     ${g ? field("Guardar ou retirar agora (R$)", moneyInput("move", "", "Ex.: 100 ou -50")) : ""}
     ${field("Prazo (opcional)", input("deadline", g?.deadline ?? "", { type: "date" }))}
-    ${field("Contribuição mensal planejada (opcional)", moneyInput("monthly", g?.monthly > 0 ? Money.input(g.monthly) : ""))}
+    ${field("Contribuição mensal planejada (opcional)", moneyInput("monthly", g?.monthly > 0 ? Money.input(g.monthly) : !g && pre?.monthly > 0 ? Money.input(pre.monthly) : ""))}
     ${actions("Salvar", g ? "Excluir meta" : null)}</form>`;
     const d = openSheet({ title: g ? "Editar meta" : "Nova meta", subtitle: g ? `Guardado até agora: ${money(g.saved)}` : "Dê um nome e um valor ao seu objetivo.", body });
     guard(d.querySelector("#f"), (v) => apply(Ops.saveGoal(ctx.state, g?.id ?? null, v.name, v.target, v.move ?? "", v.deadline || null, v.monthly), "Meta salva"));
@@ -4793,11 +4334,11 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       return notice("Não foi possível restaurar", "Arquivo de backup inválido ou danificado. Nada foi alterado." + (e instanceof BackupError ? `
 (${e.message})` : ""));
     }
-    const st = n.state, bad = n.droppedTotal;
-    const ok2 = await ask("Revisar restauração", `Backup com ${st.txs.length} lançamentos, ${st.accounts.length} contas, ${st.cards.length} cartões e ${st.goals.length} metas.` + (bad > 0 ? `
+    const st2 = n.state, bad = n.droppedTotal;
+    const ok2 = await ask("Revisar restauração", `Backup com ${st2.txs.length} lançamentos, ${st2.accounts.length} contas, ${st2.cards.length} cartões e ${st2.goals.length} metas.` + (bad > 0 ? `
 ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os dados atuais? O PIN deste aparelho é mantido.", { ok: "Substituir", danger: true });
     if (!ok2 || ctx.locked) return;
-    const [g] = Finance.generateRecurring(st, today());
+    const [g] = Finance.generateRecurring(st2, today());
     ctx.replace(g);
     toast("Backup restaurado");
   }
@@ -4864,8 +4405,8 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const chk = Ops.checkDeleteCategory(ctx.state, kind, cat);
     if (!chk.ok) return notice(chk.title, chk.message);
     const used = Ops.categoryUseCount(ctx.state, kind, cat);
-    const msg = used > 0 ? `Excluir “${cat}” da lista de categorias? ${used} lançamento(s) antigo(s) continuará(ão) com essa categoria no histórico.` : `Excluir a categoria “${cat}”?`;
-    if (await ask("Excluir categoria", msg, { ok: "Excluir", danger: true })) ctx.replace(Ops.deleteCategory(ctx.state, kind, cat));
+    const msg2 = used > 0 ? `Excluir “${cat}” da lista de categorias? ${used} lançamento(s) antigo(s) continuará(ão) com essa categoria no histórico.` : `Excluir a categoria “${cat}”?`;
+    if (await ask("Excluir categoria", msg2, { ok: "Excluir", danger: true })) ctx.replace(Ops.deleteCategory(ctx.state, kind, cat));
   }
   var pinInput = (label) => ({ label, type: "password", inputmode: "numeric", max: 8 });
   async function setPin() {
@@ -4915,6 +4456,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   function whatsNew() {
     const items = [
+      '1.3.0: simulador "E se…?" em Relatórios: economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida, sem mudar seus dados (dá para transformar em meta). Relatórios com o mesmo ‹ mês › de Lançamentos e comparação justa (mês atual contra os mesmos dias do mês anterior).',
       "1.2.1: o assistente não avisa mais que as despesas vão passar das receitas com base em uma ou duas compras: a projeção precisa de pelo menos 5 despesas no mês (3 por categoria com limite), e uma compra grande isolada conta uma vez.",
       "1.2.0: calendário em Lançamentos (saldo de cada dia, faturas no vencimento, atrasos; toque de novo num dia, ou segure, para lançar nessa data). No celular, deslize para o lado para trocar de aba.",
       '1.2.0: Início e Lista mais enxutos: o que falta receber e pagar, assistente em 2 frases, "Comece por aqui", ‹ mês › com Período e filtros, filtros de um toque e lançamentos agrupados por dia.',
@@ -4932,6 +4474,746 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       "Backup JSON versão 5, compatível com o app Android e a versão Linux."
     ];
     openSheet({ title: `Novidades da versão ${APP_VERSION}`, body: `<ul class="reportLines">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul><p class="muted small">Lista completa em CHANGELOG.md e FUNCIONALIDADES.md.</p>` });
+  }
+
+  // js/simsheet.js
+  var SCEN = [
+    ["save", "savings", "E se eu economizar…", "Ex.: R$ 200 por mês, por 12 meses"],
+    ["buy", "shopping-bag", "Quanto tempo para comprar…", "Ex.: um computador de R$ 4.500"],
+    ["income", "work", "E se minha renda mudar…", "Ex.: diminuir 15% a partir do mês que vem"],
+    ["debt", "account-balance", "E se eu antecipar uma dívida…", "Parcelas que faltam, valor para quitar e quanto sobra"]
+  ];
+  var TITLES = { save: "E se eu economizar…?", buy: "Quanto tempo para comprar?", income: "E se minha renda mudar…?", debt: "E se eu antecipar uma dívida…?" };
+  var st = null;
+  var fresh = () => ({ inc: "", exp: "", adjust: null, save: { per: "200,00", months: "12" }, buy: { what: "", price: "", have: "", per: "" }, income: { pct: "-15" }, debt: { sel: null, pay: {} } });
+  var m = (c) => hidden() ? "R$ ••••" : Money.format(c);
+  var plural2 = (n, one2, many) => n === 1 ? `1 ${one2}` : `${n} ${many}`;
+  var line = (l, v, cls = "") => `<div class="simLine"><span>${esc(l)}</span><b class="${cls}">${esc(v)}</b></div>`;
+  var result = (big, sentence, cls = "accent") => `<small class="eyebrow">Resultado</small><div class="simBig ${cls}">${esc(big)}</div>${sentence ? `<p class="simSentence">${esc(sentence)}</p>` : ""}`;
+  var whyText = (t) => `<p class="simWhy">${esc(t)}</p>`;
+  var msg = (t) => `<p class="muted">${esc(t)}</p>`;
+  var safe = `<div class="simSafe">${icon("shield", 16)}<span>Só simulação: seus dados não mudam</span></div>`;
+  function base() {
+    const auto = Simulator.base(ctx.state, ctx.today);
+    const inc = Money.parse(st.inc), exp = Money.parse(st.exp);
+    return { auto, base: Simulator.mkBase(inc ?? auto.income, exp ?? auto.expense, auto.months) };
+  }
+  function simulatorSheet(scen = null, reset = true) {
+    if (reset || !st) st = fresh();
+    const cur = SCEN.find((x) => x[0] === scen);
+    const back = cur ? `<button type="button" class="btn link simBack" data-sim="home">${icon("chevron-left", 20)}<span>E se…?</span></button>` : "";
+    const body = `<div class="simWrap">${back}${cur ? "" : '<p class="muted">Teste decisões antes de tomá-las.</p>'}${safe}
+    ${cur ? `<form class="simForm" novalidate>${formFor(scen)}</form><div class="simBox" id="simOut" aria-live="polite"></div><div id="simGoal"></div>` : homeBody()}</div>`;
+    const d = openSheet({ title: cur ? TITLES[scen] : "E se…?", body });
+    const inner = d.querySelector(".sheetInner") || d;
+    inner.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-sim]");
+      if (!b) return;
+      const a = b.dataset.sim;
+      if (a === "home") simulatorSheet(null, false);
+      else if (a === "go") simulatorSheet(b.dataset.s, false);
+      else if (a === "adjust") {
+        st.adjust = !adjustOpen();
+        simulatorSheet(null, false);
+      } else if (a === "debt") {
+        st.debt.sel = b.dataset.id;
+        simulatorSheet("debt", false);
+      } else if (a === "goal") {
+        const g = goalFor(scen);
+        if (g) {
+          closeSheet();
+          goalEditor(null, g);
+        }
+      }
+    });
+    inner.addEventListener("input", (e) => {
+      const el = e.target;
+      if (!el.name) return;
+      if (el.name === "inc" || el.name === "exp") {
+        st[el.name] = el.value;
+        refreshBase(inner);
+        return;
+      }
+      if (scen === "debt") st.debt.pay[curDebt()?.groupId] = el.value;
+      else st[scen][el.name] = el.value;
+      update(inner, scen);
+    });
+    inner.addEventListener("submit", (e) => e.preventDefault());
+    if (cur) update(inner, scen);
+    return d;
+  }
+  var adjustOpen = () => st.adjust ?? Simulator.base(ctx.state, ctx.today).months === 0;
+  function baseCard() {
+    const { auto, base: b } = base();
+    const mo = (n) => n === 1 ? "mês" : "meses";
+    return `<small class="eyebrow">${auto.months > 0 ? `Sua base · média dos últimos ${auto.months} ${mo(auto.months)}` : "Sua base"}</small>
+    ${auto.months === 0 && b.income === 0 && b.expense === 0 ? '<p class="muted small">Ainda não há meses completos com valores realizados. Informe abaixo quanto entra e sai num mês típico.</p>' : ""}
+    <div class="simBase"><div><small>Entra</small><b class="green">${esc(m(b.income))}</b></div><div><small>Sai</small><b class="red">${esc(m(b.expense))}</b></div><div><small>Sobra</small><b class="${b.left < 0 ? "red" : "accent"}">${esc(m(b.left))}</b></div></div>
+    ${auto.months >= 1 && auto.months <= 2 ? `<small class="muted">Pouco histórico: a média usa só ${auto.months} ${mo(auto.months)}. Os resultados são aproximados.</small>` : ""}`;
+  }
+  function refreshBase(inner) {
+    const el = inner.querySelector("#simBase");
+    if (el) el.innerHTML = baseCard();
+  }
+  function homeBody() {
+    const { auto } = base(), open = adjustOpen();
+    return `<div class="simBox" id="simBase">${baseCard()}</div>
+    <button type="button" class="btn link simAdjust" data-sim="adjust" aria-expanded="${open}">${open ? "Ocultar ajuste da base" : "Ajustar a base"}</button>
+    ${open ? `<div class="row2">${field("Entra por mês", input("inc", st.inc, { inputmode: "decimal", placeholder: Money.input(auto.income), max: 20 }))}${field("Sai por mês", input("exp", st.exp, { inputmode: "decimal", placeholder: Money.input(auto.expense), max: 20 }))}</div>
+      <small class="muted">Vazio = usa a média. Vale só para esta simulação.</small>` : ""}
+    <h4 class="simH">Escolha uma pergunta</h4>
+    ${SCEN.map(([k, ic, t, sub]) => `<button type="button" class="simScen" data-sim="go" data-s="${k}"><span class="simIco">${icon(ic, 22)}</span><span class="simTxt"><b>${esc(t)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`).join("")}`;
+  }
+  function formFor(scen) {
+    if (scen === "save") return field("Guardar por mês (R$)", moneyInput("per", st.save.per)) + field("Por quantos meses", input("months", st.save.months, { inputmode: "numeric", max: 3 }));
+    if (scen === "buy") return field("O que", input("what", st.buy.what, { placeholder: "Ex.: Computador", max: 40 })) + `<div class="row2">${field("Preço (R$)", moneyInput("price", st.buy.price))}${field("Já tenho (R$)", moneyInput("have", st.buy.have))}</div>` + field("Guardar por mês (R$)", moneyInput("per", st.buy.per)) + '<small class="muted" id="simShare"></small>';
+    if (scen === "income") return field("Mudança na renda (%)", input("pct", st.income.pct, { inputmode: "decimal", placeholder: "Ex.: -15 ou 10", max: 6 }));
+    const debts = Simulator.debts(ctx.state, ctx.today);
+    if (!debts.length) return "";
+    const d = curDebt();
+    return `<h4 class="simH">Qual parcelamento</h4><div role="radiogroup">${debts.map((x) => `<button type="button" role="radio" aria-checked="${x.groupId === d.groupId}" class="simDebt${x.groupId === d.groupId ? " on" : ""}" data-sim="debt" data-id="${attr(x.groupId)}">
+      <span><b>${esc(x.name)}</b><small>${esc(plural2(x.remaining, "parcela restante", "parcelas restantes"))} de ${esc(m(x.parcel))}${x.card ? " · cartão" : ""}</small></span><b>${esc(m(x.left))}</b></button>`).join("")}</div>
+    ${field("Valor para quitar hoje (R$)", moneyInput("pay", st.debt.pay[d.groupId] ?? Money.input(d.left)), { hint: "Use o valor que o credor ou o banco oferecer para quitar." })}`;
+  }
+  function curDebt() {
+    const debts = Simulator.debts(ctx.state, ctx.today);
+    return debts.find((x) => x.groupId === st.debt.sel) || debts[0] || null;
+  }
+  function update(inner, scen) {
+    const out = inner.querySelector("#simOut"), goal = inner.querySelector("#simGoal");
+    const { base: b } = base();
+    let html = "", canGoal = false;
+    if (scen === "save") {
+      const v = posMoney(st.save.per), n = int(st.save.months, 1, 600);
+      if (v == null || n == null) html = msg("Informe o valor por mês e por quantos meses.");
+      else {
+        const r = Simulator.save(b, v, n);
+        html = result(m(r.total), `juntados em ${plural2(n, "mês", "meses")}.`) + line("Sobra por mês hoje", m(b.left)) + line(`Sobra por mês guardando ${m(v)}`, m(r.newLeft), r.newLeft < 0 ? "red" : "") + (r.overLeft ? '<p class="red small">Esse valor é maior do que sobra por mês: faltaria dinheiro para as despesas de sempre.</p>' : "") + [6, 12, 24].filter((k) => k !== n).map((k) => line(`Em ${k} meses`, m(v * k))).join("") + whyText(`Conta: ${m(v)} × ${n} meses. Não considera rendimento: o Finan+ não sabe quanto o dinheiro guardado renderia.`);
+      }
+      canGoal = v != null;
+    } else if (scen === "buy") {
+      const pr = posMoney(st.buy.price), hv = Math.max(0, Money.parse(st.buy.have) ?? 0), pm = Money.parse(st.buy.per) ?? 0;
+      const share = inner.querySelector("#simShare");
+      if (share) share.textContent = pm > 0 && b.left > 0 && !hidden() ? `${Math.round(pm * 100 / b.left)}% do que sobra por mês (${Money.format(b.left)})` : "";
+      const r = pr == null ? null : Simulator.buy(pr, hv, pm, ctx.today);
+      if (pr == null) html = msg("Informe o preço.");
+      else if (r == null) html = msg("Informe quanto dá para guardar por mês.");
+      else if (r.months === 0) html = result("Já dá", "Você já tem o valor.");
+      else {
+        const bars = Math.min(r.months, 36);
+        const chart = `<div class="simChart${hidden() ? " sensitive" : ""}" role="img" aria-label="Gráfico do valor juntado mês a mês">${Array.from({ length: bars }, (_, i) => `<i class="${i === bars - 1 ? "done" : ""}" style="height:${(12 + 88 * (i + 1) / bars).toFixed(1)}%"></i>`).join("")}</div>`;
+        html = result(plural2(r.months, "mês", "meses"), `Você teria o valor em ${Simulator.monthYear(r.doneYm)}.`) + chart + [pm * 2, Math.trunc(pm / 2)].filter((x) => x > 0).map((alt) => {
+          const a = Simulator.buy(pr, hv, alt, ctx.today);
+          return a ? line(`Guardando ${m(alt)}/mês`, `${plural2(a.months, "mês", "meses")} · ${Simulator.monthYear(a.doneYm)}`) : "";
+        }).join("") + whyText(`Conta: falta ${m(r.missing)} ÷ ${m(pm)} por mês = ${plural2(r.months, "mês", "meses")} (arredondado para cima), começando no mês que vem. Não considera rendimento nem mudança de preço.`);
+      }
+      canGoal = pr != null && pm > 0;
+    } else if (scen === "income") {
+      const raw = String(st.income.pct).replace(",", ".").trim(), v = /^[-+]?\d+(\.\d+)?$/.test(raw) ? +raw : NaN;
+      if (!(v > -100 && v <= 1e3)) html = msg("Informe a mudança em porcentagem (ex.: -15 para diminuir 15%).");
+      else if (b.income === 0) html = msg('Sem renda na base: ajuste a base em "E se…?".');
+      else {
+        const r = Simulator.income(b, v, Simulator.goalsMonthly(ctx.state));
+        const sign = (x) => (x >= 0 ? "+ " : "− ") + m(Math.abs(x));
+        html = result(m(r.newLeft), r.newLeft >= 0 ? "passaria a sobrar por mês." : "faltariam por mês.", r.newLeft < 0 ? "red" : "accent") + line("Renda por mês", `${m(b.income)} → ${m(r.newIncome)}`) + line("Diferença por mês", sign(r.diff), r.diff < 0 ? "red" : "green") + line("Em 12 meses", sign(r.yearDiff), r.yearDiff < 0 ? "red" : "green") + (r.goalsMonthly > 0 ? r.newLeft >= r.goalsMonthly ? `<p class="muted small">Suas metas pedem ${esc(m(r.goalsMonthly))} por mês: ainda cabe no que sobra.</p>` : `<p class="red small">Suas metas pedem ${esc(m(r.goalsMonthly))} por mês: não cabe no que sobraria. Os prazos das metas atrasariam.</p>` : "") + whyText(`Conta: renda da base × (1 ${v >= 0 ? "+" : "−"} ${String(Math.abs(v)).replace(".", ",")}%), com as despesas da base iguais. Começa a valer no mês que vem.`);
+      }
+    } else {
+      const d = curDebt();
+      if (!d) html = msg('Nenhuma compra parcelada com parcelas a pagar. As parcelas aparecem aqui quando um lançamento é feito com "Parcelas" maior que 1.');
+      else {
+        const pay = posMoney(st.debt.pay[d.groupId] ?? Money.input(d.left));
+        if (pay == null) html = msg("Informe o valor para quitar.");
+        else {
+          const r = Simulator.payoff(d, pay, Finance.currentBalance(ctx.state));
+          html = result(r.saved > 0 ? m(r.saved) : "Sem desconto", r.saved > 0 ? `a menos do que pagar as ${plural2(r.months, "parcela", "parcelas")}.` : "Pagar hoje o mesmo valor só adianta a saída do dinheiro.", r.saved > 0 ? "green" : "muted") + line("Pagaria hoje", m(r.payNow)) + line("Deixaria de pagar", `${plural2(r.months, "parcela", "parcelas")} de ${m(d.parcel)}`) + line("A partir do mês que vem, sobra a mais", `+ ${m(r.freedPerMonth)} por mês`, "green") + line("Saldo das contas depois de pagar", m(r.balanceAfter), r.balanceAfter < 0 ? "red" : "") + (r.balanceAfter < 0 ? '<p class="red small">O saldo atual não cobre esse pagamento.</p>' : "") + whyText(`O Finan+ não conhece os juros do parcelamento: a economia é só a diferença entre o que falta (${m(d.left)}) e o valor para quitar. ${d.card ? "No cartão, a antecipação é feita com o banco do cartão." : "Confirme o valor com o credor."}`);
+        }
+      }
+    }
+    out.innerHTML = html;
+    goal.innerHTML = canGoal ? btn("Transformar em meta", { cls: "primary wide", icon: "flag" }).replace("<button ", '<button data-sim="goal" ') : "";
+  }
+  function goalFor(scen) {
+    if (scen === "save") {
+      const v = posMoney(st.save.per);
+      if (v == null) return null;
+      return { name: "Reserva", target: v * (int(st.save.months, 1, 600) ?? 12), monthly: v };
+    }
+    if (scen === "buy") {
+      const pr = posMoney(st.buy.price), pm = Money.parse(st.buy.per) ?? 0;
+      if (pr == null || pm <= 0) return null;
+      return { name: st.buy.what.trim() || "Compra", target: pr, monthly: pm };
+    }
+    return null;
+  }
+  function posMoney(t) {
+    const v = Money.parse(t);
+    return v != null && v > 0 ? v : null;
+  }
+  function int(t, lo, hi) {
+    const s = String(t ?? "").trim();
+    if (!/^\d+$/.test(s)) return null;
+    const n = +s;
+    return n >= lo && n <= hi ? n : null;
+  }
+
+  // js/calendarview.js
+  function calDefaults() {
+    if (ctx.cal.ym == null) {
+      ctx.cal.ym = ymOf(ctx.today);
+      ctx.cal.day = ctx.today;
+    }
+  }
+  function calendarView() {
+    calDefaults();
+    const s = ctx.state, today2 = ctx.today, ym = ctx.cal.ym;
+    const days = MonthCalendar.build(s, ym, today2);
+    const grid = calCard(days, ym, today2);
+    const totals = monthTotals(days);
+    const sel = ctx.cal.day && ymOf(ctx.cal.day) === ym ? ctx.cal.day : null;
+    const day = sel ? dayBox(sel, days.get(sel), today2) : `<div class="empty glass"><span>Toque num dia para ver os lançamentos dele.</span></div>`;
+    return ctx.cols === 1 ? grid + totals + day : `<div class="calLayout"><div>${grid}${totals}</div><div>${day}</div></div>`;
+  }
+  function calCard(days, ym, today2) {
+    const cells = MonthCalendar.cells(ym).map((d) => d ? dayCell(d, days.get(d), today2) : '<span class="calEmpty" aria-hidden="true"></span>').join("");
+    return `<section class="calCard glass" aria-label="Calendário de ${attr(MonthCalendar.monthTitle(ym))}">
+    <div class="calHead">
+      ${roundBtn("chevron-left", "Mês anterior", "cal-shift", { d: -1 })}
+      <div class="calTitle"><h3 aria-live="polite">${esc(MonthCalendar.monthTitle(ym))}</h3>
+        ${ym !== ymOf(today2) ? btn("Voltar para hoje", { act: "cal-today", cls: "link small" }) : ""}</div>
+      ${roundBtn("chevron-right", "Próximo mês", "cal-shift", { d: 1 })}
+    </div>
+    <div class="calWeek" aria-hidden="true">${MonthCalendar.WEEK_HEADER.map((w) => `<span>${w}</span>`).join("")}</div>
+    <div class="calGrid">${cells}</div>
+    <div class="calLegend" aria-hidden="true"><span><i class="dot income"></i>Receita</span><span><i class="dot expense"></i>Despesa</span>
+      <span><i class="dot card"></i>Cartão</span><span>${icon("warning", 13, "red")}Em atraso</span></div>
+    <p class="srOnly">Toque num dia para ver os lançamentos. Toque de novo no dia escolhido, ou toque e segure, para lançar nessa data.</p>
+  </section>`;
+  }
+  var roundBtn = (ic, label, act, data = {}, cls = "") => `<button type="button" class="roundBtn${cls ? " " + cls : ""}" data-act="${act}"${Object.entries(data).map(([k, v]) => ` data-${k}="${attr(v)}"`).join("")} aria-label="${attr(label)}">${icon(ic, 22)}</button>`;
+  function dayCell(d, day, today2) {
+    const sel = d === ctx.cal.day, cls = ["calDay", sel && "sel", d === today2 && "today", d < today2 && "past"].filter(Boolean).join(" ");
+    const val = day && !hidden() && (day.income || day.expense) ? `<span class="v ${day.net < 0 ? "red" : "green"}">${esc(MonthCalendar.signed(day.net))}</span>` : "";
+    const dots = day?.marks.length ? `<span class="dots">${day.marks.map((m2) => `<i class="dot ${m2}"></i>`).join("")}</span>` : "";
+    return `<button type="button" class="${cls}" data-act="cal-day" data-date="${d}" data-id="${d}" aria-pressed="${sel}"
+    aria-label="${attr(MonthCalendar.describe(d, day, today2, hidden()) + (sel ? ". Toque de novo para lançar nesta data" : ""))}">
+    ${day?.overdue ? `<span class="warn">${icon("warning", 11)}</span>` : ""}<span class="n">${+d.slice(8, 10)}</span>${val}${dots}</button>`;
+  }
+  function monthTotals(days) {
+    const t = MonthCalendar.totals(days);
+    return `<section class="calTotals" aria-label="Totais do mês">
+    <div class="glass"><small>Entradas</small><b class="green">${money(t.income)}</b></div>
+    <div class="glass"><small>Saídas</small><b class="red">${money(t.expense)}</b></div>
+    <div class="glass"><small>Resultado</small><b class="${t.net < 0 ? "red" : "accent"}">${money(t.net)}</b></div></section>
+    <p class="muted small calNote">Inclui o que ainda está pendente e as faturas no dia do vencimento. Compras no cartão aparecem no dia, mas só contam na fatura.</p>`;
+  }
+  function dayBox(d, day, today2) {
+    const n = day?.count || 0;
+    const count = n === 0 ? "Sem lançamentos" : n === 1 ? "1 lançamento" : `${n} lançamentos`;
+    const net = day?.net || 0;
+    const netTxt = hidden() || !day || !day.income && !day.expense ? "" : ` · saldo do dia ${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}`;
+    const forecast = d >= today2 ? (() => {
+      const f = Finance.futureBalance(ctx.state, d, today2);
+      return `<div class="forecastRow glass"><span>Saldo previsto ao fim do dia</span><b class="${f < 0 ? "negative" : ""}">${money(f)}</b></div>`;
+    })() : "";
+    const rows = day && n ? day.txs.map((t) => txRow(t, { noDate: true })).join("") + day.invoices.map(invoiceRow).join("") : `<div class="empty glass"><b>Nada neste dia</b><span>Use Receita ou Despesa para lançar algo com esta data.</span></div>`;
+    return `<section class="section calDayBox" aria-label="Lançamentos do dia">
+    <div class="sectionHead"><div>${eyebrow(d === today2 ? "Hoje" : d < today2 ? "Dia escolhido" : "Previsto")}<h3>${esc(MonthCalendar.dayTitle(d, today2))}</h3>
+      <small class="muted">${esc(count + netTxt)}</small></div></div>
+    <div class="dayBtns">${btn("Receita", { act: "new-tx", data: { kind: "income", date: d }, icon: "add", iconSize: 18 })}${btn("Despesa", { act: "new-tx", data: { kind: "expense", date: d }, icon: "remove", iconSize: 18 })}</div>
+    ${forecast}<div class="list">${rows}</div></section>`;
+  }
+  function invoiceRow(i) {
+    return `<button type="button" class="tx expense invoiceRow" data-act="pay-invoice" data-id="${attr(i.cardId)}">
+    <span class="badge cardBadge" aria-hidden="true">${icon("credit-card", 20)}</span>
+    <span class="meta"><b>Fatura ${esc(i.cardName)}</b><small>${i.overdue ? '<span class="red">Vencida · em aberto</span>' : "Vence neste dia · toque para pagar"}</small></span>
+    <span class="amount">−${money(i.amount)}</span></button>`;
+  }
+
+  // js/screens.js
+  var pct1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(".", ",");
+  var pct0 = (v) => String(Math.round(v));
+  var cols = (...c) => ctx.cols === 1 ? c.flat().join("") : `<div class="cols cols${c.length}">${c.map((x) => `<div class="col">${x.join("")}</div>`).join("")}</div>`;
+  var sectionHead = (eb, title, action = "") => `<div class="sectionHead"><div>${eb ? eyebrow(eb) : ""}<h3>${esc(title)}</h3></div>${action}</div>`;
+  var glyph = (cat) => {
+    const ic = categoryIcon(cat);
+    return `<span class="badge" aria-hidden="true">${ic ? icon(ic, 20) : esc([...String(cat).trim()][0]?.toUpperCase() || "•")}</span>`;
+  };
+  var assistOn = () => ctx.device.assistTips || ctx.device.assistAsk;
+  var visibleTips = (all) => all.filter((t) => !ctx.device.dismissedTips.includes(t.id));
+  function homeView() {
+    const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
+    const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
+    const fl = Finance.monthFlow(s, ym);
+    const pend = Period.monthPending(s, ym, today2);
+    const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
+    const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
+    const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : "";
+    const hero = `<section class="hero glass" aria-label="Resumo do mês">
+    ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>` : ""}
+    <div class="balanceGrid">
+      <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b></div>
+      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
+    </div>
+    <div class="stats">
+      <div><span>${icon("arrow-upward", 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub("a receber", pend.toReceive, "green")}</div>
+      <div><span>${icon("arrow-downward", 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub("a pagar", pend.toPay, "red")}</div>
+    </div>
+    ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
+    <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ""}
+  </section>`;
+    const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
+    const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
+    const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
+    const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2) : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals, blocks.start].join("");
+    return `<h2 id="homeTitle" class="srOnly">Início</h2>${body}`;
+  }
+  function upcoming(s, today2, days = 30) {
+    const limit = addDays(today2, days), out = [];
+    for (const t of s.txs) {
+      if (t.paid || isCard(t) || !isFlow(t) || t.date > limit) continue;
+      out.push({ kind: t.kind, title: t.desc, amount: t.value, date: t.date, late: t.date < today2, act: "edit-tx", id: t.id, sub: t.category });
+    }
+    for (const c of s.cards) for (const inv of Finance.cardStatus(s, c, today2).invoices)
+      if (inv.open > 0 && inv.due <= limit) out.push({ kind: "invoice", title: `Fatura ${c.name}`, amount: inv.open, date: inv.due, late: inv.due < today2, act: "pay-invoice", id: c.id, sub: `${brMonthLabel(inv.ym)}${inv.closed ? " · fechada" : " · aberta"}` });
+    return out.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  }
+  function dueCard() {
+    const list = upcoming(ctx.state, ctx.today);
+    if (!list.length && ctx.cols === 1) return "";
+    const rows = list.slice(0, 8).map((r) => {
+      const ic = r.kind === "invoice" ? "credit-card" : r.kind === "income" ? "arrow-upward" : "receipt-long";
+      const when = r.date === ctx.today ? "hoje" : r.date === addDays(ctx.today, 1) ? "amanhã" : brDayMonth(r.date);
+      return `<button type="button" class="dueRow${r.late ? " late" : ""}" data-act="${r.act}" data-id="${attr(r.id)}">
+      <span class="dueIc ${r.kind}">${icon(ic, 18)}</span>
+      <span class="meta"><b>${esc(r.title)}</b><small>${esc(r.sub)} · ${r.late ? `<span class="red">em atraso desde ${brDayMonth(r.date)}</span>` : `vence ${esc(when)}`}</small></span>
+      <span class="amount ${r.kind === "income" ? "green" : ""}">${r.kind === "income" ? "+" : ""}${money(r.amount)}</span></button>`;
+    }).join("");
+    return `<section class="section">${sectionHead(null, "Vencimentos (30 dias)", list.length ? btn("Ver todos", { act: "open-moves", data: { st: "pending" }, cls: "soft small" }) : "")}
+    <div class="glass compactBox dueList">${rows || '<p class="muted center">Nada a pagar ou receber nos próximos 30 dias.</p>'}
+    ${list.length > 8 ? `<p class="muted small center">e mais ${list.length - 8} vencimento(s)</p>` : ""}</div></section>`;
+  }
+  function homeAssistCard() {
+    const d = ctx.device;
+    if (!assistOn()) return "";
+    const s = ctx.state, today2 = ctx.today;
+    let inner = "", tips = [];
+    if (d.assistTips) {
+      const rep = Insights.report(s, today2, money);
+      tips = visibleTips(Insights.tips(s, today2, money));
+      const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
+      inner = `<ul class="reportLines">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${tips[0] ? tipItem(tips[0]) : ""}`;
+    } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
+    const link = d.assistTips ? tips.length > 1 ? `Ver as ${tips.length} dicas` : "Abrir assistente" : "Perguntar";
+    return `<section class="glass assistCard" aria-label="Assistente">
+    <div class="assistHead">${icon("auto-awesome", 16)}<small class="eyebrow">Assistente</small></div>${inner}
+    <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? "" : ' data-focus="ask"'}><span>${esc(link)}</span>${icon("chevron-right", 18)}</button></section>`;
+  }
+  function tipItem(t, o = {}) {
+    const canOpen = t.query != null || t.from != null;
+    return `<article class="tip${o.dismissed ? " dismissed" : ""}">
+    <div class="tipHead"><span class="tipType">${esc(INSIGHT_LABELS[t.type])}</span>
+      ${o.dismissed ? btn("Mostrar de novo", { act: "restore-tip", data: { id: t.id }, cls: "link small" }) : btn("", { act: "dismiss-tip", data: { id: t.id }, cls: "icon tiny", icon: "close", iconSize: 16, label: "Dispensar dica" })}</div>
+    <b>${esc(t.title)}</b><p>${esc(t.text)}</p>
+    <div class="tipFoot">${why(t.why)}${canOpen && !o.dismissed ? btn("Ver lançamentos", { act: "open-moves", data: { q: t.query ?? "", from: t.from ?? "", to: t.to ?? "" }, cls: "link small", icon: "chevron-right", iconSize: 16 }) : ""}</div></article>`;
+  }
+  function walletSection() {
+    const s = ctx.state, today2 = ctx.today;
+    const accs = s.accounts.map((a) => {
+      const b = Finance.accountBalance(s, a);
+      return `<button type="button" class="walletCard" data-act="edit-account" data-id="${attr(a.id)}">
+    <small>${icon("account-balance-wallet", 14)}Conta</small><b class="${b < 0 ? "negative" : ""}">${money(b)}</b><span class="sub">${esc(a.name)}</span></button>`;
+    }).join("");
+    const cards = s.cards.map((c) => {
+      const st2 = Finance.cardStatus(s, c, today2), cur = st2.current;
+      return `<div class="walletCard cardItem"><small>${icon("credit-card", 14)}${esc(c.name)}</small>
+      <b>${cur ? money(cur.open) : money(0)}</b>
+      <span class="sub">${cur ? `Fatura ${esc(brMonthLabel(cur.ym))} · vence ${brDayMonth(cur.due)}${cur.closed ? " · fechada" : ""}` : "Sem fatura em aberto"}</span>
+      <span class="sub">Disponível ${money(st2.available)}</span>
+      <div class="cardActions">${cur ? btn("Pagar fatura", { act: "pay-invoice", data: { id: c.id }, cls: "primary small" }) : ""}${btn("", { act: "edit-card", data: { id: c.id }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
+    }).join("");
+    const head = sectionHead(null, "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small" }));
+    if (s.accounts.length === 1 && !s.cards.length) {
+      const a = s.accounts[0], b = Finance.accountBalance(s, a);
+      return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
+      <span class="badge" aria-hidden="true">${icon("account-balance", 20)}</span><span class="meta"><b>${esc(a.name)}</b><small>Conta</small></span>
+      <b class="amount${b < 0 ? " negative" : ""}">${money(b)}</b></button></section>`;
+    }
+    return `<section class="section">${head}
+    <div class="${ctx.cols === 1 ? "hscroll" : "walletGrid"}">${accs}${cards}</div></section>`;
+  }
+  function limitsSection() {
+    const s = ctx.state, usage = Finance.budgetUsage(s, ymOf(ctx.today));
+    const rows = [...s.limits].map(([cat, lim]) => {
+      const u = usage.get(cat) || 0, p = lim > 0 ? u * 100 / lim : 0;
+      const cls = u > lim ? "over" : p >= 80 ? "warn" : "";
+      const status = u > lim ? "Limite ultrapassado" : p >= 100 ? "Limite atingido" : p >= 80 ? `Atenção: ${pct0(p)}% usado` : `${pct0(p)}% usado`;
+      return `<button type="button" class="budgetLine ${cls}" data-act="edit-limit" data-cat="${attr(cat)}">
+      <div><b>${esc(cat)}</b><span>${money(u)} / ${money(lim)}</span></div>
+      <div class="budgetTrack"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
+    }).join("");
+    if (!s.limits.size) return "";
+    return `<section class="section">${sectionHead(null, "Limites do mês", btn("", { act: "new-limit", cls: "icon small", icon: "add", label: "Novo limite" }))}
+    <div class="glass compactBox"><p class="muted small">Inclui o que ainda está pendente.</p>${rows}</div></section>`;
+  }
+  function goalsSection() {
+    const s = ctx.state;
+    const rows = s.goals.map((g) => {
+      const p = g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0, plan = Finance.goalPlan(g, ctx.today);
+      const info = (g.deadline ? `Até ${brDate(g.deadline)}` : "Sem prazo") + (plan.pastDue ? " · prazo vencido" : "");
+      const planTxt = plan.done ? `${icon("check", 14)} Meta atingida` : [
+        plan.needed != null ? `Precisa de ${esc(money(plan.needed))}/mês` : null,
+        plan.eta != null ? `Plano: conclui em ${esc(brMonthLabel(plan.eta))}${plan.late ? ` ${icon("warning", 14)} após o prazo` : ""}` : null
+      ].filter(Boolean).join(" · ");
+      return `<button type="button" class="tx goal" data-act="edit-goal" data-id="${attr(g.id)}">
+      <div class="goalTop"><b>${esc(g.name)}</b><span>${money(g.saved)} / ${money(g.target)}</span></div>
+      <div class="bar2"><i style="width:${p}%"></i></div>
+      <div class="goalInfo"><span>${esc(info)}</span><span>${pct0(p)}%</span></div>${planTxt ? `<small class="goalPlan">${planTxt}</small>` : ""}</button>`;
+    }).join("");
+    if (!s.goals.length) return "";
+    return `<section class="section">${sectionHead(null, "Metas", btn("", { act: "new-goal", cls: "icon small", icon: "add", label: "Nova meta" }))}
+    <div class="list">${rows}</div></section>`;
+  }
+  function startSection() {
+    const s = ctx.state;
+    const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
+    <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`;
+    const rows = (s.limits.size ? "" : row("new-limit", "payments", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")) + (s.goals.length ? "" : row("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo"));
+    if (!rows) return "";
+    return `<section class="section">${sectionHead(null, "Comece por aqui")}<div class="glass compactBox startBox">${rows}</div></section>`;
+  }
+  function movesDefaults() {
+    const ym = ymOf(ctx.today);
+    if (!ctx.moves.from && !ctx.moves.to && !ctx.moves.all) {
+      ctx.moves.from = ymFirst(ym);
+      ctx.moves.to = ymLast(ym);
+    }
+  }
+  function filteredTxs() {
+    const f = ctx.moves, q = Text.fold(f.q);
+    return ctx.state.txs.filter((t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to) && (!f.kind || t.kind === f.kind) && (!f.st || (f.st === "paid" ? t.paid : !t.paid)) && (!q || Text.fold(t.desc + " " + t.category).includes(q))).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+  }
+  function viewSwitch() {
+    const v = ctx.movesView;
+    const b = (id, label, ic) => `<button type="button" role="tab" data-act="moves-view" data-v="${id}" aria-selected="${v === id}" class="${v === id ? "selected" : ""}">${icon(ic, 19)}<span>${label}</span></button>`;
+    return `<div class="viewSwitch glass" role="tablist" aria-label="Modo de exibição">${b("list", "Lista", "view-list")}${b("calendar", "Calendário", "calendar-month")}</div>`;
+  }
+  function periodBar() {
+    const f = ctx.moves, custom = Period.fullMonth(f.from, f.to) == null || f.st === "paid";
+    return `<div class="periodBar">${roundBtn("chevron-left", "Mês anterior", "moves-shift", { d: -1 })}
+    <h3 class="periodLabel" aria-live="polite">${esc(Period.label(f.from, f.to))}</h3>
+    ${roundBtn("chevron-right", "Próximo mês", "moves-shift", { d: 1 })}${roundBtn("tune", "Período e filtros", "moves-filters", {}, custom ? "on" : "")}</div>`;
+  }
+  function filterChips() {
+    const f = ctx.moves;
+    const chip = (c, label, on) => `<button type="button" class="chip${on ? " on" : ""}" data-act="moves-chip" data-c="${c}" aria-pressed="${on}">${label}</button>`;
+    return `<div class="chips" role="group" aria-label="Filtros">${chip("all", "Todos", !f.kind && !f.st)}${chip("income", "Receitas", f.kind === "income")}${chip("expense", "Despesas", f.kind === "expense")}${chip("pending", "Pendentes", f.st === "pending")}</div>`;
+  }
+  function movesView() {
+    movesDefaults();
+    const f = ctx.moves;
+    const title = `<div class="pageTitle"><h2 id="movesTitle">Lançamentos</h2></div>`;
+    if (ctx.movesView === "calendar") return title + viewSwitch() + calendarView();
+    const panel = `${periodBar()}
+    <div class="searchField">${icon("search", 20)}<input id="q" type="search" placeholder="Buscar descrição ou categoria" aria-label="Buscar lançamentos (descrição ou categoria)" value="${attr(f.q)}" maxlength="60"></div>
+    ${filterChips()}<div id="movesTotals"></div>`;
+    const list = `<section class="section listSection" aria-label="Lançamentos do período"><div id="periodTransactions" class="list"></div></section>`;
+    return title + viewSwitch() + (ctx.cols === 1 ? panel + list : `<div class="movesGrid"><aside class="movesAside">${panel}</aside><div>${list}</div></div>`);
+  }
+  function movesData() {
+    const all = filteredTxs(), f = ctx.moves, today2 = ctx.today;
+    const fl = Finance.flow(all), pend = Period.pending(all), bal = fl.income - fl.expense;
+    const forecast = bal + pend.toReceive - pend.toPay, hasPend = pend.toReceive > 0 || pend.toPay > 0;
+    const col = (label, v, cls, subL, sv, scls, show) => `<div><small>${label}</small><b class="${cls}">${money(v)}</b>${show ? `<small class="statSub">${subL} <b class="${scls}">${money(sv)}</b></small>` : ""}</div>`;
+    const totals = `<section class="periodSummary glass" aria-label="Resumo do período"><div class="sumGrid">
+      ${col("Receitas", fl.income, "green", "a receber", pend.toReceive, "green", pend.toReceive > 0)}
+      ${col("Despesas", fl.expense, "red", "a pagar", pend.toPay, "red", pend.toPay > 0)}
+      ${col("Saldo", bal, bal < 0 ? "negative" : "", "previsto", forecast, forecast < 0 ? "negative" : "accent", hasPend)}</div>
+    ${fl.income > 0 && !hidden() ? `<small class="muted sumNote">As despesas são ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.</small>` : ""}</section>`;
+    const shown = all.slice(0, f.limit), groups = [];
+    for (const t of shown) {
+      const g = groups.at(-1);
+      if (g && g.date === t.date) g.txs.push(t);
+      else groups.push({ date: t.date, txs: [t] });
+    }
+    const rows = groups.map((g) => {
+      const net = Period.cashNet(g.txs), cash = g.txs.some((t) => !isCard(t));
+      return `<h4 class="dayHead"><span>${esc((g.date === today2 ? "Hoje · " : "") + MonthCalendar.dayTitle(g.date, today2))}</span>
+      ${cash && !hidden() ? `<b class="${net < 0 ? "red" : "green"}">${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}</b>` : ""}</h4>${g.txs.map((t) => txRow(t, { noDate: true })).join("")}`;
+    }).join("");
+    return {
+      totals,
+      count: all.length,
+      list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: "moves-more", cls: "soft wide" }) : "") : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês, ajuste os filtros ou adicione uma movimentação.</span></div>`
+    };
+  }
+  function txRow(t, o = {}) {
+    const s = ctx.state, payment = !isFlow(t), cardT = isCard(t);
+    const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ""}` : account(s, t.accountId)?.name ?? "";
+    const late = !t.paid && !cardT && t.date < ctx.today;
+    const status = payment ? "Pagamento de fatura" : cardT ? "" : t.paid ? "" : late ? '<span class="red">Em atraso</span>' : t.kind === "income" ? "A receber" : "A pagar";
+    const meta = [esc(t.category), esc(where), o.noDate ? "" : brDate(t.date), status].filter(Boolean).join(" · ");
+    const toggle = cardT ? `<span class="chk card" title="Compra no cartão">${icon("credit-card", 16)}</span>` : payment ? `<span class="chk on" title="Pagamento de fatura">${icon("check", 16)}</span>` : `<button type="button" class="chk${t.paid ? " on" : ""}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-pressed="${t.paid}" aria-label="${t.paid ? t.kind === "income" ? "Recebido" : "Pago" : t.kind === "income" ? "Marcar como recebido" : "Marcar como pago"}: ${attr(t.desc)}">${icon("check", 16)}</button>`;
+    return `<div class="tx ${t.kind}${t.paid ? "" : " pending"}${payment ? " payment" : ""}" data-act="edit-tx" data-id="${attr(t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${t.kind === "income" ? "receita" : "despesa"} de ${attr(money(t.value))} em ${brDate(t.date)}">
+    ${glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
+    <span class="amount">${t.kind === "income" ? "+" : "−"}${money(t.value)}</span>${toggle}</div>`;
+  }
+  function reportsView() {
+    movesDefaults();
+    const s = ctx.state, f = ctx.moves, today2 = ctx.today;
+    const inRange = s.txs.filter((t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to));
+    const fl = Finance.flow(inRange);
+    const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Relatórios</h2>${btn("PDF", { act: "pdf", cls: "pill", icon: "receipt-long", iconSize: 18, label: "Exportar relatório em PDF" })}</div>
+    ${periodBar()}<p class="muted small reportsNote">Só valores realizados (pagos ou recebidos). O período é o mesmo da aba Lançamentos.</p>`;
+    let summary;
+    if (fl.income === 0 && fl.expense === 0) {
+      const pend = Period.pending(inRange), ym = Period.fullMonth(f.from, f.to);
+      const name = ym != null ? MONTHS[ym % 12] : "este período";
+      summary = `<section class="comparison glass reportsEmpty"><b>Nada realizado em ${esc(name)} ainda</b>
+      ${pend.toReceive > 0 || pend.toPay > 0 ? `<p class="muted small">Os relatórios mostram o que já foi pago ou recebido. Por enquanto, está pendente:</p>
+        <div class="reportStat"><div><small>A receber</small><b class="green">${money(pend.toReceive)}</b></div><div><small>A pagar</small><b class="red">${money(pend.toPay)}</b></div></div>` : '<p class="muted small">Os relatórios mostram o que já foi pago ou recebido. Troque o período ou marque lançamentos como pagos.</p>'}
+      ${btn("Ver no calendário", { act: "reports-calendar", cls: "link", icon: "calendar-month", iconSize: 18 })}</section>`;
+    } else {
+      const c = PeriodCompare.of(f.from, f.to, today2);
+      const prev = c ? Finance.flow(s.txs.filter((t) => t.date >= c.from && t.date <= c.to)) : null;
+      const chg2 = (cur, old) => hidden() ? "Variação oculta" : c ? PeriodCompare.text(cur, old, c) : "";
+      const box = (l, ic, v, cls, ch) => `<div class="glass"><small>${icon(ic, 14)}${l}</small><b class="${cls}">${money(v)}</b>${ch ? `<small class="chg">${esc(ch)}</small>` : ""}</div>`;
+      summary = `<section class="reportSum" aria-label="Resumo do período">${box("Receitas", "arrow-upward", fl.income, "green", chg2(fl.income, prev?.income))}${box("Despesas", "arrow-downward", fl.expense, "red", chg2(fl.expense, prev?.expense))}</section>`;
+    }
+    const sim = `<button type="button" class="whatIf" data-act="simulator">${icon("auto-awesome", 22)}<span><b>E se…?</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon("chevron-right", 20)}</button>`;
+    const cats = Finance.categoryTotals(s, f.from, f.to), total = cats.reduce((n, [, v]) => n + v, 0);
+    const slices = cats.slice(0, 7).map(([n, v]) => [n, v]);
+    if (cats.length > 7) slices.push([`Outras (${cats.length - 7})`, cats.slice(7).reduce((n, [, v]) => n + v, 0)]);
+    const catCard = `<section class="comparison glass">${eyebrow("Despesas")}<h3>Por categoria</h3>
+    ${cats.length ? `<div class="donutWrap">${donutSvg(slices, total)}<ul class="legend">${slices.map(([n, v], i) => `<li><i style="background:${PDF_SERIES[i % 8]}"></i><span>${esc(n)}</span><b>${money(v)}</b><small>${pct1(total ? v * 100 / total : 0)}%</small></li>`).join("")}</ul></div>
+    <div class="catBars">${cats.map(([c, v], i) => {
+      const lim = s.limits.get(c), p = total ? v * 100 / total : 0;
+      return `<div class="catBar"><div class="catTop">${glyph(c)}<b>${esc(c)}</b><span>${money(v)}</span></div><div class="budgetTrack"><i style="width:${p}%;background:${PDF_SERIES[Math.min(i, 7)]}"></i></div>
+        ${lim != null ? `<small class="${v > lim ? "red" : "muted"}">${v > lim ? `${icon("warning", 13)} Acima do` : "Dentro do"} limite mensal de ${esc(money(lim))}</small>` : ""}</div>`;
+    }).join("")}</div>` : '<p class="muted small">Sem despesas realizadas no período.</p>'}</section>`;
+    const months = Finance.lastMonths(s, today2, 6), max = Math.max(1, ...months.map(([, m2]) => Math.max(m2.income, m2.expense)));
+    const empty = months.every(([, x]) => x.income === 0 && x.expense === 0);
+    const desc = months.map(([m2, x]) => brMonthYear(m2) + (hidden() ? "" : `: receitas ${Money.format(x.income)}, despesas ${Money.format(x.expense)}`)).join("; ");
+    const evo = `<section class="comparison glass">${eyebrow("Evolução")}<h3>Últimos 6 meses</h3>
+    ${empty ? '<p class="muted small">Aparece quando houver pelo menos um mês com valores realizados.</p>' : `<div class="evo${hidden() ? " sensitive" : ""}" role="img" aria-label="Gráfico de receitas e despesas. ${attr(desc)}">${months.map(([m2, x]) => `<div class="evoCol"><div class="pair"><i class="inc" style="height:${x.income * 100 / max}%"></i><i class="exp" style="height:${x.expense * 100 / max}%"></i></div><span>${MONTHS_SHORT[m2 % 12]}</span></div>`).join("")}</div>
+    <small class="legendLine"><i class="dot inc"></i>Receitas <i class="dot exp"></i>Despesas</small>`}</section>`;
+    return head + (ctx.cols === 1 ? summary + sim + catCard + evo : cols([summary, sim, evo], [catCard]));
+  }
+  function donutSvg(slices, total) {
+    const r = 52, c = 2 * Math.PI * r;
+    let off = 0;
+    const arcs = slices.map(([, v], i) => {
+      const len = total > 0 ? c * v / total : 0;
+      const el = `<circle r="${r}" cx="70" cy="70" fill="none" stroke="${PDF_SERIES[i % 8]}" stroke-width="22" stroke-dasharray="${Math.max(0, len - 1.2).toFixed(2)} ${(c - Math.max(0, len - 1.2)).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 70 70)"/>`;
+      off += len;
+      return el;
+    }).join("");
+    return `<svg class="donut" viewBox="0 0 140 140" role="img" aria-label="Despesas por categoria: ${attr(slices.map(([n, v]) => `${n} ${hidden() ? "" : Money.format(v)}`).join(", "))}">
+    <circle r="${r}" cx="70" cy="70" fill="none" class="donutTrack" stroke-width="22"/>${arcs}
+    <text x="70" y="66" text-anchor="middle" class="donutLabel">Total</text><text x="70" y="84" text-anchor="middle" class="donutValue">${esc(hidden() ? "R$ ••••" : compact(total))}</text></svg>`;
+  }
+  function assistView() {
+    const d = ctx.device, s = ctx.state, today2 = ctx.today;
+    const back = ctx.cols === 1 ? btn("Início", { act: "go", data: { view: "home" }, cls: "link back", icon: "arrow-back", iconSize: 18 }) : "";
+    const head = back + pageTitle("assistTitle", "No aparelho, sem internet", "Assistente", "Tudo é calculado neste aparelho, sem internet, a partir dos seus lançamentos. Toque em “Por quê?” para ver a regra usada.");
+    const askBox = d.assistAsk ? `<section class="comparison glass" aria-label="Perguntas">${eyebrow("Pergunte")}
+    <form id="askForm" class="askForm" novalidate><div class="searchField">${icon("search", 20)}<input id="askInput" type="search" maxlength="120" placeholder="Ex.: quanto gastei com mercado em agosto?" aria-label="Sua pergunta" value="${attr(ctx.lastQuestion || "")}"></div>
+    ${btn("Perguntar", { submit: true, cls: "primary", icon: "send", iconSize: 18 })}</form>
+    <div class="examples">${ASK_EXAMPLES.map((x) => btn(x, { act: "ask-example", data: { q: x }, cls: "pill small" })).join("")}</div>
+    <div id="askAnswer">${ctx.lastQuestion ? answerHtml(ctx.lastQuestion) : ""}</div></section>` : "";
+    let summary = "", tipsBox = "";
+    if (d.assistTips) {
+      const rep = Insights.report(s, today2, money);
+      summary = `<section class="comparison glass">${eyebrow("Resumo")}<h3>${esc(rep.title)}</h3><ul class="reportLines">${rep.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${why(rep.why)}</section>`;
+      const all = Insights.tips(s, today2, money), vis = visibleTips(all), dis = all.filter((t) => d.dismissedTips.includes(t.id));
+      tipsBox = `<section class="comparison glass">${eyebrow("Dicas")}<h3>Dicas de economia</h3>
+      ${vis.length ? vis.map((t) => tipItem(t)).join("") : '<p class="muted small">Nenhuma dica no momento: nada fora do padrão nos seus lançamentos.</p>'}
+      ${dis.length ? `<details class="dismissedBox"><summary>${icon("expand-more", 18)}Mostrar dispensadas (${dis.length})</summary>${dis.map((t) => tipItem(t, { dismissed: true })).join("")}</details>` : ""}</section>`;
+    }
+    const off = !d.assistAsk && !d.assistTips ? `<section class="comparison glass"><p class="muted">O resumo, as dicas e as perguntas estão desligados em Ajustes › Assistente.</p>${btn("Abrir Ajustes", { act: "go", data: { view: "prefs", fold: "assistente" }, cls: "soft" })}</section>` : "";
+    return head + off + (ctx.cols === 1 ? askBox + summary + tipsBox : cols([askBox, summary], [tipsBox]));
+  }
+  function answerHtml(q) {
+    const a = Ask.answer(q, ctx.state, ctx.today, money);
+    const p = a.parsed;
+    return `<div class="answer"><b>${esc(a.text)}</b><small>${esc(a.understood)}</small>
+    ${a.matches.length ? btn("Ver lançamentos", { act: "open-moves", data: { q: p.category ?? p.words[0] ?? "", from: p.period.from, to: p.period.to, kind: p.kind ?? "" }, cls: "pill small", icon: "chevron-right", iconSize: 16 }) : ""}</div>`;
+  }
+  var openFolds = /* @__PURE__ */ new Set();
+  function fold(id, title, sub, body, ic) {
+    const open = openFolds.has(id);
+    return `<section class="fold glass${open ? " open" : ""}" id="fold-${id}">
+    <button type="button" class="foldHead" data-act="fold" data-id="${id}" aria-expanded="${open}" aria-controls="foldBody-${id}">
+      <span class="foldIc">${icon(ic, 20)}</span><span class="foldTxt"><b>${esc(title)}</b><small>${esc(sub)}</small></span>
+      <span class="foldBtn" aria-hidden="true">${icon(open ? "remove" : "add", 20)}</span></button>
+    <div class="foldBody" id="foldBody-${id}"${open ? "" : " hidden"}>${body}</div></section>`;
+  }
+  var manage = (title, sub, actions2) => `<div class="manageItem"><div><b>${esc(title)}</b><small>${esc(sub)}</small></div><div class="manageActions">${actions2}</div></div>`;
+  function prefsView(env2) {
+    const s = ctx.state, d = ctx.device;
+    const appearance = fold("aparencia", "Aparência", `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? " active" : ""}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
+      <span>${esc(label)}${s.theme === id ? icon("check", 16) : ""}</span><span class="swatches t-${id}"><i></i><i></i><i></i><i></i></span></button>`).join("")}</div>
+    <p class="muted small">“Sistema” acompanha o modo claro/escuro do aparelho.</p>`, "palette");
+    const hasPin = !!d.pinHash;
+    const privacy = fold("privacidade", "Privacidade e segurança", (hasPin ? "Bloqueio ativo" : "Bloqueio desativado") + (s.privacy ? " · valores ocultos" : ""), `
+    <div class="manageItem"><div><b>Bloqueio por PIN</b><small>${hasPin ? "Ativo: o PIN é pedido ao abrir o Finan+" : "Desativado. Defina um PIN de 4 a 8 números."}</small></div>
+      <div class="manageActions">${btn(hasPin ? "Remover PIN" : "Definir PIN", { act: hasPin ? "pin-remove" : "pin-set", cls: "soft small" })}${hasPin ? btn("Trocar", { act: "pin-set", cls: "soft small" }) : ""}</div></div>
+    ${check("privacy", "Ocultar valores", s.privacy, { sub: "Esconde os valores em reais na tela e nos avisos (Ctrl+H)" })}
+    <label class="field"><span>Bloqueio automático</span><select id="autoLockSel"${hasPin ? "" : " disabled"}>${AUTOLOCK_OPTIONS.map((m2) => `<option value="${m2}"${s.autoLock === m2 ? " selected" : ""}>${m2 === 0 ? "Desativado" : `${m2} minuto${m2 > 1 ? "s" : ""} sem usar`}</option>`).join("")}</select>${hasPin ? "" : '<small class="hint">Precisa de um PIN.</small>'}</label>
+    ${env2.remote ? `<div class="manageItem"><div><b>Conectado ao celular</b><small>Acesso pela rede do Finan+ Android</small></div><div class="manageActions">${btn("Desconectar", { act: "remote-logout", cls: "soft small" })}</div></div>` : ""}
+    <div class="infoBox">${icon("lock", 18)}<p>${env2.remote ? "Modo remoto: os dados ficam no celular (criptografados lá) e chegam por conexão criptografada (HTTPS). Nada financeiro é gravado neste navegador; o PIN abaixo vale só para ele." : env2.encrypted ? "Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores." : "Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia."} O PIN nunca vai para o backup.</p></div>
+    <p class="muted small">Navegadores não permitem bloquear capturas de tela. Ao compartilhar a tela, ligue “Ocultar valores”.</p>`, "shield");
+    const nperm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+    const notif = env2.remote ? fold("avisos", "Avisos de vencimento", "Feitos pelo celular", `
+    <p class="muted small">No modo remoto, os avisos de vencimento chegam pelo próprio celular.</p>
+    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
+    ${check("notifications", "Avisar vencimentos", d.notifications && nperm === "granted", { sub: "Contas a pagar, valores a receber e faturas, uma vez por dia a partir das 9h, com o Finan+ aberto", disabled: nperm === "unsupported" })}
+    ${nperm === "denied" ? '<p class="muted small">As notificações estão bloqueadas para este site. Libere nas configurações do navegador.</p>' : ""}
+    ${nperm === "unsupported" ? '<p class="muted small">Este navegador não oferece notificações.</p>' : ""}
+    ${btn("Avisar agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}
+    <p class="muted small">Sites não podem rodar com o navegador fechado sem um servidor. Para manter tudo no aparelho, os avisos aparecem quando o Finan+ é aberto (ou fica aberto) a partir das 9h. O cartão “Vencimentos” do Início mostra os próximos 30 dias.</p>`, "notifications");
+    const n = [d.assistCategory, d.assistTips, d.assistAsk].filter(Boolean).length;
+    const assist = fold("assistente", "Assistente", `${n} de 3 funções ligadas`, `
+    <p class="muted small">Funciona só neste aparelho, sem internet e sem enviar dados. Cada função pode ser desligada.</p>
+    ${check("assistCategory", "Sugerir categoria", d.assistCategory, { sub: "Ao digitar a descrição de um lançamento novo" })}
+    ${check("assistTips", "Resumo e dicas", d.assistTips, { sub: "No Início: resumo do mês, gastos fora do padrão, fixos, duplicados" })}
+    ${check("assistAsk", "Perguntas rápidas", d.assistAsk, { sub: "Ex.: “quanto gastei com mercado em agosto?”" })}
+    ${d.dismissedTips.length ? btn(`Restaurar ${d.dismissedTips.length} dica(s) dispensada(s)`, { act: "restore-all-tips", cls: "soft small" }) : ""}
+    <details class="learned"><summary>${icon("expand-more", 18)}Ver o que o assistente aprendeu</summary>${learnedHtml()}</details>`, "auto-awesome");
+    const accounts = fold("contas", "Contas e cartões", `${s.accounts.length} conta(s) · ${s.cards.length} cartão(ões)`, `
+    <div class="manageList">${s.accounts.map((a) => manage(a.name, `Saldo ${money(Finance.accountBalance(s, a))}`, btn("Editar", { act: "edit-account", data: { id: a.id }, cls: "soft small" }))).join("")}
+    ${s.cards.map((c) => {
+      const st2 = Finance.cardStatus(s, c, ctx.today);
+      return manage(`Cartão ${c.name}`, `Limite ${money(c.limit)} · usado ${money(st2.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn("Editar", { act: "edit-card", data: { id: c.id }, cls: "soft small" }));
+    }).join("")}</div>
+    <div class="btnGrid">${btn("Conta", { act: "new-account", icon: "add", iconSize: 18 })}${btn("Cartão", { act: "new-card", icon: "add", iconSize: 18 })}</div>`, "account-balance-wallet");
+    const recurring = fold("recorrencias", "Recorrências", s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : "Nenhuma recorrência cadastrada", `
+    <div class="foldTools">${btn("Nova", { act: "new-recurring", icon: "add", iconSize: 18, cls: "soft small" })}</div>
+    ${s.recurring.length ? `<div class="manageList">${s.recurring.map((r) => {
+      const where = r.cardId ? `Cartão ${card(s, r.cardId)?.name ?? ""}` : account(s, r.accountId)?.name ?? "";
+      return manage(r.desc, `${r.kind === "income" ? "Receita" : "Despesa"} · ${money(r.value)} · dia ${r.day} · ${r.category} · ${where}${r.active ? "" : " · pausada"}`, btn("Editar", { act: "edit-recurring", data: { id: r.id }, cls: "soft small" }));
+    }).join("")}</div>` : '<p class="muted small">Você também pode marcar “Repetir mensalmente” ao criar um lançamento.</p>'}`, "repeat");
+    const limits = fold("limites", "Limites mensais", s.limits.size ? `${s.limits.size} limite(s) definido(s)` : "Nenhum limite definido", `
+    <div class="foldTools">${btn("Adicionar", { act: "new-limit", icon: "add", iconSize: 18, cls: "soft small" })}</div>
+    ${s.limits.size ? `<div class="manageList">${[...s.limits].map(([c, v]) => manage(c, `${money(v)} por mês`, btn("Editar", { act: "edit-limit", data: { cat: c }, cls: "soft small" }))).join("")}</div>` : '<p class="muted small">Defina apenas os limites que quiser acompanhar. Despesas pendentes do mês também contam.</p>'}`, "donut-large");
+    const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map((c) => manage(
+      c,
+      `${k === "expense" ? "Despesa" : "Receita"}${categoryUse(k, c)}`,
+      btn("", { act: "rename-cat", data: { kind: k, cat: c }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Renomear ${c}` }) + btn("", { act: "delete-cat", data: { kind: k, cat: c }, cls: "icon tiny dangerIc", icon: "delete", iconSize: 16, label: `Excluir ${c}` })
+    )).join("")}</div>`;
+    const cats = fold("categorias", "Categorias", `${s.cats.expense.length + s.cats.income.length} categorias cadastradas`, `
+    <form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== "income" ? " selected" : ""}>Despesa</option><option value="income"${ctx.catKind === "income" ? " selected" : ""}>Receita</option></select>
+    ${btn("Adicionar categoria", { submit: true, cls: "primary wide" })}</form>${catList("expense", "Despesas")}${catList("income", "Receitas")}`, "category");
+    const data = fold("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
+    <div class="btnGrid">${btn("Exportar CSV", { act: "csv", icon: "table-view", iconSize: 18 })}${btn("Backup JSON", { act: "backup", icon: "download", iconSize: 18 })}
+    ${btn("Restaurar", { act: "restore", icon: "upload", iconSize: 18 })}${btn("Relatório em PDF", { act: "pdf", icon: "picture-as-pdf", iconSize: 18 })}
+    ${env2.remote ? "" : btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
+    <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, "database");
+    const about = fold("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
+    const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.remote ? "Tudo é salvo no celular, pela rede local." : env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
+    const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
+    return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
+  }
+  function categoryUse(k, c) {
+    const n = ctx.state.txs.filter((t) => t.kind === k && t.category === c).length;
+    return n ? ` · ${n} lançamento(s)` : "";
+  }
+  function learnedHtml() {
+    const s = ctx.state;
+    const part = (k) => {
+      const c = new Categorizer(s, k, ctx.dict), w = c.learnedWords();
+      return `<small class="eyebrow">${k === "expense" ? "Despesas" : "Receitas"} · ${c.trainingSize} lançamento(s) analisado(s)</small>
+      ${w.length ? `<div class="manageList">${w.map(([cat, ws]) => manage(cat, ws.map(([x, n]) => `${x} (${n})`).join(", "), "")).join("")}</div>` : '<p class="muted small">Ainda não há palavras repetidas o suficiente.</p>'}`;
+    };
+    return `<p class="muted small">O aprendizado vem dos seus próprios lançamentos (que ficam criptografados no aparelho). Não existe uma cópia separada: corrigir a categoria de um lançamento corrige o aprendizado, e apagar o lançamento apaga o que ele ensinou.</p>
+    ${part("expense")}${part("income")}
+    <p class="muted small">Dicionário inicial: ${ctx.dict ? ctx.dict.sections.length : 0} seções, arquivo aberto assistente/dicionario.txt. As regras de cada função estão descritas em ASSISTENTE.md no código-fonte.</p>`;
+  }
+  var REPO_WEB = "https://github.com/finanplus-web/finan_plus";
+  var REPO_LINUX = "https://github.com/finanplus-web/finan_plus_linux";
+  var LINUX_DOWNLOAD = "https://github.com/finanplus-web/finan_plus_linux/releases/latest";
+  var extLink = (href, ic, title, sub) => `<a class="extLink" href="${attr(href)}" target="_blank" rel="noopener noreferrer">${icon(ic, 22)}<span><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("open-in-new", 18)}</a>`;
+  function aboutHtml(env2) {
+    const paras = [
+      "Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.",
+      "O aplicativo permite organizar receitas, despesas, contas, cartões, categorias, limites mensais, metas e lançamentos recorrentes, além de acompanhar saldos e relatórios financeiros.",
+      "Esta é a versão web (PWA): funciona no navegador do celular ou do computador, pode ser instalada como aplicativo e continua funcionando sem internet. Os dados ficam no aparelho, criptografados com AES-256-GCM e chave não extraível guardada pelo próprio navegador, sem conta, cadastro ou servidor.",
+      "Inclui avisos de vencimento, bloqueio por PIN, relatório em PDF e backup em JSON compatível com o app Android e com a versão Linux.",
+      "O assistente (sugestão de categoria, resumo do mês, dicas de economia e perguntas rápidas) funciona inteiro no aparelho, sem internet e sem modelo de IA externo: são regras e um classificador simples, com código aberto e explicação em cada resposta.",
+      "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com layout próprio para computador e notebook e os temas Material You, OLED, Tokyo Night e Nord."
+    ];
+    return `${paras.map((p) => `<p class="muted">${esc(p)}</p>`).join("")}
+    <p><b>Privacidade em primeiro lugar: seus dados financeiros permanecem no seu dispositivo.</b></p>
+    <h4 class="subhead">Desenvolvimento</h4>
+    <p class="muted">Finan+ é um projeto independente desenvolvido de forma colaborativa com auxílio de inteligência artificial. A concepção, as decisões de produto, os testes e o direcionamento da experiência são realizados por Juscelino Be, autor e idealizador do projeto, enquanto a inteligência artificial auxilia na implementação, revisão e evolução do código.</p>
+    <div class="soft">${eyebrow("Idealizado e desenvolvido por")}<b class="big">Juscelino Be</b></div>
+    <h4 class="subhead">Licença</h4>
+    <p class="muted pre">Finan+ — Copyright (C) 2026 Juscelino Be.
+
+Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da Licença Pública Geral GNU (GNU GPL), publicada pela Free Software Foundation, na versão 3 da licença ou (a seu critério) qualquer versão posterior.
+
+Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA GARANTIA, nem mesmo a garantia implícita de COMERCIABILIDADE ou de ADEQUAÇÃO A UMA FINALIDADE ESPECÍFICA. Veja a licença completa para mais detalhes.</p>
+    <details class="license" data-src="licenca/LICENSE.txt"><summary>${icon("expand-more", 18)}Ver licença completa (GNU GPL v3)</summary><pre class="licenseText">Carregando…</pre></details>
+    <p class="muted">Ícones: Material Symbols, © Google, sob a Licença Apache 2.0 (compatível com a GPL v3).</p>
+    <details class="license" data-src="licenca/APACHE-2.0.txt"><summary>${icon("expand-more", 18)}Ver licença dos ícones (Apache 2.0)</summary><pre class="licenseText">Carregando…</pre></details>
+    <h4 class="subhead">Código-fonte e outras versões</h4>
+    <p class="muted">O código do Finan+ é aberto. Aqui estão o repositório desta versão web e a versão para computadores Linux, com os mesmos recursos e backup compatível.</p>
+    <div class="linkList">
+      ${extLink(REPO_WEB, "code", "Código-fonte do Finan+ web (PWA)", "github.com/finanplus-web/finan_plus")}
+      ${extLink(LINUX_DOWNLOAD, "computer", "Baixar para Linux (.deb)", "Ubuntu 24.04+, Linux Mint 22, Debian 13, KDE neon")}
+      ${extLink(REPO_LINUX, "code", "Código-fonte do Finan+ para Linux", "github.com/finanplus-web/finan_plus_linux")}
+    </div>
+    <p class="muted small">Também publicado junto com o app, na pasta js/ (módulos legíveis; js/app.bundle.js é a junção deles, sem minificar). ${env2.storageNote || ""}</p>
+    <div class="btnGrid">${btn("Atalhos de teclado", { act: "shortcuts", icon: "keyboard", iconSize: 18 })}${btn("Novidades desta versão", { act: "whatsnew", icon: "history", iconSize: 18 })}</div>`;
+  }
+  var NAV = [
+    ["home", "Início", "home", "home-fill"],
+    ["moves", "Lançamentos", "swap-horiz", "swap-horiz-fill"],
+    ["reports", "Relatórios", "pie-chart", "pie-chart-fill"],
+    ["assist", "Assistente", "auto-awesome", "auto-awesome"],
+    ["prefs", "Ajustes", "settings", "settings-fill"]
+  ];
+  var VIEW_TITLES = { home: "Início", moves: "Lançamentos", reports: "Relatórios", assist: "Assistente", prefs: "Ajustes" };
+  function sideNavHtml() {
+    return NAV.map(([id, label, ic, icOn], i) => `<button type="button" class="${ctx.view === id ? "active" : ""}" data-act="go" data-view="${id}" aria-current="${ctx.view === id ? "page" : "false"}">
+    ${icon(ctx.view === id ? icOn : ic, 22)}<span>${label}</span><kbd>${i + 1}</kbd></button>`).join("");
+  }
+  function sideFootHtml() {
+    const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
+    const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
+    return `<div class="sideBal"><small>Saldo atual</small><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b>
+    <small>Previsto para ${ymLen(ym)}/${String(ym % 12 + 1).padStart(2, "0")}</small><b class="future ${fut < 0 ? "negative" : ""}">${money(fut)}</b></div>
+    <div class="sideTools">${btn("", { act: "toggle-privacy", cls: "icon small", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores (Ctrl+H)" : "Ocultar valores (Ctrl+H)" })}
+    ${ctx.device.pinHash ? btn("", { act: "lock", cls: "icon small", icon: "lock", label: "Bloquear agora (Ctrl+L)" }) : ""}
+    ${btn("", { act: "shortcuts", cls: "icon small", icon: "keyboard", label: "Atalhos de teclado (?)" })}</div>
+    <small class="sideNote">${icon("shield", 12)} ${ctx.remote ? "Dados no celular (conexão segura)" : "Dados só neste aparelho"}</small>`;
+  }
+  function topbarHtml() {
+    const s = ctx.state;
+    const title = ctx.view === "home" ? `<div><small class="eyebrow">Controle financeiro</small><h1>Finan+</h1></div>` : `<div><small class="eyebrow">Finan+</small><h1>${VIEW_TITLES[ctx.view]}</h1></div>`;
+    return `<div class="topTitle">${title}</div><div class="topActions">
+    ${btn("Despesa", { act: "new-tx", data: { kind: "expense" }, cls: "soft", icon: "remove", iconSize: 18 })}
+    ${btn("Receita", { act: "new-tx", data: { kind: "income" }, cls: "primary", icon: "add", iconSize: 18 })}
+    ${btn("", { act: "search", cls: "icon", icon: "search", label: "Buscar lançamentos (Ctrl+F)" })}
+    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores (Ctrl+H)" : "Ocultar valores (Ctrl+H)" })}
+    ${ctx.device.pinHash ? btn("", { act: "lock", cls: "icon", icon: "lock", label: "Bloquear agora (Ctrl+L)" }) : ""}
+    <div class="menuWrap">${btn("", { act: "menu", cls: "icon", icon: "more-horiz", label: "Mais opções", id: "menuBtn" })}
+      <div class="menu glass" id="menu" role="menu" hidden>
+        ${[["pdf", "Relatório em PDF", "picture-as-pdf", "Ctrl+P"], ["csv", "Exportar CSV", "table-view", "Ctrl+E"], ["backup", "Salvar backup JSON", "download", "Ctrl+S"], ["restore", "Restaurar backup", "upload", "Ctrl+O"], ["shortcuts", "Atalhos de teclado", "keyboard", "Ctrl+/"], ["about", "Sobre o Finan+", "info", ""]].map(([a, l, ic, k]) => `<button type="button" role="menuitem" data-act="${a}">${icon(ic, 18)}<span>${l}</span>${k ? `<kbd>${k}</kbd>` : ""}</button>`).join("")}
+      </div></div></div>`;
+  }
+  function mobileHeaderHtml() {
+    const s = ctx.state;
+    return `<div><h1>Finan+</h1><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
+    <span class="statusPill">${icon("shield", 14)}Privado</span>
+    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores" : "Ocultar valores" })}</div>`;
+  }
+  function bottomNavHtml() {
+    const item = (id) => {
+      const [, label, ic, icOn] = NAV.find((n) => n[0] === id);
+      const on = ctx.view === id || id === "home" && ctx.view === "assist";
+      return `<button type="button" class="${on ? "active" : ""}" data-act="go" data-view="${id}" aria-current="${on ? "page" : "false"}">${icon(on ? icOn : ic, 22)}<span>${label}</span></button>`;
+    };
+    return `${item("home")}${item("moves")}<button type="button" class="fab" data-act="new-tx" data-kind="expense" aria-label="Novo lançamento">${icon("add", 28)}</button>${item("reports")}${item("prefs")}`;
   }
 
   // js/remote.js
@@ -5213,8 +5495,8 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     return true;
   };
   function updateDevice(patch) {
-    const fresh = loadDevice();
-    ctx.device = typeof patch === "function" ? patch(fresh) : { ...fresh, ...patch };
+    const fresh2 = loadDevice();
+    ctx.device = typeof patch === "function" ? patch(fresh2) : { ...fresh2, ...patch };
     saveDevice(ctx.device);
     return ctx.device;
   }
@@ -5260,8 +5542,8 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const t = themeOf(theme);
     let eff = t === "auto" ? darkMq.matches ? REMOTE ? "oledGray" : "dark" : "light" : t;
     if (REMOTE) {
-      const base = applyPalette(document.documentElement, t === "materialBlue" ? ctx.store?.palette : null, darkMq.matches);
-      if (base) eff = base;
+      const base2 = applyPalette(document.documentElement, t === "materialBlue" ? ctx.store?.palette : null, darkMq.matches);
+      if (base2) eff = base2;
     }
     document.documentElement.dataset.theme = eff;
     document.querySelector("meta[name=theme-color]")?.setAttribute("content", THEME_COLORS[eff] || "#d9e5ff");
@@ -5303,8 +5585,8 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     if (o.focus === "search") $("#q")?.focus();
     if (changed && !o.focus) $("#main")?.focus({ preventScroll: true });
   }
-  ctx.openMoves = (q = "", from = "", to = "", kind = "", st = "") => {
-    Object.assign(ctx.moves, { q: q || "", from: from || null, to: to || null, kind: kind || "", st: st || "", limit: 300, all: !from && !to });
+  ctx.openMoves = (q = "", from = "", to = "", kind = "", st2 = "") => {
+    Object.assign(ctx.moves, { q: q || "", from: from || null, to: to || null, kind: kind || "", st: st2 || "", limit: 300, all: !from && !to });
     ctx.go("moves");
   };
   function render() {
@@ -5489,6 +5771,14 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       render();
     },
     "moves-filters": () => movesFiltersSheet(),
+    // Relatórios: simulador "E se…?" (nada é gravado) e "Ver no calendário" quando nada foi realizado no período
+    simulator: (el) => simulatorSheet(el.dataset.s || null, true),
+    "reports-calendar": () => {
+      ctx.movesView = "calendar";
+      ctx.cal.ym = ymOf(ctx.moves.from || ctx.today);
+      ctx.cal.day = null;
+      ctx.go("moves");
+    },
     "moves-chip": (el) => {
       const f = ctx.moves, c = el.dataset.c;
       if (c === "all") {
@@ -5560,9 +5850,9 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     },
     search: () => ctx.go("moves", { focus: "search" }),
     menu: () => {
-      const m = $("#menu");
-      m.hidden = !m.hidden;
-      if (!m.hidden) m.querySelector("button")?.focus();
+      const m2 = $("#menu");
+      m2.hidden = !m2.hidden;
+      if (!m2.hidden) m2.querySelector("button")?.focus();
     },
     shortcuts: () => shortcutsDialog(),
     whatsnew: () => whatsNew(),
@@ -5585,9 +5875,9 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       ACTIONS["edit-tx"](e.target);
     }
     if (e.key === "Escape") {
-      const m = $("#menu");
-      if (m && !m.hidden) {
-        m.hidden = true;
+      const m2 = $("#menu");
+      if (m2 && !m2.hidden) {
+        m2.hidden = true;
         $("#menuBtn")?.focus();
       }
     }
@@ -5810,9 +6100,9 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     inp.focus();
   }
   function autoLockCheck() {
-    const m = ctx.state?.autoLock || 0;
-    if (!m || !ctx.device?.pinHash || ctx.locked || ctx.problem) return;
-    if (Date.now() - lastActivity >= m * 6e4) lockNow();
+    const m2 = ctx.state?.autoLock || 0;
+    if (!m2 || !ctx.device?.pinHash || ctx.locked || ctx.problem) return;
+    if (Date.now() - lastActivity >= m2 * 6e4) lockNow();
   }
   function showProblem(message) {
     ctx.problem = true;
@@ -5830,7 +6120,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       if (t) download(`finan-plus-dados-ilegiveis-${todayStr()}.json`, t, "application/json");
       else notice("Nada para guardar", "Não há dados salvos.");
     };
-    const fresh = async (state) => {
+    const fresh2 = async (state) => {
       await ctx.store.startOver();
       env.encrypted = ctx.store.encrypted;
       ctx.problem = false;
@@ -5840,9 +6130,9 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       afterOpen({ status: "new", state });
       persist();
     };
-    const askHere = (title, msg, ok2) => ask(title, msg, { ok: ok2, danger: true });
+    const askHere = (title, msg2, ok2) => ask(title, msg2, { ok: ok2, danger: true });
     $("#pbFresh").onclick = async () => {
-      if (await askHere("Começar do zero", ctx.store.noDb ? "O Finan+ vai funcionar sem criptografia neste navegador, guardando os dados no armazenamento simples do site. Continuar?" : "Os dados ilegíveis ficam guardados à parte neste navegador (até “Apagar tudo”), e o Finan+ recomeça vazio. Continuar?", "Começar do zero")) fresh(newState());
+      if (await askHere("Começar do zero", ctx.store.noDb ? "O Finan+ vai funcionar sem criptografia neste navegador, guardando os dados no armazenamento simples do site. Continuar?" : "Os dados ilegíveis ficam guardados à parte neste navegador (até “Apagar tudo”), e o Finan+ recomeça vazio. Continuar?", "Começar do zero")) fresh2(newState());
     };
     $("#pbRestore").onclick = async () => {
       const file = await pickFile("application/json,.json");
@@ -5854,7 +6144,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
         notice("Não foi possível restaurar", "Arquivo de backup inválido ou danificado.");
         return;
       }
-      await fresh(n.state);
+      await fresh2(n.state);
       toast("Backup restaurado");
     };
   }
@@ -6012,12 +6302,12 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
       }
     }
   }
-  function pairFlowRetry(msg) {
+  function pairFlowRetry(msg2) {
     return new Promise((res) => {
       const el = $("#lock");
       el.hidden = false;
       el.innerHTML = `<div class="lockBox glass pairBox" role="alertdialog" aria-modal="true" aria-labelledby="offTitle">${icon("warning", 40, "red")}
-      <h2 id="offTitle">Sem conexão com o celular</h2><p class="muted">${esc(msg)}</p>
+      <h2 id="offTitle">Sem conexão com o celular</h2><p class="muted">${esc(msg2)}</p>
       <button type="button" class="btn primary" id="retryBtn">Tentar de novo</button></div>`;
       $("#retryBtn").onclick = () => {
         el.hidden = true;
@@ -6079,8 +6369,8 @@ ${r.dropped} item(ns) inválido(s) foram ignorados.` : "")]);
     history.replaceState(null, "", location.pathname + location.hash);
     txEditor(n === "receita" ? "income" : "expense");
   }
-  async function onPeer(m) {
-    if (m.data?.type !== "saved" || ctx.problem || !ctx.store) return;
+  async function onPeer(m2) {
+    if (m2.data?.type !== "saved" || ctx.problem || !ctx.store) return;
     try {
       ctx.state = await ctx.store.reload();
       if (!ctx.locked) {

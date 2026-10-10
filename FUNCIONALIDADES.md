@@ -81,10 +81,19 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 
 ## Relatórios
 
-- Período: o mesmo da tela Lançamentos.
+- Período: o mesmo da tela Lançamentos, com o ‹ mês › e o botão de período livre.
+- Só valores realizados. Receitas e Despesas do período com **comparação justa**: mês atual contra os mesmos dias do mês anterior, outro mês contra o anterior inteiro, período livre contra o mesmo tamanho logo antes ("Variação oculta" com valores ocultos).
+- Nada realizado no período: o que falta receber e pagar e o link **Ver no calendário**.
+- Cartão **E se…?**: abre o simulador (abaixo).
 - Despesas por categoria em **gráfico de rosca** (7 maiores + "Outras") e em barras, com o aviso de limite mensal.
-- Evolução dos últimos 6 meses (com descrição completa para leitores de tela) e este mês × mês anterior.
-- Botão "Exportar relatório em PDF".
+- Evolução dos últimos 6 meses (com descrição completa para leitores de tela).
+- Botão **PDF** no título.
+
+## Simulador "E se…?" (detalhes em SIMULADOR.md)
+
+- Economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida parcelada.
+- Base: média dos 3 meses completos anteriores (só realizados), ajustável. **Nada é gravado.**
+- "Transformar em meta" abre o formulário de meta preenchido.
 
 ## Relatório em PDF
 

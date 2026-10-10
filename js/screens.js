@@ -15,6 +15,7 @@ import { icon } from './icons.js';
 import { esc, attr, btn, eyebrow, pageTitle, why, check } from './ui.js';
 import { ctx, money, hidden, categoryIcon, APP_VERSION } from './ctx.js';
 import { MonthCalendar, Period } from './calendar.js';
+import { PeriodCompare } from './simulator.js';
 import { calendarView, roundBtn } from './calendarview.js';
 
 const pct1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
@@ -274,10 +275,36 @@ export function txRow(t, o = {}) {
 }
 
 // ================================================================== Relatórios
+/**
+ * Relatórios: o mesmo período da aba Lançamentos (‹ mês › e período livre), só valores realizados.
+ * Resumo com comparação justa (PeriodCompare), atalho para o simulador "E se…?", despesas por categoria e evolução.
+ */
 export function reportsView() {
   movesDefaults();
-  const s = ctx.state, f = ctx.moves, today = ctx.today, ym = ymOf(today);
-  const period = !f.from && !f.to ? 'Todo o histórico.' : `Período: ${f.from ? brDate(f.from) : 'início'} a ${f.to ? brDate(f.to) : 'hoje'} (datas da aba Lançamentos).`;
+  const s = ctx.state, f = ctx.moves, today = ctx.today;
+  const inRange = s.txs.filter(t => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to));
+  const fl = Finance.flow(inRange);
+  const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Relatórios</h2>${btn('PDF', { act: 'pdf', cls: 'pill', icon: 'receipt-long', iconSize: 18, label: 'Exportar relatório em PDF' })}</div>
+    ${periodBar()}<p class="muted small reportsNote">Só valores realizados (pagos ou recebidos). O período é o mesmo da aba Lançamentos.</p>`;
+  let summary;
+  if (fl.income === 0 && fl.expense === 0) {
+    // nada realizado: em vez de zeros, mostra o que está pendente e leva ao calendário
+    const pend = Period.pending(inRange), ym = Period.fullMonth(f.from, f.to);
+    const name = ym != null ? MONTHS[ym % 12] : 'este período';
+    summary = `<section class="comparison glass reportsEmpty"><b>Nada realizado em ${esc(name)} ainda</b>
+      ${pend.toReceive > 0 || pend.toPay > 0 ? `<p class="muted small">Os relatórios mostram o que já foi pago ou recebido. Por enquanto, está pendente:</p>
+        <div class="reportStat"><div><small>A receber</small><b class="green">${money(pend.toReceive)}</b></div><div><small>A pagar</small><b class="red">${money(pend.toPay)}</b></div></div>`
+        : '<p class="muted small">Os relatórios mostram o que já foi pago ou recebido. Troque o período ou marque lançamentos como pagos.</p>'}
+      ${btn('Ver no calendário', { act: 'reports-calendar', cls: 'link', icon: 'calendar-month', iconSize: 18 })}</section>`;
+  } else {
+    const c = PeriodCompare.of(f.from, f.to, today);
+    const prev = c ? Finance.flow(s.txs.filter(t => t.date >= c.from && t.date <= c.to)) : null;
+    // com "Ocultar valores", a variação também fica oculta (revelaria a proporção entre os períodos)
+    const chg = (cur, old) => hidden() ? 'Variação oculta' : c ? PeriodCompare.text(cur, old, c) : '';
+    const box = (l, ic, v, cls, ch) => `<div class="glass"><small>${icon(ic, 14)}${l}</small><b class="${cls}">${money(v)}</b>${ch ? `<small class="chg">${esc(ch)}</small>` : ''}</div>`;
+    summary = `<section class="reportSum" aria-label="Resumo do período">${box('Receitas', 'arrow-upward', fl.income, 'green', chg(fl.income, prev?.income))}${box('Despesas', 'arrow-downward', fl.expense, 'red', chg(fl.expense, prev?.expense))}</section>`;
+  }
+  const sim = `<button type="button" class="whatIf" data-act="simulator">${icon('auto-awesome', 22)}<span><b>E se…?</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon('chevron-right', 20)}</button>`;
   const cats = Finance.categoryTotals(s, f.from, f.to), total = cats.reduce((n, [, v]) => n + v, 0);
   const slices = cats.slice(0, 7).map(([n, v]) => [n, v]);
   if (cats.length > 7) slices.push([`Outras (${cats.length - 7})`, cats.slice(7).reduce((n, [, v]) => n + v, 0)]);
@@ -287,20 +314,14 @@ export function reportsView() {
       const lim = s.limits.get(c), p = total ? v * 100 / total : 0;
       return `<div class="catBar"><div class="catTop">${glyph(c)}<b>${esc(c)}</b><span>${money(v)}</span></div><div class="budgetTrack"><i style="width:${p}%;background:${PDF_SERIES[Math.min(i, 7)]}"></i></div>
         ${lim != null ? `<small class="${v > lim ? 'red' : 'muted'}">${v > lim ? `${icon('warning', 13)} Acima do` : 'Dentro do'} limite mensal de ${esc(money(lim))}</small>` : ''}</div>`;
-    }).join('')}</div>` : '<p class="muted small">Sem despesas no período.</p>'}</section>`;
+    }).join('')}</div>` : '<p class="muted small">Sem despesas realizadas no período.</p>'}</section>`;
   const months = Finance.lastMonths(s, today, 6), max = Math.max(1, ...months.map(([, m]) => Math.max(m.income, m.expense)));
+  const empty = months.every(([, x]) => x.income === 0 && x.expense === 0);
   const desc = months.map(([m, x]) => brMonthYear(m) + (hidden() ? '' : `: receitas ${Money.format(x.income)}, despesas ${Money.format(x.expense)}`)).join('; ');
   const evo = `<section class="comparison glass">${eyebrow('Evolução')}<h3>Últimos 6 meses</h3>
-    <div class="evo${hidden() ? ' sensitive' : ''}" role="img" aria-label="Gráfico de receitas e despesas. ${attr(desc)}">${months.map(([m, x]) => `<div class="evoCol"><div class="pair"><i class="inc" style="height:${x.income * 100 / max}%"></i><i class="exp" style="height:${x.expense * 100 / max}%"></i></div><span>${MONTHS_SHORT[(m % 12)]}</span></div>`).join('')}</div>
-    <small class="legendLine"><i class="dot inc"></i>Receitas <i class="dot exp"></i>Despesas</small></section>`;
-  const cur = Finance.monthFlow(s, ym), prev = Finance.monthFlow(s, ym - 1);
-  const chg = (a, b) => b === 0 ? 'Sem base' : `${icon(a >= b ? 'arrow-upward' : 'arrow-downward', 13)}${pct0(Math.abs((a - b) * 100 / b))}% vs. mês anterior`;
-  const cmp = `<section class="comparison glass">${eyebrow('Comparação')}<h3>Este mês × mês anterior</h3>
-    <div class="reportStat">${[['Receitas', cur.income, prev.income, 'green'], ['Despesas', cur.expense, prev.expense, 'red']].map(([l, a, b, c]) => `<div><small>${l}</small><b class="${c}">${money(a)}</b><small class="chg">${chg(a, b)}</small></div>`).join('')}</div></section>`;
-  const exp = `<section class="comparison glass exportCard"><div><h3>${icon('picture-as-pdf', 20)} Relatório em PDF</h3><p class="muted small">Resumo, gráficos, maiores despesas, contas, metas e a lista de lançamentos de qualquer período. Gerado neste aparelho.</p></div>
-    ${btn('Exportar relatório em PDF', { act: 'pdf', cls: 'primary', icon: 'download' })}</section>`;
-  const title = pageTitle('reportsTitle', 'Análise', 'Relatórios', `${period} Considera só valores realizados.`);
-  return title + (ctx.cols === 1 ? exp + catCard + evo + cmp : cols([catCard], [exp, evo, cmp]));
+    ${empty ? '<p class="muted small">Aparece quando houver pelo menos um mês com valores realizados.</p>' : `<div class="evo${hidden() ? ' sensitive' : ''}" role="img" aria-label="Gráfico de receitas e despesas. ${attr(desc)}">${months.map(([m, x]) => `<div class="evoCol"><div class="pair"><i class="inc" style="height:${x.income * 100 / max}%"></i><i class="exp" style="height:${x.expense * 100 / max}%"></i></div><span>${MONTHS_SHORT[(m % 12)]}</span></div>`).join('')}</div>
+    <small class="legendLine"><i class="dot inc"></i>Receitas <i class="dot exp"></i>Despesas</small>`}</section>`;
+  return head + (ctx.cols === 1 ? summary + sim + catCard + evo : cols([summary, sim, evo], [catCard]));
 }
 
 function donutSvg(slices, total) {

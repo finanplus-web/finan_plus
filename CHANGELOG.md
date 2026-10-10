@@ -1,5 +1,22 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.3.0 — Simulador "E se…?" e Relatórios renovados (09/10/2026)
+
+Mesmas mudanças do app Android 1.3.0, sem mexer em nenhum tema (tudo usa as cores do tema escolhido). Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
+
+- **E se…?** (em Relatórios): quatro perguntas — economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida parcelada. Parte da média dos 3 meses completos anteriores (só realizados), que dá para ajustar. **Nada é gravado.** "Transformar em meta" abre o formulário de meta já preenchido.
+- **Relatórios:** mesmo ‹ mês › da aba Lançamentos, botão **PDF** no título, Receitas e Despesas realizadas com comparação justa (mês atual contra os mesmos dias do mês anterior; outro mês contra o anterior inteiro; período livre contra o mesmo tamanho logo antes), cartão "Nada realizado… ainda" com o que falta receber e pagar e o link **Ver no calendário**, e texto no lugar do gráfico de evolução vazio. Saíram o cartão "Este mês × mês anterior" e o cartão grande de exportar PDF.
+
+| Arquivo | Mudança |
+|---|---|
+| `js/simulator.js` (novo) | Contas do simulador e `PeriodCompare` |
+| `js/simsheet.js` (novo) | Folha "E se…?" |
+| `js/screens.js` | `reportsView` renovada |
+| `js/editors.js` | `goalEditor(id, pre)` aceita valores iniciais; novidades da 1.3.0 |
+| `js/app.js` | Ações `simulator` e `reports-calendar` |
+| `style.css` | Estilos novos, só com as variáveis do tema |
+| `tests/simulator.test.mjs` (novo) | 5 testes (101 no total) |
+
 ## 1.2.1 — Correção das dicas de ritmo do assistente (08/10/2026)
 
 **Problema (relatado pelo autor):** no dia 8, com R$ 500 de receita e uma única despesa de R$ 200, o assistente avisou "Despesas podem passar das receitas" com R$ 775 previstos. A conta multiplicava aquela compra pelos dias do mês (R$ 200 ÷ 8 × 31), como se ela se repetisse todo dia. O mesmo valia para "Ritmo do limite". A regra vinha da 1.1.0 e era igual no Android e no Linux; as três versões foram corrigidas juntas.

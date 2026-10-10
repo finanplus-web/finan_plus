@@ -13,6 +13,7 @@ import { Store, ConflictError, loadDevice, saveDevice, wipeDevice, verifyPin, ha
 import { icon } from './icons.js';
 import { $, $$, esc, toast, notice, ask, closeDialogs, dialogOpen, closeSheet, setDialogGuard } from './ui.js';
 import { ctx, money, APP_VERSION } from './ctx.js';
+import { simulatorSheet } from './simsheet.js';
 import * as S from './screens.js';
 import * as E from './editors.js';
 import { isRemote, RemoteStore, pairFlow, getToken, setToken, applyPalette } from './remote.js';
@@ -251,6 +252,9 @@ const ACTIONS = {
   'moves-view': el => { ctx.movesView = el.dataset.v === 'calendar' ? 'calendar' : 'list'; render(); },
   'moves-shift': el => { const f = ctx.moves; [f.from, f.to] = Period.shift(f.from, f.to, +el.dataset.d, ctx.today); f.all = false; f.limit = 300; render(); },
   'moves-filters': () => E.movesFiltersSheet(),
+  // Relatórios: simulador "E se…?" (nada é gravado) e "Ver no calendário" quando nada foi realizado no período
+  simulator: el => simulatorSheet(el.dataset.s || null, true),
+  'reports-calendar': () => { ctx.movesView = 'calendar'; ctx.cal.ym = ymOf(ctx.moves.from || ctx.today); ctx.cal.day = null; ctx.go('moves'); },
   'moves-chip': el => {
     const f = ctx.moves, c = el.dataset.c;
     if (c === 'all') { f.kind = ''; f.st = ''; }
