@@ -5,7 +5,7 @@
 // conflito vira ConflictError, token perdido avisa, e nada é gravado no navegador.
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { RemoteStore, setToken, getToken, applyPalette } from '../js/remote.js';
+import { RemoteStore, setToken, getToken } from '../js/remote.js';
 import { ConflictError } from '../js/store.js';
 import { newState, tx, toJson } from '../js/core.js';
 
@@ -72,7 +72,7 @@ test('remoto: celular mudou no meio-tempo → ConflictError e nada é gravado', 
   assert.equal(phone.data.privacy, false);
 });
 
-test('remoto: troca de cores no celular (Material You) também conta como mudança', async () => {
+test('remoto: troca de cores no celular também conta como mudança', async () => {
   setToken('tok');
   const phone = fakePhone();
   const st = new RemoteStore(phone.fetch);
@@ -105,18 +105,6 @@ test('remoto: nada é gravado no navegador (só o token, na sessão)', async () 
   assert.equal(getToken(), null);
 });
 
-test('remoto: cores do celular no Material You', () => {
-  const props = new Map();
-  const root = { style: { setProperty: (k, v) => props.set(k, v), removeProperty: k => props.delete(k) } };
-  const pal = { light: { dark: false, bg: 'rgba(1,2,3,1.000)', surface: 'rgba(4,5,6,0.800)', accent: 'rgba(7,8,9,1.000)' }, dark: { dark: true, bg: 'rgba(9,9,9,1.000)', surface: 'rgba(8,8,8,1.000)' } };
-  assert.equal(applyPalette(root, pal, false), 'materialBlue');
-  assert.equal(props.get('--accent'), 'rgba(7,8,9,1.000)');
-  assert.equal(props.get('--solid'), 'rgba(4,5,6,1)');
-  assert.equal(applyPalette(root, pal, true), 'oledGray');
-  assert.equal(props.get('--bg'), 'rgba(9,9,9,1.000)');
-  assert.equal(applyPalette(root, null, true), null);
-  assert.equal(props.size, 0);
-});
 
 test('remoto: resposta fora do formato é recusada sem alterar nada', async () => {
   setToken('tok');

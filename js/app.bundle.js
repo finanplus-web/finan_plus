@@ -174,12 +174,13 @@
   var THEMES = [
     ["auto", "Sistema"],
     ["light", "Claro"],
-    ["materialBlue", "Material You"],
+    ["gruvbox", "Gruvbox"],
     ["oledGray", "OLED Cinza"],
+    ["gruvboxOled", "Gruvbox OLED"],
     ["tokyo", "Tokyo Night"],
     ["nord", "Nord"]
   ];
-  var themeOf = (s) => s === "dark" ? "oledGray" : THEMES.some((t) => t[0] === s) ? s : "auto";
+  var themeOf = (s) => s === "dark" ? "oledGray" : s === "materialBlue" ? "light" : THEMES.some((t) => t[0] === s) ? s : "auto";
   var themeLabel = (id) => (THEMES.find((t) => t[0] === id) || THEMES[0])[1];
   var seq = 0;
   function newId() {
@@ -5195,7 +5196,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       "Esta é a versão web (PWA): funciona no navegador do celular ou do computador, pode ser instalada como aplicativo e continua funcionando sem internet. Os dados ficam no aparelho, criptografados com AES-256-GCM e chave não extraível guardada pelo próprio navegador, sem conta, cadastro ou servidor.",
       "Inclui avisos de vencimento, bloqueio por PIN, relatório em PDF e backup em JSON compatível com o app Android e com a versão Linux.",
       "O assistente (sugestão de categoria, resumo do mês, dicas de economia e perguntas rápidas) funciona inteiro no aparelho, sem internet e sem modelo de IA externo: são regras e um classificador simples, com código aberto e explicação em cada resposta.",
-      "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com layout próprio para computador e notebook e os temas Material You, OLED, Tokyo Night e Nord."
+      "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com layout próprio para computador e notebook e os temas Gruvbox, OLED, Gruvbox OLED, Tokyo Night e Nord."
     ];
     return `${paras.map((p) => `<p class="muted">${esc(p)}</p>`).join("")}
     <p><b>Privacidade em primeiro lugar: seus dados financeiros permanecem no seu dispositivo.</b></p>
@@ -5503,33 +5504,6 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       form(message);
     });
   }
-  var VARS = {
-    bg: "--bg",
-    surface: "--surface",
-    text: "--text",
-    muted: "--muted",
-    accent: "--accent",
-    onAccent: "--onAccent",
-    accent2: "--accent2",
-    red: "--red",
-    green: "--green",
-    track: "--track",
-    glowA: "--glow1",
-    glowB: "--glow2",
-    border: "--line"
-  };
-  var opaque = (c) => String(c).replace(/^rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)$/, "rgba($1,$2,$3,1)");
-  function applyPalette(root, palette, dark) {
-    const p = palette ? dark ? palette.dark : palette.light : null;
-    for (const v of [...Object.values(VARS), "--solid", "--field", "--surface2"]) root.style.removeProperty(v);
-    if (!p) return null;
-    for (const [k, v] of Object.entries(VARS)) if (p[k]) root.style.setProperty(v, p[k]);
-    if (p.surface) {
-      root.style.setProperty("--solid", opaque(p.surface));
-      root.style.setProperty("--field", p.dark ? opaque(p.bg) : opaque(p.surface));
-    }
-    return p.dark ? "oledGray" : "materialBlue";
-  }
 
   // js/app.js
   var env = { encrypted: false, remote: false };
@@ -5592,15 +5566,11 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       notice("Não foi possível salvar", "Verifique o espaço livre do aparelho e tente de novo. Faça um backup JSON para não perder dados.\n(" + (e?.message || e) + ")");
     }
   }
-  var THEME_COLORS = { light: "#d9e5ff", dark: "#0f1524", materialBlue: "#dbe7ff", oledGray: "#181a1f", tokyo: "#1a1b26", nord: "#2e3440" };
+  var THEME_COLORS = { light: "#d9e5ff", dark: "#0f1524", gruvbox: "#282828", oledGray: "#181a1f", gruvboxOled: "#000000", tokyo: "#1a1b26", nord: "#2e3440" };
   var darkMq = matchMedia("(prefers-color-scheme: dark)");
   function applyTheme(theme) {
     const t = themeOf(theme);
     let eff = t === "auto" ? darkMq.matches ? REMOTE ? "oledGray" : "dark" : "light" : t;
-    if (REMOTE) {
-      const base2 = applyPalette(document.documentElement, t === "materialBlue" ? ctx.store?.palette : null, darkMq.matches);
-      if (base2) eff = base2;
-    }
     document.documentElement.dataset.theme = eff;
     document.querySelector("meta[name=theme-color]")?.setAttribute("content", THEME_COLORS[eff] || "#d9e5ff");
     if (ctx.device && ctx.device.themeCache !== theme) updateDevice({ themeCache: theme });

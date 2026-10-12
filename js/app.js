@@ -16,7 +16,7 @@ import { ctx, money, APP_VERSION } from './ctx.js';
 import { simulatorSheet } from './simsheet.js';
 import * as S from './screens.js';
 import * as E from './editors.js';
-import { isRemote, RemoteStore, pairFlow, getToken, setToken, applyPalette } from './remote.js';
+import { isRemote, RemoteStore, pairFlow, getToken, setToken } from './remote.js';
 
 const env = { encrypted: false, remote: false };
 /** aberto pelo endereço do celular (Finan+ Android › Acesso pela rede): os dados ficam no celular */
@@ -75,15 +75,11 @@ async function persist() {
 }
 
 // ================================================================== tema
-const THEME_COLORS = { light: '#d9e5ff', dark: '#0f1524', materialBlue: '#dbe7ff', oledGray: '#181a1f', tokyo: '#1a1b26', nord: '#2e3440' };
+const THEME_COLORS = { light: '#d9e5ff', dark: '#0f1524', gruvbox: '#282828', oledGray: '#181a1f', gruvboxOled: '#000000', tokyo: '#1a1b26', nord: '#2e3440' };
 const darkMq = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(theme) {
   const t = themeOf(theme);
   let eff = t === 'auto' ? (darkMq.matches ? (REMOTE ? 'oledGray' : 'dark') : 'light') : t;
-  if (REMOTE) {
-    const base = applyPalette(document.documentElement, t === 'materialBlue' ? ctx.store?.palette : null, darkMq.matches);
-    if (base) eff = base;
-  }
   document.documentElement.dataset.theme = eff;
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', THEME_COLORS[eff] || '#d9e5ff');
   if (ctx.device && ctx.device.themeCache !== theme) updateDevice({ themeCache: theme });

@@ -53,7 +53,7 @@ export class RemoteStore {
     this.fetch = fetchImpl;
     this.mode = 'remote'; this.locked = false; this.noDb = false; this.savedAt = 0;
     this.rev = undefined;        // versão dos dados lida do celular
-    this.themeRev = undefined;   // parte "cores" da revisão (Material You / modo escuro do celular)
+    this.themeRev = undefined;   // parte "cores" da revisão (tema ou modo escuro do celular)
     this.palette = null;         // cores do tema do app, para ficar igual ao celular
     this.queue = Promise.resolve();
     this.onUnauthorized = null;  // token perdido (servidor reiniciado, aparelho desconectado no celular)
@@ -205,21 +205,3 @@ export function pairFlow(el, message = '') {
   });
 }
 
-// ------------------------------------------------------------------ cores do tema do celular
-// No Material You (cores do papel de parede do celular) as cores vêm do app. Nos demais temas,
-// o CSS do Finan+ web já é igual ao do app.
-const VARS = {
-  bg: '--bg', surface: '--surface', text: '--text', muted: '--muted', accent: '--accent', onAccent: '--onAccent',
-  accent2: '--accent2', red: '--red', green: '--green', track: '--track', glowA: '--glow1', glowB: '--glow2', border: '--line',
-};
-const opaque = c => String(c).replace(/^rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)$/, 'rgba($1,$2,$3,1)');
-
-/** Aplica (ou remove) as cores do celular. Devolve o data-theme base a usar, ou null para o padrão. */
-export function applyPalette(root, palette, dark) {
-  const p = palette ? (dark ? palette.dark : palette.light) : null;
-  for (const v of [...Object.values(VARS), '--solid', '--field', '--surface2']) root.style.removeProperty(v);
-  if (!p) return null;
-  for (const [k, v] of Object.entries(VARS)) if (p[k]) root.style.setProperty(v, p[k]);
-  if (p.surface) { root.style.setProperty('--solid', opaque(p.surface)); root.style.setProperty('--field', p.dark ? opaque(p.bg) : opaque(p.surface)); }
-  return p.dark ? 'oledGray' : 'materialBlue';
-}

@@ -1,5 +1,12 @@
 # Changelog — Finan+ web (PWA)
 
+## Temas Gruvbox e Gruvbox OLED no lugar do Material You (12/10/2026)
+
+- **Novos temas:** **Gruvbox** (fundo `#282828`, cartões `#32302f`, texto creme `#ebdbb2`, destaque azul `#83a598`, verde `#b8bb26`, vermelho `#fb4934`) e **Gruvbox OLED** (as mesmas cores sobre preto puro, com cartões quase pretos e borda fina).
+- **Material You removido.** Quem usava (`materialBlue`), ou restaura um backup antigo com ele, passa para **Claro** em vez de cair em "Sistema".
+- No acesso pela rede, as cores dinâmicas vindas do celular (`applyPalette`) só serviam ao Material You e foram removidas.
+- Ordem no seletor: Sistema, Claro, Gruvbox, OLED Cinza, Gruvbox OLED, Tokyo Night, Nord. Igual ao app Android.
+
 ## Novo visual da tela Início (12/10/2026)
 
 Só aparência: os dados, os cálculos e as ações da tela são os mesmos.
