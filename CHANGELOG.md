@@ -9,7 +9,7 @@ Só aparência: os dados, os cálculos e as ações da tela são os mesmos.
 - **Assistente**: título maior e cada frase numa faixa com ícone; tocar na faixa abre o assistente (o mesmo que o link "Abrir assistente").
 - **Contas e cartões**: o botão "Gerenciar" ganhou o ícone de engrenagem.
 - **Comece por aqui**: quando os dois atalhos aparecem, ficam lado a lado em cartões; com um só, a linha de antes. O atalho de limite usa o ícone `track_changes`.
-- **Botão +** da barra inferior: redondo, um pouco mais alto, com um anel da cor do fundo.
+- **Botão +** da barra inferior: redondo e centralizado na barra (igual ao Android).
 - Ícones novos (Material Symbols Rounded, peso 300): `south-west`, `north-east` e `track-changes` em `js/icons.js`.
 - Arquivos: `js/screens.js` (tela Início), `style.css` (estilos novos no fim do arquivo e o `.fab`), `js/icons.js`, `js/app.bundle.js` (gerado com `npm run build`).
 
