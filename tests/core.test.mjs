@@ -105,6 +105,12 @@ test('backup: ids repetidos e referências inválidas', () => {
   assert.equal(b.cardId, ''); // receita não vai para cartão
 });
 
+test('tema: Material You antigo vira Claro; Gruvbox é lido', () => {
+  assert.equal(parseBackup('{"txs":[],"theme":"materialBlue"}').state.theme, 'light');
+  assert.equal(parseBackup('{"txs":[],"theme":"gruvboxOled"}').state.theme, 'gruvboxOled');
+  assert.equal(parseBackup('{"txs":[],"theme":"gruvbox"}').state.theme, 'gruvbox');
+});
+
 test('backup: ids numéricos do Finan+ web antigo e exportação', () => {
   const s = parseBackup('{"txs":[{"id":1696000000000.1234,"kind":"expense","value":0.1,"date":"2026-10-01","parcel":{"n":1,"total":3},'
     + '"groupId":"g1"}],"theme":"dark","pin":"p1234"}').state;

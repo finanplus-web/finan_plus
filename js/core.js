@@ -104,10 +104,12 @@ export const DEFAULT_EXPENSE = ['Alimentação', 'Transporte', 'Moradia', 'Saúd
 export const DEFAULT_INCOME = ['Salário', 'Extra', 'Investimentos', 'Outros'];
 export const AUTOLOCK_OPTIONS = [0, 1, 5, 15, 30];
 export const THEMES = [
-  ['auto', 'Sistema'], ['light', 'Claro'], ['materialBlue', 'Material You'],
-  ['oledGray', 'OLED Cinza'], ['tokyo', 'Tokyo Night'], ['nord', 'Nord'],
+  ['auto', 'Sistema'], ['light', 'Claro'], ['gruvbox', 'Gruvbox'],
+  ['oledGray', 'OLED Cinza'], ['gruvboxOled', 'Gruvbox OLED'], ['tokyo', 'Tokyo Night'], ['nord', 'Nord'],
 ];
-export const themeOf = s => s === 'dark' ? 'oledGray' : THEMES.some(t => t[0] === s) ? s : 'auto';
+// "dark" (versões antigas) vira OLED Cinza; o Material You ("materialBlue") saiu e vira Claro,
+// o tema mais parecido (sem isso cairia em Sistema e poderia ficar escuro de repente)
+export const themeOf = s => s === 'dark' ? 'oledGray' : s === 'materialBlue' ? 'light' : THEMES.some(t => t[0] === s) ? s : 'auto';
 export const themeLabel = id => (THEMES.find(t => t[0] === id) || THEMES[0])[1];
 
 let seq = 0;
