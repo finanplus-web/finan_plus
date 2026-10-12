@@ -1,5 +1,18 @@
 # Changelog — Finan+ web (PWA)
 
+## Novo visual da tela Início (12/10/2026)
+
+Só aparência: os dados, os cálculos e as ações da tela são os mesmos.
+
+- **Saldo atual** em destaque, com o ícone de carteira; o **saldo previsto no fim do mês** virou uma faixa logo abaixo, com ícone de gráfico.
+- **Receitas** e **Despesas do mês** saíram do cartão do saldo e viraram dois cartões próprios, em verde e vermelho claros. Quando há algo pendente, mostram "a receber/a pagar" e uma barra com quanto do total do mês já entrou ou saiu ("X% recebido", "X% pago"); a porcentagem some com "Ocultar valores" e a barra fica desfocada.
+- **Assistente**: título maior e cada frase numa faixa com ícone; tocar na faixa abre o assistente (o mesmo que o link "Abrir assistente").
+- **Contas e cartões**: o botão "Gerenciar" ganhou o ícone de engrenagem.
+- **Comece por aqui**: quando os dois atalhos aparecem, ficam lado a lado em cartões; com um só, a linha de antes. O atalho de limite usa o ícone `track_changes`.
+- **Botão +** da barra inferior: redondo, um pouco mais alto, com um anel da cor do fundo.
+- Ícones novos (Material Symbols Rounded, peso 300): `south-west`, `north-east` e `track-changes` em `js/icons.js`.
+- Arquivos: `js/screens.js` (tela Início), `style.css` (estilos novos no fim do arquivo e o `.fab`), `js/icons.js`, `js/app.bundle.js` (gerado com `npm run build`).
+
 ## Ícone novo: F+ (10/10/2026)
 
 - O ícone do Finan+ passou a ser o monograma **F+**: o F em azul (`#4269d8`) com o "+" num círculo, sobre o fundo claro do app (`#eef4ff`, com os brilhos azul e rosa). É o mesmo ícone do app Android e do Finan+ para Linux.
