@@ -11,6 +11,13 @@
 
 Só aparência: os dados, os cálculos e as ações da tela são os mesmos.
 
+- Segunda etapa (12/10/2026), a partir do novo conceito (igual ao app Android):
+  - **Ondas** ao lado do saldo atual (SVG decorativo: suave, sem ponto, eixo ou valor, escondido do leitor de tela).
+  - **Saldo previsto no fim do mês** continua, agora com a comparação com o fim do mês anterior ("+R$ X vs. fim de setembro", verde ou vermelho). Sem lançamentos antes do mês atual, mostra "1º mês · sem comparação".
+  - Abaixo da faixa do previsto, a conta que leva a ele ("Hoje R$ X + R$ Y a receber − R$ Z a pagar"), só quando a soma bate exatamente com o previsto. A comparação e a conta somem com "Ocultar valores".
+  - **Receitas** e **Despesas do mês**: setas para cima e para baixo, iguais às de Relatórios; os cartões ganharam a seta › e abrem Lançamentos ao toque.
+  - **Botão +**: a barra inferior tem cinco colunas iguais e o + fica centralizado na do meio.
+
 - **Saldo atual** em destaque, com o ícone de carteira; o **saldo previsto no fim do mês** virou uma faixa logo abaixo, com ícone de gráfico.
 - **Receitas** e **Despesas do mês** saíram do cartão do saldo e viraram dois cartões próprios, em verde e vermelho claros. Quando há algo pendente, mostram "a receber/a pagar" e uma barra com quanto do total do mês já entrou ou saiu ("X% recebido", "X% pago"); a porcentagem some com "Ocultar valores" e a barra fica desfocada.
 - **Assistente**: título maior e cada frase numa faixa com ícone; tocar na faixa abre o assistente (o mesmo que o link "Abrir assistente").
