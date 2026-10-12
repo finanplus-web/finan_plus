@@ -3062,7 +3062,10 @@ Public License instead of this License.  But first, please read
     "visibility": ["0 -960 960 960", "M480.09-336.92q67.99 0 115.49-47.59t47.5-115.58q0-67.99-47.59-115.49t-115.58-47.5q-67.99 0-115.49 47.59t-47.5 115.58q0 67.99 47.59 115.49t115.58 47.5ZM480-392q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 172q-126.31 0-231.04-67.39-104.73-67.38-167.19-177.3-5-8.62-7.31-17.37-2.3-8.75-2.3-17.96t2.3-17.94q2.31-8.73 7.31-17.35 62.46-109.92 167.19-177.3Q353.69-780 480-780q126.31 0 231.04 67.39 104.73 67.38 167.19 177.3 5 8.62 7.31 17.37 2.3 8.75 2.3 17.96t-2.3 17.94q-2.31 8.73-7.31 17.35-62.46 109.92-167.19 177.3Q606.31-220 480-220Zm0-280Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"],
     "visibility-off": ["0 -960 960 960", "M595.08-615.08q24.38 24.39 37.69 59.27 13.31 34.89 10.07 70.04 0 11.54-8.3 19.54-8.31 8-19.85 8-11.54 0-19.54-8t-8-19.54q3.85-26.38-4.34-50-8.19-23.61-25.19-40.61t-41-25.81q-24-8.81-50.62-4.58-11.54.39-19.92-7.73-8.39-8.11-8.77-19.65-.39-11.54 7.42-19.93 7.81-8.38 19.35-8.76 34.92-4 70.19 9.11 35.27 13.12 60.81 38.65ZM480-720q-21.31 0-41.81 2.08-20.5 2.07-40.81 6.84-12.77 2.62-23-3.65t-14.07-18.04q-3.85-12.15 2.54-23.11 6.38-10.96 18.53-13.58 24.16-5.77 48.81-8.15Q454.85-780 480-780q128.92 0 236.85 67 107.92 67 165.99 181.31 4 7.61 5.81 15.34 1.81 7.73 1.81 16.35 0 8.62-1.5 16.35-1.5 7.73-5.5 15.34-18.38 38.46-44.69 71.73t-57.93 61.12q-9.3 8.31-21.26 6.88-11.97-1.42-19.66-11.96-7.69-10.54-6.38-22.61 1.31-12.08 10.61-20.39 27.08-24.54 49.39-53.65Q815.85-466.31 832-500q-50-101-144.5-160.5T480-720Zm0 500q-126.31 0-231.54-67.5Q143.23-355 81.16-465.31q-5-7.61-7.31-16.54-2.31-8.92-2.31-18.15 0-9.23 2-17.85 2-8.61 7-16.84 22.31-40.77 50.54-77.66 28.23-36.88 64.92-66.11l-90.31-90.93q-8.3-8.92-8.19-21.19.12-12.27 8.81-20.96 8.69-8.69 21.08-8.69 12.38 0 21.07 8.69l663.08 663.08q8.31 8.31 8.81 20.57.5 12.27-8.81 21.58-8.69 8.69-21.08 8.69-12.38 0-21.07-8.69L628.62-245.85q-35.39 13.69-72.74 19.77Q518.54-220 480-220ZM238.16-636.31q-35.16 27.16-63.2 61.42Q146.92-540.62 128-500q50 101 144.5 160.5T480-280q25.77 0 50.73-3.46 24.96-3.46 49.58-10.69L529.69-346q-12.15 5.31-24.27 7.19-12.11 1.89-25.42 1.89-68.08 0-115.58-47.5T316.92-500q0-13.31 2.08-25.42 2.08-12.12 7-24.27l-87.84-86.62ZM541-531Zm-131.77 65.77Z"],
     "warning": ["0 -960 960 960", "M137.02-140q-10.17 0-18.27-4.97t-12.59-13.11q-4.68-8.08-5.15-17.5-.47-9.42 5.08-18.66l342.43-591.52q5.56-9.24 13.9-13.66 8.35-4.42 17.58-4.42 9.23 0 17.58 4.42 8.34 4.42 13.9 13.66l342.43 591.52q5.55 9.24 5.08 18.66-.47 9.42-5.15 17.5-4.49 8.14-12.59 13.11-8.1 4.97-18.27 4.97H137.02ZM178-200h604L480-720 178-200Zm302-47.69q13.73 0 23.02-9.29t9.29-23.02q0-13.73-9.29-23.02T480-312.31q-13.73 0-23.02 9.29T447.69-280q0 13.73 9.29 23.02t23.02 9.29Zm.01-104.62q12.76 0 21.37-8.62 8.62-8.63 8.62-21.38v-140q0-12.75-8.63-21.37-8.63-8.63-21.38-8.63-12.76 0-21.37 8.63-8.62 8.62-8.62 21.37v140q0 12.75 8.63 21.38 8.63 8.62 21.38 8.62ZM480-460Z"],
-    "work": ["0 -960 960 960", "M172.31-140Q142-140 121-161q-21-21-21-51.31v-415.38Q100-658 121-679q21-21 51.31-21H340v-67.69Q340-798 361-819q21-21 51.31-21h135.38Q578-840 599-819q21 21 21 51.31V-700h167.69Q818-700 839-679q21 21 21 51.31v415.38Q860-182 839-161q-21 21-51.31 21H172.31Zm0-60h615.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-415.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H172.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v415.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85ZM400-700h160v-67.69q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H412.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46V-700ZM160-200v-440 440Z"]
+    "work": ["0 -960 960 960", "M172.31-140Q142-140 121-161q-21-21-21-51.31v-415.38Q100-658 121-679q21-21 51.31-21H340v-67.69Q340-798 361-819q21-21 51.31-21h135.38Q578-840 599-819q21 21 21 51.31V-700h167.69Q818-700 839-679q21 21 21 51.31v415.38Q860-182 839-161q-21 21-51.31 21H172.31Zm0-60h615.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-415.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H172.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v415.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85ZM400-700h160v-67.69q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H412.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46V-700ZM160-200v-440 440Z"],
+    "south-west": ["0 -960 960 960", "M246.15-210q-15.36 0-25.76-10.39Q210-230.79 210-246.15V-560q0-12.75 8.63-21.37 8.63-8.63 21.38-8.63 12.76 0 21.37 8.63Q270-572.75 270-560v247.85l452.92-452.93q8.7-8.69 21.08-8.69 12.38 0 21.08 8.69 8.69 8.7 8.69 21.08 0 12.38-8.69 21.08L312.15-270H560q12.75 0 21.37 8.63 8.63 8.63 8.63 21.38 0 12.76-8.63 21.37Q572.75-210 560-210H246.15Z"],
+    "north-east": ["0 -960 960 960", "M680-637.85 243.23-201.08q-8.31 8.31-20.88 8.5-12.58.19-21.27-8.5t-8.69-21.07q0-12.39 8.69-21.08L637.85-680H390q-12.75 0-21.38-8.63-8.62-8.63-8.62-21.38 0-12.76 8.62-21.37Q377.25-740 390-740h313.84q15.37 0 25.76 10.4 10.4 10.39 10.4 25.76V-390q0 12.75-8.63 21.38-8.63 8.62-21.38 8.62-12.76 0-21.37-8.62Q680-377.25 680-390v-247.85Z"],
+    "track-changes": ["0 -960 960 960", "M480.07-100q-78.84 0-148.21-29.92t-120.68-81.21q-51.31-51.29-81.25-120.63Q100-401.1 100-479.93q0-78.84 29.93-148.21 29.92-69.37 81.22-120.68t120.65-81.25Q401.15-860 480-860q12.75 0 21.37 8.63Q510-842.75 510-830v298.31q14.15 8.69 22.08 21.68 7.92 12.99 7.92 30.06 0 24.49-17.73 42.22T480-420q-24.54 0-42.27-17.73Q420-455.46 420-479.91q0-17.04 7.92-30.37 7.93-13.33 22.08-21.41v-104.85q-55.85 10.54-92.92 54.19Q320-538.69 320-480q0 66 47 113t113 47q66 0 113-47t47-113q0-28.31-9.23-52.62-9.23-24.3-24.92-45.07-7.7-10.54-7.27-22.93.42-12.38 9.03-20.99 9.39-9.39 21.66-9.2 12.27.2 20.34 10.73Q673-591 686.5-555.73 700-520.46 700-480q0 91.67-64.14 155.83Q571.72-260 480.09-260q-91.63 0-155.86-64.17Q260-388.33 260-480q0-84.23 54.5-145.73 54.5-61.5 135.5-72.04v-101q-122.46 11.15-206.23 102.12Q160-605.69 160-480q0 134 93 227t227 93q134 0 227-93t93-227q0-60.69-20.54-113.92-20.54-53.23-58.23-95.62-8.69-9.92-9.27-22.88-.58-12.96 8.73-22.27 9.31-9.31 21.77-8.62 12.46.7 21.15 10.62 45 51.08 70.7 115.15Q860-553.46 860-480q0 78.85-29.92 148.2t-81.21 120.65q-51.29 51.3-120.63 81.22Q558.9-100 480.07-100Z"]
   };
   function icon(name, size = 22, cls = "") {
     const i = ICONS[name] || ICONS["help"];
@@ -4779,20 +4782,25 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const pend = Period.monthPending(s, ym, today2);
     const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
     const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
-    const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : "";
+    const flowCard = (cls, ic, label, done, rest, restLabel, doneWord) => {
+      const frac = done + rest > 0 ? done * 100 / (done + rest) : 0;
+      return `<div class="flowCard ${cls}"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowLabel">${label}</span><b>${money(done)}</b>
+      ${rest > 0 ? `<small class="statSub">${restLabel} <b>${money(rest)}</b></small><span class="flowFill"></span>
+      <div class="flowBar${hidden() ? " sensitive" : ""}" aria-hidden="true"><i style="width:${frac}%"></i></div>${hidden() ? "" : `<small class="flowPct">${pct0(frac)}% ${doneWord}</small>`}` : ""}</div>`;
+    };
     const hero = `<section class="hero glass" aria-label="Resumo do mês">
     ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>` : ""}
-    <div class="balanceGrid">
-      <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b></div>
-      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
-    </div>
-    <div class="stats">
-      <div><span>${icon("arrow-upward", 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub("a receber", pend.toReceive, "green")}</div>
-      <div><span>${icon("arrow-downward", 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub("a pagar", pend.toPay, "red")}</div>
-    </div>
+    <div class="balanceMain"><span class="tile" aria-hidden="true">${icon("account-balance-wallet", 22)}</span><span>Saldo atual</span></div>
+    <b class="balanceBig${bal < 0 ? " negative" : ""}">${money(bal)}</b>
+    <div class="forecastBox"><span class="tile" aria-hidden="true">${icon("bar-chart", 20)}</span>
+      <span class="meta"><small>Saldo previsto no fim do mês</small><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b></span></div>
     ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
     <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ""}
-  </section>`;
+  </section>
+  <div class="flowGrid">
+    ${flowCard("in", "south-west", "Receitas do mês", fl.income, pend.toReceive, "a receber", "recebido")}
+    ${flowCard("out", "north-east", "Despesas do mês", fl.expense, pend.toPay, "a pagar", "pago")}
+  </div>`;
     const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
     const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
     const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
@@ -4833,11 +4841,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       const rep = Insights.report(s, today2, money);
       tips = visibleTips(Insights.tips(s, today2, money));
       const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
-      inner = `<ul class="reportLines">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${tips[0] ? tipItem(tips[0]) : ""}`;
+      inner = `<div class="reportTiles">${lines.map((l, i) => `<button type="button" class="reportTile" data-act="go" data-view="assist"><span class="tile" aria-hidden="true">${icon(i === 0 ? "receipt-long" : "calendar-month", 19)}</span><span class="txt">${esc(l)}</span>${icon("chevron-right", 18)}</button>`).join("")}</div>${tips[0] ? tipItem(tips[0]) : ""}`;
     } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
     const link = d.assistTips ? tips.length > 1 ? `Ver as ${tips.length} dicas` : "Abrir assistente" : "Perguntar";
     return `<section class="glass assistCard" aria-label="Assistente">
-    <div class="assistHead">${icon("auto-awesome", 16)}<small class="eyebrow">Assistente</small></div>${inner}
+    <div class="assistHead">${icon("auto-awesome", 22)}<h3 class="assistTitle">Assistente</h3></div>${inner}
     <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? "" : ' data-focus="ask"'}><span>${esc(link)}</span>${icon("chevron-right", 18)}</button></section>`;
   }
   function tipItem(t, o = {}) {
@@ -4863,7 +4871,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       <span class="sub">Disponível ${money(st2.available)}</span>
       <div class="cardActions">${cur ? btn("Pagar fatura", { act: "pay-invoice", data: { id: c.id }, cls: "primary small" }) : ""}${btn("", { act: "edit-card", data: { id: c.id }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
     }).join("");
-    const head = sectionHead(null, "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small" }));
+    const head = sectionHead(null, "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small", icon: "settings", iconSize: 18 }));
     if (s.accounts.length === 1 && !s.cards.length) {
       const a = s.accounts[0], b = Finance.accountBalance(s, a);
       return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
@@ -4909,7 +4917,10 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const s = ctx.state;
     const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
     <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`;
-    const rows = (s.limits.size ? "" : row("new-limit", "payments", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")) + (s.goals.length ? "" : row("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo"));
+    const tile = (act, ic, title, sub) => `<button type="button" class="startCard glass" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
+    <b>${esc(title)}</b><small>${esc(sub)}</small></button>`;
+    if (!s.limits.size && !s.goals.length) return `<section class="section">${sectionHead(null, "Comece por aqui")}<div class="startGrid">${tile("new-limit", "track-changes", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")}${tile("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo")}</div></section>`;
+    const rows = (s.limits.size ? "" : row("new-limit", "track-changes", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")) + (s.goals.length ? "" : row("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo"));
     if (!rows) return "";
     return `<section class="section">${sectionHead(null, "Comece por aqui")}<div class="glass compactBox startBox">${rows}</div></section>`;
   }

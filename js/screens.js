@@ -40,20 +40,27 @@ export function homeView() {
   const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
   const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
   // embaixo de Receitas/Despesas: o que ainda falta entrar e sair no mês (o R$ 0,00 não esconde o que vem)
-  const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : '';
+  // receitas/despesas: realizado, o que falta e quanto do total previsto já entrou/saiu
+  // (a porcentagem some com "Ocultar valores": ela também revela valores)
+  const flowCard = (cls, ic, label, done, rest, restLabel, doneWord) => {
+    const frac = done + rest > 0 ? done * 100 / (done + rest) : 0;
+    return `<div class="flowCard ${cls}"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowLabel">${label}</span><b>${money(done)}</b>
+      ${rest > 0 ? `<small class="statSub">${restLabel} <b>${money(rest)}</b></small><span class="flowFill"></span>
+      <div class="flowBar${hidden() ? ' sensitive' : ''}" aria-hidden="true"><i style="width:${frac}%"></i></div>${hidden() ? '' : `<small class="flowPct">${pct0(frac)}% ${doneWord}</small>`}` : ''}</div>`;
+  };
   const hero = `<section class="hero glass" aria-label="Resumo do mês">
     ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today))}</span><span class="statusPill">${icon('shield', 14)}Privado</span></div>` : ''}
-    <div class="balanceGrid">
-      <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? 'negative' : ''}">${money(bal)}</b></div>
-      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? 'negative' : ''}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
-    </div>
-    <div class="stats">
-      <div><span>${icon('arrow-upward', 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub('a receber', pend.toReceive, 'green')}</div>
-      <div><span>${icon('arrow-downward', 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub('a pagar', pend.toPay, 'red')}</div>
-    </div>
+    <div class="balanceMain"><span class="tile" aria-hidden="true">${icon('account-balance-wallet', 22)}</span><span>Saldo atual</span></div>
+    <b class="balanceBig${bal < 0 ? ' negative' : ''}">${money(bal)}</b>
+    <div class="forecastBox"><span class="tile" aria-hidden="true">${icon('bar-chart', 20)}</span>
+      <span class="meta"><small>Saldo previsto no fim do mês</small><b class="${fut < 0 ? 'negative' : ''}">${money(fut)}</b></span></div>
     ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ''}></i></div>
     <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ''}
-  </section>`;
+  </section>
+  <div class="flowGrid">
+    ${flowCard('in', 'south-west', 'Receitas do mês', fl.income, pend.toReceive, 'a receber', 'recebido')}
+    ${flowCard('out', 'north-east', 'Despesas do mês', fl.expense, pend.toPay, 'a pagar', 'pago')}
+  </div>`;
   // os botões Receita/Despesa/Meta saíram: o + da barra (celular) e os botões do topo (computador) fazem o mesmo
   const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
   const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
@@ -101,11 +108,12 @@ function homeAssistCard() {
     const rep = Insights.report(s, today, money);
     tips = visibleTips(Insights.tips(s, today, money));
     const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
-    inner = `<ul class="reportLines">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>${tips[0] ? tipItem(tips[0]) : ''}`;
+    // cada frase numa faixa com ícone; tocar abre o assistente (o mesmo que o link abaixo)
+    inner = `<div class="reportTiles">${lines.map((l, i) => `<button type="button" class="reportTile" data-act="go" data-view="assist"><span class="tile" aria-hidden="true">${icon(i === 0 ? 'receipt-long' : 'calendar-month', 19)}</span><span class="txt">${esc(l)}</span>${icon('chevron-right', 18)}</button>`).join('')}</div>${tips[0] ? tipItem(tips[0]) : ''}`;
   } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
   const link = d.assistTips ? (tips.length > 1 ? `Ver as ${tips.length} dicas` : 'Abrir assistente') : 'Perguntar';
   return `<section class="glass assistCard" aria-label="Assistente">
-    <div class="assistHead">${icon('auto-awesome', 16)}<small class="eyebrow">Assistente</small></div>${inner}
+    <div class="assistHead">${icon('auto-awesome', 22)}<h3 class="assistTitle">Assistente</h3></div>${inner}
     <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? '' : ' data-focus="ask"'}><span>${esc(link)}</span>${icon('chevron-right', 18)}</button></section>`;
 }
 
@@ -130,7 +138,7 @@ function walletSection() {
       <span class="sub">Disponível ${money(st.available)}</span>
       <div class="cardActions">${cur ? btn('Pagar fatura', { act: 'pay-invoice', data: { id: c.id }, cls: 'primary small' }) : ''}${btn('', { act: 'edit-card', data: { id: c.id }, cls: 'icon tiny', icon: 'edit', iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
   }).join('');
-  const head = sectionHead(null, 'Contas e cartões', btn('Gerenciar', { act: 'go', data: { view: 'prefs', fold: 'contas' }, cls: 'soft small' }));
+  const head = sectionHead(null, 'Contas e cartões', btn('Gerenciar', { act: 'go', data: { view: 'prefs', fold: 'contas' }, cls: 'soft small', icon: 'settings', iconSize: 18 }));
   // uma conta só e nenhum cartão: linha inteira
   if (s.accounts.length === 1 && !s.cards.length) {
     const a = s.accounts[0], b = Finance.accountBalance(s, a);
@@ -181,7 +189,11 @@ function startSection() {
   const s = ctx.state;
   const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
     <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon('chevron-right', 20)}</button>`;
-  const rows = (s.limits.size ? '' : row('new-limit', 'payments', 'Definir um limite mensal', 'Acompanhe quanto gasta por categoria'))
+  const tile = (act, ic, title, sub) => `<button type="button" class="startCard glass" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
+    <b>${esc(title)}</b><small>${esc(sub)}</small></button>`;
+  // os dois atalhos lado a lado (conceito de outubro/2026); se só um aparece, a linha inteira de antes
+  if (!s.limits.size && !s.goals.length) return `<section class="section">${sectionHead(null, 'Comece por aqui')}<div class="startGrid">${tile('new-limit', 'track-changes', 'Definir um limite mensal', 'Acompanhe quanto gasta por categoria')}${tile('new-goal', 'flag', 'Criar uma meta', 'Junte para um objetivo com prazo')}</div></section>`;
+  const rows = (s.limits.size ? '' : row('new-limit', 'track-changes', 'Definir um limite mensal', 'Acompanhe quanto gasta por categoria'))
     + (s.goals.length ? '' : row('new-goal', 'flag', 'Criar uma meta', 'Junte para um objetivo com prazo'));
   if (!rows) return '';
   return `<section class="section">${sectionHead(null, 'Comece por aqui')}<div class="glass compactBox startBox">${rows}</div></section>`;

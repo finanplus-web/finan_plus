@@ -347,8 +347,8 @@ dialog{color:var(--text)}
 .bottomNav button[data-view]::before{content:"";position:absolute;inset:4px 6px;border-radius:17px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);opacity:0;transform:scale(.72);transition:opacity .22s,transform .22s cubic-bezier(.2,.85,.25,1.2);z-index:-1}
 .bottomNav button.active{color:var(--accent);font-weight:800}
 .bottomNav button.active::before{opacity:1;transform:scale(1)}
-.bottomNav .fab{width:56px;height:56px;border-radius:19px;background:var(--accent);color:var(--onAccent);transform:translateY(-10px);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 40%,transparent);min-height:0}
-.fab:active{transform:translateY(-10px) scale(.94)!important}
+.bottomNav .fab{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--onAccent);transform:translateY(-14px);border:4px solid var(--bg);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 40%,transparent);min-height:0}
+.fab:active{transform:translateY(-14px) scale(.94)!important}
 
 /* "Liquid Glass": brilho no toque */
 :where(button,.tx,.chk){-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .2s cubic-bezier(.2,.8,.2,1),background-color .2s,color .2s,box-shadow .2s,opacity .2s,border-color .2s;position:relative;overflow:hidden}
@@ -587,3 +587,44 @@ dialog{color:var(--text)}
 #simGoal .btn{margin-top:12px;width:100%}
 .whatIf small,.whatIf b{color:inherit}
 .simBack{display:flex;width:max-content}
+
+/* Início — visual do conceito de outubro/2026 (só aparência; mesmos dados e ações) */
+.hero .tile,.flowCard .tile,.reportTile .tile{display:grid;place-items:center;flex:none;border-radius:13px;background:var(--accent2);color:var(--accent)}
+.balanceMain{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;font-weight:600}
+.balanceMain .tile{width:44px;height:44px;border-radius:14px}
+.heroTop+.balanceMain{margin-top:16px}
+.balanceBig{display:block;margin:10px 0 12px;font-size:clamp(26px,10cqi,36px);font-weight:800;letter-spacing:-.5px;line-height:1.1;overflow-wrap:anywhere}
+.forecastBox{display:flex;align-items:center;gap:12px;padding:12px;border-radius:20px;background:var(--surface2)}
+.forecastBox .tile{width:40px;height:40px}
+.forecastBox .meta{flex:1;min-width:0}.forecastBox small{display:block;font-size:12px;color:var(--muted)}
+.forecastBox b{display:block;font-size:clamp(18px,7cqi,23px);font-weight:800;color:var(--accent);overflow-wrap:anywhere}
+.flowGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.flowCard{display:flex;flex-direction:column;padding:14px;border-radius:22px;border:1px solid color-mix(in srgb,#fff 55%,transparent);box-shadow:var(--shadow);min-width:0}
+:root:not([data-theme=light]):not([data-theme=materialBlue]) .flowCard{border-color:var(--line)}
+.flowCard.in{background:color-mix(in srgb,var(--green) 7%,var(--solid))}
+.flowCard.out{background:color-mix(in srgb,var(--red) 7%,var(--solid))}
+.flowCard .tile{width:36px;height:36px;border-radius:12px;margin-bottom:10px}
+.flowCard.in .tile{background:color-mix(in srgb,var(--green) 15%,transparent);color:var(--green)}
+.flowCard.out .tile{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+.flowLabel{font-size:12px;font-weight:600;color:var(--muted)}
+.flowCard>b{font-size:19px;font-weight:800;overflow-wrap:anywhere}
+.flowCard.in>b,.flowCard.in .statSub b{color:var(--green)}
+.flowCard.out>b,.flowCard.out .statSub b{color:var(--red)}
+.flowFill{flex:1}
+.flowBar{height:6px;margin-top:10px;border-radius:3px;overflow:hidden}
+.flowBar i{display:block;height:100%;border-radius:3px;min-width:3px}
+.flowCard.in .flowBar{background:color-mix(in srgb,var(--green) 15%,transparent)}.flowCard.in .flowBar i{background:var(--green)}
+.flowCard.out .flowBar{background:color-mix(in srgb,var(--red) 15%,transparent)}.flowCard.out .flowBar i{background:var(--red)}
+.flowBar.sensitive{filter:blur(4px)}
+.flowPct{display:block;margin-top:5px;font-size:11.5px;color:var(--muted)}
+.assistHead{gap:8px}
+.assistCard h3.assistTitle{margin:0;font-size:17px;font-weight:800;color:var(--text)}
+.reportTiles{display:flex;flex-direction:column;gap:8px;margin:12px 0 6px}
+.reportTile{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border-radius:18px;background:var(--surface2);text-align:left;color:var(--muted)}
+.reportTile:hover{background:color-mix(in srgb,var(--accent) 8%,var(--surface2))}
+.reportTile .tile{width:36px;height:36px;border-radius:12px}
+.reportTile .txt{flex:1;min-width:0;font-size:14px;line-height:1.4;color:var(--text)}
+.startGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.startCard{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;border-radius:20px;text-align:left;min-width:0}
+.startCard .badge{width:40px;height:40px;border-radius:13px}
+.startCard b{font-size:14.5px}.startCard small{font-size:12.5px;line-height:1.35;color:var(--muted)}
