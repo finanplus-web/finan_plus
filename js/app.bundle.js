@@ -4775,6 +4775,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   };
   var assistOn = () => ctx.device.assistTips || ctx.device.assistAsk;
   var visibleTips = (all) => all.filter((t) => !ctx.device.dismissedTips.includes(t.id));
+  var WAVES = `<svg class="balanceWaves" viewBox="0 0 230 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+<defs><linearGradient id="wavesFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".2"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+<path d="M0 78C30 70 45 40 75 46C105 52 112 92 142 88C170 84 178 50 200 44C214 40 222 48 230 54V120H0Z" fill="url(#wavesFill)"/>
+<path d="M0 92C35 86 55 66 85 70C115 74 125 100 155 98C185 96 195 74 230 72" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+<path d="M0 78C30 70 45 40 75 46C105 52 112 92 142 88C170 84 178 50 200 44C214 40 222 48 230 54" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
   function homeView() {
     const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
     const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
@@ -4782,24 +4787,31 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const pend = Period.monthPending(s, ym, today2);
     const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
     const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
+    const first = ymFirst(ym), ids = new Set(s.accounts.map((a) => a.id));
+    const prevEnd = s.txs.some((t) => t.date < first) ? bal - s.txs.filter((t) => ids.has(t.accountId) && !isCard(t) && t.paid && t.date >= first).reduce((n, t) => t.kind === "income" ? n + t.value : n - t.value, 0) : null;
+    const diff = prevEnd === null ? 0 : fut - prevEnd;
+    const compareChip = hidden() ? "" : prevEnd === null ? '<span class="compareChip">1º mês · sem comparação</span>' : `<span class="compareChip ${diff >= 0 ? "up" : "down"}">${diff >= 0 ? "+" : "−"}${Money.format(Math.abs(diff))} vs. fim de ${MONTHS[(ym - 1) % 12]}</span>`;
+    const explain = !hidden() && (pend.toReceive > 0 || pend.toPay > 0) && bal + pend.toReceive - pend.toPay === fut ? `<small class="forecastExplain">Hoje ${Money.format(bal)} + ${Money.format(pend.toReceive)} a receber − ${Money.format(pend.toPay)} a pagar</small>` : "";
     const flowCard = (cls, ic, label, done, rest, restLabel, doneWord) => {
       const frac = done + rest > 0 ? done * 100 / (done + rest) : 0;
-      return `<div class="flowCard ${cls}"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowLabel">${label}</span><b>${money(done)}</b>
+      return `<button type="button" class="flowCard ${cls}" data-act="go" data-view="moves"><span class="flowTop"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowGo" aria-hidden="true">${icon("chevron-right", 20)}</span></span><span class="flowLabel">${label}</span><b>${money(done)}</b>
       ${rest > 0 ? `<small class="statSub">${restLabel} <b>${money(rest)}</b></small><span class="flowFill"></span>
-      <div class="flowBar${hidden() ? " sensitive" : ""}" aria-hidden="true"><i style="width:${frac}%"></i></div>${hidden() ? "" : `<small class="flowPct">${pct0(frac)}% ${doneWord}</small>`}` : ""}</div>`;
+      <span class="flowBar${hidden() ? " sensitive" : ""}" aria-hidden="true"><i style="width:${frac}%"></i></span>${hidden() ? "" : `<small class="flowPct">${pct0(frac)}% ${doneWord}</small>`}` : ""}</button>`;
     };
     const hero = `<section class="hero glass" aria-label="Resumo do mês">
     ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>` : ""}
+    <div class="balanceWrap">${WAVES}
     <div class="balanceMain"><span class="tile" aria-hidden="true">${icon("account-balance-wallet", 22)}</span><span>Saldo atual</span></div>
-    <b class="balanceBig${bal < 0 ? " negative" : ""}">${money(bal)}</b>
+    <b class="balanceBig${bal < 0 ? " negative" : ""}">${money(bal)}</b></div>
     <div class="forecastBox"><span class="tile" aria-hidden="true">${icon("bar-chart", 20)}</span>
-      <span class="meta"><small>Saldo previsto no fim do mês</small><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b></span></div>
+      <span class="meta"><small>Saldo previsto no fim do mês</small><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b>${compareChip}</span></div>
+    ${explain}
     ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
     <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ""}
   </section>
   <div class="flowGrid">
-    ${flowCard("in", "south-west", "Receitas do mês", fl.income, pend.toReceive, "a receber", "recebido")}
-    ${flowCard("out", "north-east", "Despesas do mês", fl.expense, pend.toPay, "a pagar", "pago")}
+    ${flowCard("in", "arrow-upward", "Receitas do mês", fl.income, pend.toReceive, "a receber", "recebido")}
+    ${flowCard("out", "arrow-downward", "Despesas do mês", fl.expense, pend.toPay, "a pagar", "pago")}
   </div>`;
     const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
     const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
