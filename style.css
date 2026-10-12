@@ -342,12 +342,12 @@ dialog{color:var(--text)}
 .fatal,.noscript{position:fixed;inset:auto 16px 16px;z-index:300;padding:16px;border-radius:18px;background:var(--danger);color:var(--red);font-weight:700}
 
 /* navegação inferior (celular) */
-.bottomNav{position:fixed;z-index:5;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(calc(100% - 24px),536px);display:grid;grid-template-columns:1fr 1fr 62px 1fr 1fr;align-items:center;padding:8px;border-radius:28px;background:color-mix(in srgb,var(--solid) 92%,transparent);box-shadow:0 16px 40px rgba(40,55,85,.22);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--line)}
+.bottomNav{position:fixed;z-index:5;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(calc(100% - 24px),536px);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;padding:8px;border-radius:28px;background:color-mix(in srgb,var(--solid) 92%,transparent);box-shadow:0 16px 40px rgba(40,55,85,.22);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--line)}
 .bottomNav button{font-size:10px;white-space:nowrap;color:var(--muted);display:grid;place-items:center;gap:2px;min-height:56px;border-radius:20px;isolation:isolate}
 .bottomNav button[data-view]::before{content:"";position:absolute;inset:4px 6px;border-radius:17px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);opacity:0;transform:scale(.72);transition:opacity .22s,transform .22s cubic-bezier(.2,.85,.25,1.2);z-index:-1}
 .bottomNav button.active{color:var(--accent);font-weight:800}
 .bottomNav button.active::before{opacity:1;transform:scale(1)}
-.bottomNav .fab{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--onAccent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 40%,transparent);min-height:0}
+.bottomNav .fab{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--onAccent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 40%,transparent);min-height:0;justify-self:center}
 .fab:active{transform:scale(.94)!important}
 
 /* "Liquid Glass": brilho no toque */
