@@ -58,7 +58,7 @@ kbd{font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;padding:4px 6px;
 /* botões */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 15px;border-radius:16px;font-weight:750;min-height:44px}
 .btn.primary{background:var(--accent);color:var(--onAccent)}
-.btn.soft{background:var(--accent2)}
+.btn.soft{background:var(--accent2);margin:0} /* sem a margem da caixa .soft: botões lado a lado ficam da mesma altura */
 .btn.danger,.dangerB{background:var(--danger)!important;color:var(--red)!important}
 .btn.small{padding:8px 12px;min-height:36px;border-radius:13px;font-size:13px}
 .btn.wide{width:100%}
@@ -294,8 +294,9 @@ summary .ic{transition:transform .2s}
 .seg{display:grid;grid-template-columns:1fr 1fr;background:color-mix(in srgb,var(--accent2) 80%,transparent);padding:4px;border-radius:17px;margin:6px 0 4px}
 .seg button{padding:11px;border-radius:14px;min-height:44px}
 .seg .selected{background:var(--field);box-shadow:0 4px 12px rgba(40,55,85,.1);font-weight:800}
-.sheetActions{display:flex;gap:10px;margin-top:16px}
-.sheetActions .btn{flex:1;padding:15px;border-radius:18px}
+.sheetActions{display:flex;gap:10px;margin-top:16px;align-items:stretch}
+/* margin 0: a classe genérica .soft (caixas de texto) dá margem vertical e deixava o botão "soft" mais baixo que o principal */
+.sheetActions .btn{flex:1 1 0;min-width:0;margin:0;padding:15px;border-radius:18px}
 
 /* folha (celular: de baixo; computador: janela central) e diálogos */
 dialog{color:var(--text)}
