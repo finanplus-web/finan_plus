@@ -934,15 +934,15 @@
     /** valor curto para o quadradinho do dia (sem "R$"), arredondado ao mais próximo: 182 · 1,5 mil · 15 mil · 1,2 mi */
     compact(c) {
       const reais = Math.floor((Math.abs(c) + 50) / 100), sign = c < 0 ? "−" : "";
-      const short = (unit, suffix) => {
+      const short2 = (unit, suffix) => {
         const tenths = Math.floor((reais * 10 + unit / 2) / unit);
         if (tenths >= 100) return `${Math.floor((reais + unit / 2) / unit)} ${suffix}`;
         return tenths % 10 === 0 ? `${tenths / 10} ${suffix}` : `${Math.floor(tenths / 10)},${tenths % 10} ${suffix}`;
       };
       if (reais < 1e3) return sign + reais;
-      if (Math.floor((reais + 500) / 1e3) < 1e3) return sign + short(1e3, "mil");
-      if (Math.floor((reais + 5e5) / 1e6) < 1e3) return sign + short(1e6, "mi");
-      return sign + short(1e9, "bi");
+      if (Math.floor((reais + 500) / 1e3) < 1e3) return sign + short2(1e3, "mil");
+      if (Math.floor((reais + 5e5) / 1e6) < 1e3) return sign + short2(1e6, "mi");
+      return sign + short2(1e9, "bi");
     },
     /** "+5,2 mil", "−120"; zero fica "0" */
     signed: (c) => c > 0 ? "+" + MonthCalendar.compact(c) : c < 0 ? MonthCalendar.compact(c) : "0",
@@ -2585,6 +2585,7 @@ Public License instead of this License.  But first, please read
   var LEGACY = ["mf_v2", "mf_txs"];
   var enc = new TextEncoder();
   var dec = new TextDecoder();
+  var BILLPW_AD = "finan-plus/billpw/v1";
   function b64e(u) {
     let s = "";
     for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
@@ -2639,7 +2640,7 @@ Public License instead of this License.  But first, please read
   var ConflictError = class extends Error {
   };
   var newRev = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("");
-  var _Store_instances, problem_fn, ensureKey_fn, verify_fn, cleanupPlain_fn;
+  var _Store_instances, problem_fn, ensureKey_fn, verify_fn, cleanupPlain_fn, billMap_fn;
   var Store = class {
     constructor() {
       __privateAdd(this, _Store_instances);
@@ -2800,6 +2801,7 @@ Public License instead of this License.  But first, please read
         s.put({ data: box || null, previous: prev || null, key: oldKey || null, at: Date.now() }, "unreadable-" + Date.now());
         s.delete("data");
         s.delete("previous");
+        s.delete("billpw");
         s.put(key, "key");
       });
       this.key = key;
@@ -2830,6 +2832,35 @@ Public License instead of this License.  But first, please read
         this.key = key;
         this.rev = void 0;
       }
+    }
+    // ---------------------------------------------------------------- senhas de fatura (FATURAS.md)
+    // Senhas de PDF de fatura que a pessoa pediu para lembrar, uma por cartão. Só com criptografia
+    // (IndexedDB + WebCrypto): ficam cifradas com a mesma chave não extraível dos dados, num registro
+    // à parte ("billpw"), e nunca vão para o backup. "Apagar tudo" as apaga junto (wipe limpa o banco).
+    get canRememberBillPasswords() {
+      return this.mode === "idb" && !!this.key && !!this.db;
+    }
+    async billPassword(cardId) {
+      const m2 = await __privateMethod(this, _Store_instances, billMap_fn).call(this);
+      return typeof m2[cardId] === "string" ? m2[cardId] : null;
+    }
+    async hasBillPassword(cardId) {
+      return await this.billPassword(cardId) != null;
+    }
+    /** [password] vazio ou null esquece a senha do cartão */
+    async setBillPassword(cardId, password) {
+      if (!this.canRememberBillPasswords) return false;
+      const m2 = await __privateMethod(this, _Store_instances, billMap_fn).call(this);
+      if (password) m2[cardId] = String(password);
+      else delete m2[cardId];
+      if (!Object.keys(m2).length) {
+        await idbTx(this.db, (st2) => st2.delete("billpw"));
+        return true;
+      }
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: enc.encode(BILLPW_AD) }, this.key, enc.encode(JSON.stringify(m2))));
+      await idbTx(this.db, (st2) => st2.put({ v: 1, iv, ct }, "billpw"));
+      return true;
     }
     /** pede ao navegador para não apagar os dados quando faltar espaço */
     static async persist() {
@@ -2874,6 +2905,18 @@ Public License instead of this License.  But first, please read
       l.removeItem(LS_PLAIN);
       if (all) for (const k of LEGACY) l.removeItem(k);
     } catch {
+    }
+  };
+  billMap_fn = async function() {
+    if (!this.canRememberBillPasswords) return {};
+    const box = await idbGet(this.db, "billpw");
+    if (!box) return {};
+    try {
+      const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: box.iv, additionalData: enc.encode(BILLPW_AD) }, this.key, box.ct);
+      const m2 = JSON.parse(dec.decode(pt));
+      return m2 && typeof m2 === "object" ? m2 : {};
+    } catch {
+      return {};
     }
   };
   function readPlain() {
@@ -4031,6 +4074,602 @@ ${xref}
     return { bytes, pages: pen.pages };
   }
 
+  // js/bill.js
+  var SOURCE_LABEL = { boleto: "código do boleto", pix: "Pix copia e cola", text: "texto da fatura" };
+  var digitsOf = (s) => String(s ?? "").replace(/\D/g, "");
+  function mod10(s) {
+    let sum3 = 0, w = 2;
+    for (let i = s.length - 1; i >= 0; i--) {
+      let p = +s[i] * w;
+      if (p > 9) p = Math.floor(p / 10) + p % 10;
+      sum3 += p;
+      w = w === 2 ? 1 : 2;
+    }
+    return (10 - sum3 % 10) % 10;
+  }
+  function weighted11(s) {
+    let sum3 = 0, w = 2;
+    for (let i = s.length - 1; i >= 0; i--) {
+      sum3 += +s[i] * w;
+      w = w === 9 ? 2 : w + 1;
+    }
+    return sum3;
+  }
+  var mod11Bank = (s) => {
+    const dv = 11 - weighted11(s) % 11;
+    return dv === 0 || dv === 10 || dv === 11 ? 1 : dv;
+  };
+  var mod11Utility = (s) => {
+    const r = weighted11(s) % 11;
+    return r === 0 || r === 1 ? 0 : 11 - r;
+  };
+  var OLD_BASE = dayNum("1997-10-07");
+  var NEW_BASE = dayNum("2022-05-29");
+  function dueFromFactor(factor, today2) {
+    if (!(factor > 0)) return null;
+    const t = dayNum(today2), a = OLD_BASE + factor, b = NEW_BASE + factor;
+    return fromDayNum(Math.abs(a - t) <= Math.abs(b - t) ? a : b);
+  }
+  var SEGMENTS = { 1: "Prefeitura", 2: "Água e esgoto", 3: "Energia elétrica e gás", 4: "Telefone e internet", 5: "Órgão do governo", 6: "Carnê ou cobrança", 7: "Multa de trânsito" };
+  var BANKS = {
+    "001": "Banco do Brasil",
+    "004": "Banco do Nordeste",
+    "021": "Banestes",
+    "033": "Santander",
+    "041": "Banrisul",
+    "070": "BRB",
+    "077": "Inter",
+    "104": "Caixa",
+    "197": "Stone",
+    "208": "BTG Pactual",
+    "212": "Banco Original",
+    "237": "Bradesco",
+    "260": "Nubank",
+    "290": "PagBank",
+    "323": "Mercado Pago",
+    "336": "C6 Bank",
+    "341": "Itaú",
+    "380": "PicPay",
+    "389": "Mercantil do Brasil",
+    "403": "Cora",
+    "422": "Safra",
+    "655": "Banco Votorantim",
+    "748": "Sicredi",
+    "756": "Sicoob"
+  };
+  function bankBarcode(b, today2) {
+    if (b[3] !== "9") return null;
+    if (mod11Bank(b.slice(0, 4) + b.slice(5)) !== +b[4]) return null;
+    const value = parseInt(b.slice(9, 19), 10);
+    return { type: "bank", barcode: b, amount: value > 0 ? value : null, due: dueFromFactor(parseInt(b.slice(5, 9), 10), today2), bank: BANKS[b.slice(0, 3)] || null, segment: null };
+  }
+  function bankLine(d, today2) {
+    if (mod10(d.slice(0, 9)) !== +d[9] || mod10(d.slice(10, 20)) !== +d[20] || mod10(d.slice(21, 31)) !== +d[31]) return null;
+    return bankBarcode(d.slice(0, 4) + d[32] + d.slice(33, 47) + d.slice(4, 9) + d.slice(10, 20) + d.slice(21, 31), today2);
+  }
+  function utilityDv(ident, s) {
+    return ident === "6" || ident === "7" ? mod10(s) : ident === "8" || ident === "9" ? mod11Utility(s) : null;
+  }
+  function utilityBarcode(b) {
+    const dv = utilityDv(b[2], b.slice(0, 3) + b.slice(4));
+    if (dv == null || dv !== +b[3]) return null;
+    const value = b[2] === "6" || b[2] === "8" ? parseInt(b.slice(4, 15), 10) : 0;
+    return { type: "utility", barcode: b, amount: value > 0 ? value : null, due: null, bank: null, segment: SEGMENTS[b[1]] || null };
+  }
+  function utilityLine(d) {
+    let bc = "";
+    for (let i = 0; i < 4; i++) {
+      const bl = d.slice(i * 12, i * 12 + 12), dv = utilityDv(d[2], bl.slice(0, 11));
+      if (dv == null || dv !== +bl[11]) return null;
+      bc += bl.slice(0, 11);
+    }
+    return utilityBarcode(bc);
+  }
+  function parseBoleto(input2, today2) {
+    const d = digitsOf(input2);
+    if (d.length === 47) return bankLine(d, today2);
+    if (d.length === 48) return d[0] === "8" ? utilityLine(d) : null;
+    if (d.length === 44) return d[0] === "8" ? utilityBarcode(d) : bankBarcode(d, today2);
+    return null;
+  }
+  function crc16(s) {
+    let crc = 65535;
+    for (const b of new TextEncoder().encode(s)) {
+      crc ^= b << 8;
+      for (let k = 0; k < 8; k++) crc = crc & 32768 ? (crc << 1 ^ 4129) & 65535 : crc << 1 & 65535;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, "0");
+  }
+  function tlv(s) {
+    const out = {};
+    let i = 0;
+    while (i < s.length) {
+      if (i + 4 > s.length) return null;
+      const id = s.slice(i, i + 2), len = +s.slice(i + 2, i + 4);
+      if (!/^\d\d$/.test(s.slice(i + 2, i + 4)) || i + 4 + len > s.length) return null;
+      out[id] = s.slice(i + 4, i + 4 + len);
+      i += 4 + len;
+    }
+    return out;
+  }
+  function parsePix(input2) {
+    const s = String(input2 ?? "").trim();
+    if (!s.startsWith("000201")) return null;
+    const at = s.length - 8;
+    if (at < 6 || s.slice(at, at + 4) !== "6304") return null;
+    if (crc16(s.slice(0, at + 4)) !== s.slice(at + 4).toUpperCase()) return null;
+    const tags = tlv(s);
+    if (!tags || !tags["26"]) return null;
+    const sub = tlv(tags["26"]);
+    if (!sub || String(sub["00"] || "").toLowerCase() !== "br.gov.bcb.pix") return null;
+    let amount = null;
+    const a = tags["54"];
+    if (a && /^\d{1,13}(\.\d{1,2})?$/.test(a)) {
+      const [w, f = ""] = a.split(".");
+      amount = parseInt(w, 10) * 100 + parseInt((f + "00").slice(0, 2), 10);
+    }
+    return { amount: amount > 0 ? amount : null, name: (tags["59"] || "").trim() || null, city: (tags["60"] || "").trim() || null, dynamic: "25" in sub };
+  }
+  var short = (s) => {
+    const t = String(s).replace(/\s+/g, " ").trim();
+    return t.length > 90 ? t.slice(0, 87) + "…" : t;
+  };
+  var fold = (s) => s.toLowerCase().normalize("NFD").replace(/\p{Mn}+/gu, "");
+  var fromPixInfo = (p, raw) => ({ amount: p.amount != null ? { value: p.amount, source: "pix", excerpt: short(raw) } : null, due: null, payee: p.name, segment: null, dynamicPix: p.dynamic && p.amount == null });
+  var fromBoletoInfo = (b, raw) => ({
+    amount: b.amount != null ? { value: b.amount, source: "boleto", excerpt: short(raw) } : null,
+    due: b.due ? { value: b.due, source: "boleto", excerpt: short(raw) } : null,
+    payee: b.bank,
+    segment: b.segment,
+    dynamicPix: false
+  });
+  var isEmptyBill = (i) => !i.amount && !i.due;
+  function billFromCode(input2, today2) {
+    const t = String(input2 ?? "").trim();
+    const p = parsePix(t) || parsePix(t.replace(/[\r\n]/g, ""));
+    if (p) return fromPixInfo(p, t);
+    const b = parseBoleto(t, today2);
+    return b ? fromBoletoInfo(b, t) : null;
+  }
+  var CODE_RUN = /\d[\d .-]{41,80}\d/g;
+  function findBoleto(text, today2) {
+    let best = null;
+    for (const m2 of text.replace(/\n/g, " ").matchAll(CODE_RUN)) {
+      const d = digitsOf(m2[0]);
+      for (const len of [47, 48, 44]) {
+        for (let st2 = 0; st2 + len <= d.length; st2++) {
+          const b = parseBoleto(d.slice(st2, st2 + len), today2);
+          if (!b) continue;
+          const info = fromBoletoInfo(b, m2[0].trim());
+          if (info.amount) return info;
+          if (!best) best = info;
+        }
+      }
+    }
+    return best;
+  }
+  function findPix(text) {
+    for (const v of [text.replace(/[\r\n]/g, ""), text.replace(/\s/g, "")]) {
+      let from = 0;
+      for (; ; ) {
+        const i = v.indexOf("000201", from);
+        if (i < 0) break;
+        for (let k = v.indexOf("6304", i); k >= 0 && k + 8 <= v.length; k = v.indexOf("6304", k + 1)) {
+          const cand = v.slice(i, k + 8), p = parsePix(cand);
+          if (p) return fromPixInfo(p, cand);
+        }
+        from = i + 6;
+      }
+    }
+    return null;
+  }
+  var MONEY = /(?<![\d,.])(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})(?!\d)/g;
+  var AMOUNT_LABELS = [
+    ["total desta fatura", 100],
+    ["total da fatura", 100],
+    ["valor total da fatura", 100],
+    ["total da sua fatura", 100],
+    ["valor da fatura", 95],
+    ["valor total a pagar", 95],
+    ["total a pagar", 90],
+    ["valor a pagar", 90],
+    ["valor do documento", 85],
+    ["valor cobrado", 80],
+    ["pagamento total", 80],
+    ["valor total", 60],
+    ["total geral", 60]
+  ];
+  var AMOUNT_SKIP = ["minimo", "limite", "anterior", "parcelamento", "parcelar", "juros", "encargo", "multa", "iof", "cet ", "rotativo", "disponivel", "saque", "desconto", "proxima", "proximo"];
+  var skips = (s) => AMOUNT_SKIP.some((w) => s.includes(w));
+  var moneyAt = (s, from) => {
+    MONEY.lastIndex = Math.min(from, s.length);
+    const m2 = MONEY.exec(s);
+    return m2;
+  };
+  var moneyOf = (m2) => parseInt(m2[1].replace(/\./g, ""), 10) * 100 + parseInt(m2[2], 10);
+  function findAmount(lines) {
+    let best = null, bestW = -1;
+    const norm = lines.map(fold);
+    norm.forEach((l, i) => {
+      for (const [label, w] of AMOUNT_LABELS) {
+        if (w <= bestW) continue;
+        const at = l.indexOf(label);
+        if (at < 0) continue;
+        if (skips(l.slice(Math.max(0, at - 25), at))) continue;
+        const end = at + label.length;
+        const same = moneyAt(l, end);
+        let v = null;
+        if (same) {
+          if (!skips(l.slice(end, same.index))) v = [moneyOf(same), lines[i]];
+        } else for (let k = 1; k <= 2 && !v; k++) {
+          const n = norm[i + k];
+          if (n == null) break;
+          const m2 = moneyAt(n, 0);
+          if (!m2) continue;
+          if (!skips(n.slice(0, m2.index))) v = [moneyOf(m2), lines[i] + " " + lines[i + k]];
+        }
+        if (v && v[0] > 0) {
+          best = { value: v[0], source: "text", excerpt: short(v[1]) };
+          bestW = w;
+        }
+      }
+    });
+    return best;
+  }
+  var DUE_LABELS = ["data de vencimento", "vencimento", "vence em", "pague ate", "pagar ate", "pagamento ate"];
+  var NUM_DATE = /(?<!\d)(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?!\d)/;
+  var MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  var NAME_DATE = /(?<!\d)(\d{1,2})(?:\s+de)?\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:(?:\s+de)?\s+(\d{4}))?/;
+  function safeDate(y, m2, d) {
+    if (!(y >= 2e3 && y <= 2100 && m2 >= 1 && m2 <= 12 && d >= 1)) return null;
+    if (d > ymLen(y * 12 + m2 - 1)) return null;
+    return `${y}-${pad2(m2)}-${pad2(d)}`;
+  }
+  function dateIn(s, today2) {
+    const f = fold(s), a = NUM_DATE.exec(f), b = NAME_DATE.exec(f);
+    const first = a && (!b || a.index <= b.index) ? a : b;
+    if (!first) return null;
+    if (first === a) {
+      let y = +a[3];
+      if (y < 100) y += 2e3;
+      return safeDate(y, +a[2], +a[1]);
+    }
+    const m2 = MONTH_ABBR.indexOf(b[2]) + 1, d = +b[1];
+    if (b[3]) return safeDate(+b[3], m2, d);
+    const y0 = +today2.slice(0, 4), min = fromDayNum(dayNum(today2) - 60);
+    for (const y of [y0 - 1, y0, y0 + 1]) {
+      const c = safeDate(y, m2, d);
+      if (c && c >= min) return c;
+    }
+    return null;
+  }
+  function findDue(lines, today2) {
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i], l = fold(raw);
+      for (const label of DUE_LABELS) {
+        const at = l.indexOf(label);
+        if (at < 0) continue;
+        const before = l.slice(Math.max(0, at - 25), at);
+        if (before.includes("proxim") || before.includes("anterior") || l.slice(at).startsWith(label + " da fatura anterior")) break;
+        const d0 = dateIn(l.slice(at + label.length), today2);
+        if (d0) return { value: d0, source: "text", excerpt: short(raw) };
+        for (let k = 1; k <= 2; k++) {
+          const n = lines[i + k];
+          if (n == null) break;
+          if (fold(n).includes("proxim")) break;
+          const d = dateIn(n, today2);
+          if (d) return { value: d, source: "text", excerpt: short(raw + " " + n) };
+        }
+        break;
+      }
+    }
+    return null;
+  }
+  function billFromText(text, today2) {
+    const lines = String(text).split("\n").map((l) => l.replace(/ /g, " ").replace(/[ \t]+/g, " ").trim()).filter(Boolean);
+    const boleto = findBoleto(String(text), today2);
+    const pix = boleto?.amount ? null : findPix(String(text));
+    const amount = boleto?.amount || pix?.amount || findAmount(lines);
+    const due = boleto?.due || findDue(lines, today2);
+    return { amount, due, payee: pix?.payee || boleto?.payee || null, segment: boleto?.segment || null, dynamicPix: !!pix?.dynamicPix && !amount };
+  }
+  var BillMatch = {
+    /** mês da fatura do cartão que vence no mês de [due]; sem vencimento, a fatura em aberto (ou a do mês) */
+    invoiceYm(s, c, due, today2) {
+      if (due) {
+        const target = ymOf(due);
+        for (const ym of [target, target - 1, target - 2]) if (ymOf(Finance.invoiceDue(c, ym)) === target) return ym;
+      }
+      return Finance.cardStatus(s, c, today2).current?.ym ?? Finance.invoiceYm(c, today2);
+    },
+    /** total da fatura [ym] no Finan+ (compras do cartão naquele mês de fatura) */
+    appTotal: (s, c, ym) => s.txs.filter((t) => t.cardId === c.id && t.kind === "expense" && Finance.invoiceYm(c, t.date) === ym).reduce((n, t) => n + t.value, 0),
+    /** data de uma compra que cai na fatura [ym]: o dia do fechamento */
+    dateInInvoice: (c, ym) => Finance.invoiceClose(c, ym)
+  };
+
+  // js/billpdf.js
+  var MAX_PAGES = 12;
+  var MAX_BYTES = 25 * 1024 * 1024;
+  var loading = null;
+  function loadPdfJs() {
+    if (globalThis.pdfjsLib) return Promise.resolve(globalThis.pdfjsLib);
+    loading ?? (loading = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "js/vendor/pdfjs.js";
+      s.onload = () => globalThis.pdfjsLib ? resolve(globalThis.pdfjsLib) : reject(new Error("PDF.js não carregou"));
+      s.onerror = () => {
+        loading = null;
+        reject(new Error("Não foi possível carregar o leitor de PDF."));
+      };
+      document.head.append(s);
+    }));
+    return loading;
+  }
+  function linesFromItems(items) {
+    const rows = [];
+    for (const it of items) {
+      if (!it || typeof it.str !== "string" || !it.str.trim()) continue;
+      const x = it.transform?.[4] ?? 0, y = it.transform?.[5] ?? 0, h = Math.abs(it.height || it.transform?.[3] || 10);
+      let row = rows.find((r) => Math.abs(r.y - y) <= Math.max(2, h * 0.4));
+      if (!row) {
+        row = { y, parts: [] };
+        rows.push(row);
+      }
+      row.parts.push({ x, s: it.str });
+    }
+    rows.sort((a, b) => b.y - a.y);
+    return rows.map((r) => r.parts.sort((a, b) => a.x - b.x).map((p) => p.s.trim()).join(" ")).join("\n");
+  }
+  async function readPdfText(bytes, password = "", lib = null) {
+    const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (data.length > MAX_BYTES) return { status: "error", message: "O arquivo é grande demais para uma fatura (mais de 25 MB)." };
+    if (String.fromCharCode(...data.subarray(0, 5)) !== "%PDF-") return { status: "error", message: "Este arquivo não é um PDF." };
+    let pdfjs;
+    try {
+      pdfjs = lib || await loadPdfJs();
+    } catch (e) {
+      return { status: "error", message: e.message };
+    }
+    let doc = null;
+    try {
+      doc = await pdfjs.getDocument({ data: new Uint8Array(data), password: password || void 0, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, stopAtErrors: false, verbosity: 0 }).promise;
+      const parts = [];
+      for (let p = 1; p <= Math.min(doc.numPages, MAX_PAGES); p++) {
+        const page = await doc.getPage(p);
+        const tc = await page.getTextContent();
+        parts.push(linesFromItems(tc.items));
+        page.cleanup();
+      }
+      const text = parts.join("\n");
+      return text.trim() ? { status: "text", text } : { status: "noText" };
+    } catch (e) {
+      if (e?.name === "PasswordException") return { status: password ? "wrongPassword" : "needsPassword" };
+      return { status: "error", message: "Não foi possível ler este PDF. Ele pode estar danificado." };
+    } finally {
+      try {
+        await doc?.destroy();
+      } catch {
+      }
+    }
+  }
+
+  // js/billsheet.js
+  var canRemember = () => typeof ctx.store?.setBillPassword === "function" && !!ctx.store.canRememberBillPasswords;
+  var note2 = (text, warn) => `<p class="infoBox${warn ? " warn" : ""}">${icon(warn ? "warning" : "check", 18)}<span>${esc(text)}</span></p>`;
+  var privacy = () => `<p class="hint billPrivacy">${icon("shield", 16)}<span>Tudo acontece neste aparelho, sem internet. O PDF é lido só na memória e não fica guardado.</span></p>`;
+  function billImportSheet(o = {}) {
+    const st2 = { cardId: o.cardId && card(ctx.state, o.cardId) ? o.cardId : "", bytes: null, vaultFailed: false };
+    chooseStep(st2);
+  }
+  function chooseStep(st2) {
+    const s = ctx.state;
+    const body = `<form id="billForm" novalidate>
+    ${s.cards.length ? field("É a fatura de um cartão?", select("cardId", [["", "Não (boleto ou conta)"], ...s.cards.map((c) => [c.id, c.name])], st2.cardId)) : ""}
+    <div class="sheetActions single">${btn("Escolher PDF", { act: "pick", cls: "primary", icon: "receipt-long" })}</div>
+    ${field("Ou cole o código do boleto ou o Pix copia e cola", `<textarea name="code" rows="2" maxlength="600" autocomplete="off" spellcheck="false"></textarea>`)}
+    <div class="sheetActions single">${btn("Ler código", { submit: true })}</div>
+    ${privacy()}</form>`;
+    const d = openSheet({ title: "Ler fatura ou boleto", subtitle: "O valor e o vencimento saem do PDF ou do código. Você confere antes de salvar.", body });
+    const f = d.querySelector("#billForm");
+    if (f.cardId) f.cardId.onchange = () => {
+      st2.cardId = f.cardId.value;
+      st2.vaultFailed = false;
+    };
+    d.querySelector('[data-act="pick"]').onclick = async () => {
+      const file = await pickFile("application/pdf,.pdf");
+      if (!file) return;
+      if (file.size > MAX_BYTES) return notice("Não foi possível ler", "O arquivo é grande demais para uma fatura (mais de 25 MB).");
+      st2.bytes = new Uint8Array(await file.arrayBuffer());
+      st2.vaultFailed = false;
+      openPdf(st2, null, false);
+    };
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const info = billFromCode(f.code.value, ctx.today);
+      if (!info) return notice("Código não reconhecido", "Confira se copiou a linha digitável inteira (47 ou 48 números) ou o Pix copia e cola completo. Um número errado não passa na conferência.");
+      resultStep(st2, info);
+    };
+  }
+  function busySheet() {
+    openSheet({ title: "Ler fatura ou boleto", body: `<p class="billBusy" role="status"><span class="spinner" aria-hidden="true"></span>Lendo a fatura…</p>` });
+  }
+  async function openPdf(st2, password, fromVault) {
+    busySheet();
+    const r = await readPdfText(st2.bytes, password || "");
+    if (ctx.locked) return;
+    if (r.status === "text") {
+      if (st2.cardId && !fromVault && password && canRemember()) {
+        try {
+          await ctx.store.setBillPassword(st2.cardId, st2.remember ? password : null);
+        } catch {
+        }
+      }
+      st2.bytes = null;
+      return resultStep(st2, billFromText(r.text, ctx.today));
+    }
+    if (r.status === "needsPassword") {
+      const saved = st2.cardId && !st2.vaultFailed && canRemember() ? await ctx.store.billPassword(st2.cardId).catch(() => null) : null;
+      if (saved && password == null) return openPdf(st2, saved, true);
+      st2.remember = !!(st2.cardId && saved);
+      return passwordStep(st2, null);
+    }
+    if (r.status === "wrongPassword") {
+      if (fromVault) {
+        st2.vaultFailed = true;
+        st2.remember = true;
+        return passwordStep(st2, "A senha lembrada não abriu esta fatura. Digite a senha atual.");
+      }
+      return passwordStep(st2, "Senha incorreta. Confira e tente de novo.");
+    }
+    if (r.status === "noText") {
+      st2.bytes = null;
+      await notice("PDF sem texto", "Esta fatura parece ser uma imagem (escaneada). Digite o valor e o vencimento, ou cole o código do boleto.");
+      return resultStep(st2, { amount: null, due: null, payee: null, segment: null, dynamicPix: false });
+    }
+    st2.bytes = null;
+    chooseStep(st2);
+    notice("Não foi possível ler", r.message);
+  }
+  function passwordStep(st2, error) {
+    const c = card(ctx.state, st2.cardId);
+    const remember = c && canRemember();
+    const body = `<form id="pwForm" novalidate>
+    <p>Esta fatura tem senha. Digite para abrir.</p>
+    ${field("Senha do PDF", input("pw", "", { type: "password", max: 64 }), { hint: "Muitos bancos usam os primeiros dígitos do seu CPF." })}
+    <p class="formError" role="alert"${error ? "" : " hidden"}>${esc(error || "")}</p>
+    ${remember ? check("remember", `Lembrar a senha para ${c.name}`, !!st2.remember, { sub: "Fica cifrada só neste aparelho e não vai para o backup. Para esquecer, desmarque aqui ou use “Esquecer senha” no cartão." }) : ""}
+    <div class="sheetActions">${btn("Voltar", { act: "back" })}${btn("Abrir", { submit: true, cls: "primary" })}</div></form>`;
+    const d = openSheet({ title: "Ler fatura ou boleto", body });
+    const f = d.querySelector("#pwForm");
+    setTimeout(() => f.pw.focus(), 0);
+    d.querySelector('[data-act="back"]').onclick = () => {
+      st2.bytes = null;
+      chooseStep(st2);
+    };
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const pw = f.pw.value;
+      if (!pw) {
+        const p = f.querySelector(".formError");
+        p.textContent = "Digite a senha.";
+        p.hidden = false;
+        return;
+      }
+      st2.remember = !!f.remember?.checked;
+      openPdf(st2, pw, false);
+    };
+  }
+  function resultStep(st2, info) {
+    const s = ctx.state, c = card(s, st2.cardId), today2 = ctx.today;
+    const from = (x) => x ? `<small class="hint billFrom">Do ${esc(SOURCE_LABEL[x.source])}: “${esc(x.excerpt)}”</small>` : "";
+    const desc = c ? `Fatura ${c.name}` : info.segment || (info.payee && info.amount?.source === "pix" ? info.payee : "Boleto");
+    const msg2 = isEmptyBill(info) && info.dynamicPix ? "Pix dinâmico: o valor fica no banco de quem cobra e não vem no código. Digite o valor." : isEmptyBill(info) ? "Não encontrei o valor nem o vencimento. Preencha abaixo." : !info.amount ? "Não encontrei o valor. Digite abaixo." : !info.due ? "Não encontrei o vencimento. Confira a data abaixo." : "";
+    const payeeNote = !c && info.payee && info.amount?.source !== "pix" ? `<small class="hint billFrom">Boleto emitido pelo banco ${esc(info.payee)} (nem sempre é quem cobra).</small>` : "";
+    const cats = s.cats.expense;
+    const cat0 = info.segment && cats.includes("Moradia") ? "Moradia" : cats[0];
+    const body = `<form id="billRes" novalidate>
+    ${msg2 ? note2(msg2, true) : ""}
+    ${field("Descrição", input("desc", desc.slice(0, 200), { max: 200 }))}
+    ${field("Valor (R$)", moneyInput("value", info.amount ? Money.input(info.amount.value) : ""))}${from(info.amount)}
+    ${field("Vencimento", input("due", info.due?.value || today2, { type: "date", required: true }))}${from(info.due)}${payeeNote}
+    ${c ? '<div id="cmp" class="billCompare" aria-live="polite"></div><p class="billFrom" id="cardHint"></p><div class="sheetActions" id="cardActs"></div>' : `<div id="catHint"></div>${field("Categoria", select("category", cats.map((x) => [x, x]), cat0))}
+      ${field("Conta", select("accountId", s.accounts.map((a) => [a.id, a.name]), s.accounts[0].id))}
+      ${check("paid", "Já paga", false)}
+      <p class="billFrom" id="pendHint"></p>
+      <div class="sheetActions">${btn("Ler outra", { act: "again" })}${btn("Salvar como conta a pagar", { submit: true, cls: "primary", id: "saveBill" })}</div>`}
+    </form>`;
+    const d = openSheet({ title: "Ler fatura ou boleto", subtitle: "Confira e ajuste antes de salvar.", body });
+    const f = d.querySelector("#billRes");
+    if (c) {
+      const cmp2 = d.querySelector("#cmp"), acts = d.querySelector("#cardActs");
+      const render2 = () => {
+        const due = f.due.value || null, ym = BillMatch.invoiceYm(s, c, due, today2), app = BillMatch.appTotal(s, c, ym);
+        const bank = Money.parse(f.value.value), diff = bank == null ? null : bank - app, mes = brMonthLabel(ym);
+        cmp2.innerHTML = `<b>Fatura de ${esc(mes)} · ${esc(c.name)}</b><span>No Finan+: ${money(app)}</span>${bank != null ? `<span>No PDF: ${money(bank)}</span>` : ""}
+        <strong class="${diff === 0 ? "ok" : diff < 0 ? "bad" : ""}">${diff == null ? "Informe o valor para comparar." : diff === 0 ? "Confere com as compras lançadas." : diff > 0 ? `Faltam ${money(diff)} em compras no Finan+.` : `O Finan+ tem ${money(-diff)} a mais do que o banco. Confira as compras do cartão.`}</strong>`;
+        acts.innerHTML = btn("Ler outra", { act: "again" }) + (diff != null && diff > 0 ? btn(app === 0 ? "Lançar a fatura no cartão" : "Lançar a diferença no cartão", { submit: true, cls: "primary" }) : btn("Fechar", { act: "close", cls: "primary" }));
+        acts.querySelector('[data-act="again"]').onclick = () => chooseStep(st2);
+        acts.querySelector('[data-act="close"]')?.addEventListener("click", () => closeSheet());
+        d.querySelector("#cardHint").textContent = diff > 0 ? `Entra como uma compra na fatura de ${mes}, para o Finan+ bater com o banco.` : "";
+        return { ym, app, diff, mes };
+      };
+      f.value.oninput = render2;
+      f.due.onchange = render2;
+      render2();
+      f.onsubmit = (e) => {
+        e.preventDefault();
+        const { ym, app, diff, mes } = render2();
+        if (!(diff > 0)) return;
+        const cat = s.cats.expense.find((x) => x.toLowerCase() === "outros") || s.cats.expense[0];
+        const draft = {
+          kind: "expense",
+          desc: app === 0 ? f.desc.value.trim() || `Fatura ${c.name}` : `Diferença da fatura ${c.name} (${mes})`,
+          value: Money.input(diff),
+          category: cat,
+          date: BillMatch.dateInInvoice(c, ym),
+          paid: true,
+          accountId: s.accounts[0].id,
+          cardId: c.id
+        };
+        save(Ops.saveTx(ctx.state, null, draft), app === 0 ? "Fatura lançada no cartão" : "Diferença lançada no cartão");
+      };
+      return;
+    }
+    const hintBox = d.querySelector("#catHint");
+    const categorizer = ctx.device?.assistCategory ? new Categorizer(s, "expense", ctx.dict) : null;
+    const hint = () => {
+      const g = categorizer && f.desc.value.trim().length >= 2 ? categorizer.suggest(f.desc.value) : null;
+      if (!g || g.category === f.category.value) {
+        hintBox.innerHTML = "";
+        return;
+      }
+      hintBox.innerHTML = `<div class="catHint">${icon("auto-awesome", 16)}<div><b>Sugestão: ${esc(g.category)}</b></div>${btn("Usar", { act: "use-cat", cls: "primary small" })}</div>`;
+      hintBox.querySelector('[data-act="use-cat"]').onclick = () => {
+        f.category.value = g.category;
+        hint();
+      };
+    };
+    const pend = () => {
+      const paid = f.paid.checked;
+      d.querySelector("#saveBill span").textContent = paid ? "Salvar despesa" : "Salvar como conta a pagar";
+      d.querySelector("#pendHint").textContent = !paid && f.due.value ? `Fica pendente até ${brDate(f.due.value)} e entra nos avisos de vencimento.` : "";
+    };
+    f.desc.oninput = hint;
+    f.category.onchange = hint;
+    f.paid.onchange = pend;
+    f.due.onchange = pend;
+    hint();
+    pend();
+    d.querySelector('[data-act="again"]').onclick = () => chooseStep(st2);
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const draft = { kind: "expense", desc: f.desc.value, value: f.value.value, category: f.category.value, date: f.due.value, paid: f.paid.checked, accountId: f.accountId.value };
+      save(Ops.saveTx(ctx.state, null, draft), f.paid.checked ? "Despesa salva" : "Conta a pagar salva");
+    };
+  }
+  function save(o, msg2) {
+    if (!o.ok) return notice(o.title, o.message);
+    ctx.replace(o.state);
+    closeSheet();
+    toast(msg2);
+  }
+  async function cardHasBillPassword(cardId) {
+    if (!canRemember()) return false;
+    try {
+      return await ctx.store.hasBillPassword(cardId);
+    } catch {
+      return false;
+    }
+  }
+  async function forgetBillPassword(cardId) {
+    if (!canRemember()) return;
+    try {
+      await ctx.store.setBillPassword(cardId, null);
+    } catch {
+    }
+  }
+
   // js/editors.js
   var today = () => ctx.today;
   function apply(o, msg2) {
@@ -4058,7 +4697,7 @@ ${xref}
       }
     });
   }
-  var actions = (save, del) => `<div class="sheetActions">${del ? btn(del, { act: "sheet-delete", cls: "danger" }) : ""}${btn(save, { submit: true, cls: "primary" })}</div>`;
+  var actions = (save2, del) => `<div class="sheetActions">${del ? btn(del, { act: "sheet-delete", cls: "danger" }) : ""}${btn(save2, { submit: true, cls: "primary" })}</div>`;
   var onDelete = (d, fn) => d.querySelector('[data-act="sheet-delete"]')?.addEventListener("click", fn);
   function txEditor(kind = "expense", id = null, date = null) {
     const s = ctx.state, t = id ? s.txs.find((x) => x.id === id) : null;
@@ -4072,6 +4711,7 @@ ${xref}
     };
     const body = `<form id="txForm" novalidate>
     ${isPayment ? `<p class="infoBox">${icon("credit-card", 18)}<span>Pagamento de fatura: debita a conta e abate da fatura do cartão. Não conta como despesa nova.</span></p>` : `<div class="seg" role="tablist" aria-label="Tipo">${[["expense", "Despesa"], ["income", "Receita"]].map(([v, l]) => `<button type="button" role="tab" data-kind="${v}" class="${k === v ? "selected" : ""}" aria-selected="${k === v}">${l}</button>`).join("")}</div>`}
+    ${t ? "" : `<div id="billWrap" class="billShortcut">${btn("Ler fatura ou boleto", { act: "bill", icon: "receipt-long" })}</div>`}
     ${field("Descrição", input("desc", t?.desc ?? "", { placeholder: "Ex.: Mercado", max: 200 }))}
     <div id="catHint"></div>
     ${field("Valor (R$)", moneyInput("value", t ? Money.input(t.value) : ""))}
@@ -4099,6 +4739,8 @@ ${xref}
       d.querySelector("#paidWrap b").textContent = k === "income" ? "Receita já recebida" : "Despesa já paga";
       const r = d.querySelector("#repsModeWrap");
       if (r) r.hidden = !(parseInt(f.reps.value, 10) > 1);
+      const b = d.querySelector("#billWrap");
+      if (b) b.hidden = k !== "expense";
     };
     const hint = () => {
       const box = d.querySelector("#catHint"), c = sug(), desc = f.desc.value;
@@ -4128,6 +4770,7 @@ ${xref}
       sync();
       hint();
     });
+    d.querySelector('[data-act="bill"]')?.addEventListener("click", () => billImportSheet());
     f.payMode.onchange = sync;
     if (f.reps) f.reps.oninput = () => {
       f.reps.value = f.reps.value.replace(/\D/g, "");
@@ -4246,14 +4889,29 @@ ${xref}
     const body = `<form id="f" novalidate>${field("Nome", input("name", c?.name ?? "", { max: 40 }))}
     ${field("Limite (R$)", moneyInput("limit", c ? Money.input(c.limit) : ""))}
     <div class="row2">${field("Fecha dia", input("close", String(c?.close ?? 5), { inputmode: "numeric", max: 2 }))}${field("Vence dia", input("due", String(c?.due ?? 12), { inputmode: "numeric", max: 2 }))}</div>
+    ${c ? `<div class="billShortcut">${btn("Ler a fatura deste cartão (PDF)", { act: "bill", icon: "receipt-long" })}</div>
+      <p class="hint billPw" hidden><span>Senha do PDF da fatura lembrada neste aparelho.</span>${btn("Esquecer senha", { act: "forget-pw", cls: "danger small" })}</p>` : ""}
     ${actions("Salvar", c ? "Excluir cartão" : null)}</form>`;
     const d = openSheet({ title: c ? "Editar cartão" : "Novo cartão", subtitle: "Compras feitas após o dia de fechamento entram na fatura seguinte.", body });
     guard(d.querySelector("#f"), (v) => apply(Ops.saveCard(ctx.state, c?.id ?? null, v.name, v.limit, v.close, v.due), "Cartão salvo"));
+    if (c) {
+      d.querySelector('[data-act="bill"]').onclick = () => billImportSheet({ cardId: c.id });
+      const pwRow = d.querySelector(".billPw");
+      cardHasBillPassword(c.id).then((has) => {
+        pwRow.hidden = !has;
+      });
+      pwRow.querySelector('[data-act="forget-pw"]').onclick = async () => {
+        await forgetBillPassword(c.id);
+        pwRow.hidden = true;
+        toast("Senha esquecida");
+      };
+    }
     onDelete(d, async () => {
       const o = Ops.deleteCard(ctx.state, c.id);
       if (!o.ok) return notice(o.title, o.message);
       if (await ask("Excluir cartão", `Excluir o cartão “${c.name}”?`, { ok: "Excluir", danger: true })) {
         ctx.replace(o.state);
+        forgetBillPassword(c.id);
         closeSheet();
       }
     });
@@ -5096,7 +5754,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     ${a.matches.length ? btn("Ver lançamentos", { act: "open-moves", data: { q: p.category ?? p.words[0] ?? "", from: p.period.from, to: p.period.to, kind: p.kind ?? "" }, cls: "pill small", icon: "chevron-right", iconSize: 16 }) : ""}</div>`;
   }
   var openFolds = /* @__PURE__ */ new Set();
-  function fold(id, title, sub, body, ic) {
+  function fold2(id, title, sub, body, ic) {
     const open = openFolds.has(id);
     return `<section class="fold glass${open ? " open" : ""}" id="fold-${id}">
     <button type="button" class="foldHead" data-act="fold" data-id="${id}" aria-expanded="${open}" aria-controls="foldBody-${id}">
@@ -5107,11 +5765,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   var manage = (title, sub, actions2) => `<div class="manageItem"><div><b>${esc(title)}</b><small>${esc(sub)}</small></div><div class="manageActions">${actions2}</div></div>`;
   function prefsView(env2) {
     const s = ctx.state, d = ctx.device;
-    const appearance = fold("aparencia", "Aparência", `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? " active" : ""}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
+    const appearance = fold2("aparencia", "Aparência", `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? " active" : ""}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
       <span>${esc(label)}${s.theme === id ? icon("check", 16) : ""}</span><span class="swatches t-${id}"><i></i><i></i><i></i><i></i></span></button>`).join("")}</div>
     <p class="muted small">“Sistema” acompanha o modo claro/escuro do aparelho.</p>`, "palette");
     const hasPin = !!d.pinHash;
-    const privacy = fold("privacidade", "Privacidade e segurança", (hasPin ? "Bloqueio ativo" : "Bloqueio desativado") + (s.privacy ? " · valores ocultos" : ""), `
+    const privacy2 = fold2("privacidade", "Privacidade e segurança", (hasPin ? "Bloqueio ativo" : "Bloqueio desativado") + (s.privacy ? " · valores ocultos" : ""), `
     <div class="manageItem"><div><b>Bloqueio por PIN</b><small>${hasPin ? "Ativo: o PIN é pedido ao abrir o Finan+" : "Desativado. Defina um PIN de 4 a 8 números."}</small></div>
       <div class="manageActions">${btn(hasPin ? "Remover PIN" : "Definir PIN", { act: hasPin ? "pin-remove" : "pin-set", cls: "soft small" })}${hasPin ? btn("Trocar", { act: "pin-set", cls: "soft small" }) : ""}</div></div>
     ${check("privacy", "Ocultar valores", s.privacy, { sub: "Esconde os valores em reais na tela e nos avisos (Ctrl+H)" })}
@@ -5120,36 +5778,36 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     <div class="infoBox">${icon("lock", 18)}<p>${env2.remote ? "Modo remoto: os dados ficam no celular (criptografados lá) e chegam por conexão criptografada (HTTPS). Nada financeiro é gravado neste navegador; o PIN abaixo vale só para ele." : env2.encrypted ? "Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores." : "Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia."} O PIN nunca vai para o backup.</p></div>
     <p class="muted small">Navegadores não permitem bloquear capturas de tela. Ao compartilhar a tela, ligue “Ocultar valores”.</p>`, "shield");
     const nperm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
-    const notif = env2.remote ? fold("avisos", "Avisos de vencimento", "Feitos pelo celular", `
+    const notif = env2.remote ? fold2("avisos", "Avisos de vencimento", "Feitos pelo celular", `
     <p class="muted small">No modo remoto, os avisos de vencimento chegam pelo próprio celular.</p>
-    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
+    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold2("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
     ${check("notifications", "Avisar vencimentos", d.notifications && nperm === "granted", { sub: "Contas a pagar, valores a receber e faturas, uma vez por dia a partir das 9h, com o Finan+ aberto", disabled: nperm === "unsupported" })}
     ${nperm === "denied" ? '<p class="muted small">As notificações estão bloqueadas para este site. Libere nas configurações do navegador.</p>' : ""}
     ${nperm === "unsupported" ? '<p class="muted small">Este navegador não oferece notificações.</p>' : ""}
     ${btn("Avisar agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}
     <p class="muted small">Sites não podem rodar com o navegador fechado sem um servidor. Para manter tudo no aparelho, os avisos aparecem quando o Finan+ é aberto (ou fica aberto) a partir das 9h. O cartão “Vencimentos” do Início mostra os próximos 30 dias.</p>`, "notifications");
     const n = [d.assistCategory, d.assistTips, d.assistAsk].filter(Boolean).length;
-    const assist = fold("assistente", "Assistente", `${n} de 3 funções ligadas`, `
+    const assist = fold2("assistente", "Assistente", `${n} de 3 funções ligadas`, `
     <p class="muted small">Funciona só neste aparelho, sem internet e sem enviar dados. Cada função pode ser desligada.</p>
     ${check("assistCategory", "Sugerir categoria", d.assistCategory, { sub: "Ao digitar a descrição de um lançamento novo" })}
     ${check("assistTips", "Resumo e dicas", d.assistTips, { sub: "No Início: resumo do mês, gastos fora do padrão, fixos, duplicados" })}
     ${check("assistAsk", "Perguntas rápidas", d.assistAsk, { sub: "Ex.: “quanto gastei com mercado em agosto?”" })}
     ${d.dismissedTips.length ? btn(`Restaurar ${d.dismissedTips.length} dica(s) dispensada(s)`, { act: "restore-all-tips", cls: "soft small" }) : ""}
     <details class="learned"><summary>${icon("expand-more", 18)}Ver o que o assistente aprendeu</summary>${learnedHtml()}</details>`, "auto-awesome");
-    const accounts = fold("contas", "Contas e cartões", `${s.accounts.length} conta(s) · ${s.cards.length} cartão(ões)`, `
+    const accounts = fold2("contas", "Contas e cartões", `${s.accounts.length} conta(s) · ${s.cards.length} cartão(ões)`, `
     <div class="manageList">${s.accounts.map((a) => manage(a.name, `Saldo ${money(Finance.accountBalance(s, a))}`, btn("Editar", { act: "edit-account", data: { id: a.id }, cls: "soft small" }))).join("")}
     ${s.cards.map((c) => {
       const st2 = Finance.cardStatus(s, c, ctx.today);
       return manage(`Cartão ${c.name}`, `Limite ${money(c.limit)} · usado ${money(st2.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn("Editar", { act: "edit-card", data: { id: c.id }, cls: "soft small" }));
     }).join("")}</div>
     <div class="btnGrid">${btn("Conta", { act: "new-account", icon: "add", iconSize: 18 })}${btn("Cartão", { act: "new-card", icon: "add", iconSize: 18 })}</div>`, "account-balance-wallet");
-    const recurring = fold("recorrencias", "Recorrências", s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : "Nenhuma recorrência cadastrada", `
+    const recurring = fold2("recorrencias", "Recorrências", s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : "Nenhuma recorrência cadastrada", `
     <div class="foldTools">${btn("Nova", { act: "new-recurring", icon: "add", iconSize: 18, cls: "soft small" })}</div>
     ${s.recurring.length ? `<div class="manageList">${s.recurring.map((r) => {
       const where = r.cardId ? `Cartão ${card(s, r.cardId)?.name ?? ""}` : account(s, r.accountId)?.name ?? "";
       return manage(r.desc, `${r.kind === "income" ? "Receita" : "Despesa"} · ${money(r.value)} · dia ${r.day} · ${r.category} · ${where}${r.active ? "" : " · pausada"}`, btn("Editar", { act: "edit-recurring", data: { id: r.id }, cls: "soft small" }));
     }).join("")}</div>` : '<p class="muted small">Você também pode marcar “Repetir mensalmente” ao criar um lançamento.</p>'}`, "repeat");
-    const limits = fold("limites", "Limites mensais", s.limits.size ? `${s.limits.size} limite(s) definido(s)` : "Nenhum limite definido", `
+    const limits = fold2("limites", "Limites mensais", s.limits.size ? `${s.limits.size} limite(s) definido(s)` : "Nenhum limite definido", `
     <div class="foldTools">${btn("Adicionar", { act: "new-limit", icon: "add", iconSize: 18, cls: "soft small" })}</div>
     ${s.limits.size ? `<div class="manageList">${[...s.limits].map(([c, v]) => manage(c, `${money(v)} por mês`, btn("Editar", { act: "edit-limit", data: { cat: c }, cls: "soft small" }))).join("")}</div>` : '<p class="muted small">Defina apenas os limites que quiser acompanhar. Despesas pendentes do mês também contam.</p>'}`, "donut-large");
     const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map((c) => manage(
@@ -5157,18 +5815,18 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       `${k === "expense" ? "Despesa" : "Receita"}${categoryUse(k, c)}`,
       btn("", { act: "rename-cat", data: { kind: k, cat: c }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Renomear ${c}` }) + btn("", { act: "delete-cat", data: { kind: k, cat: c }, cls: "icon tiny dangerIc", icon: "delete", iconSize: 16, label: `Excluir ${c}` })
     )).join("")}</div>`;
-    const cats = fold("categorias", "Categorias", `${s.cats.expense.length + s.cats.income.length} categorias cadastradas`, `
+    const cats = fold2("categorias", "Categorias", `${s.cats.expense.length + s.cats.income.length} categorias cadastradas`, `
     <form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== "income" ? " selected" : ""}>Despesa</option><option value="income"${ctx.catKind === "income" ? " selected" : ""}>Receita</option></select>
     ${btn("Adicionar categoria", { submit: true, cls: "primary wide" })}</form>${catList("expense", "Despesas")}${catList("income", "Receitas")}`, "category");
-    const data = fold("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
+    const data = fold2("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
     <div class="btnGrid">${btn("Exportar CSV", { act: "csv", icon: "table-view", iconSize: 18 })}${btn("Backup JSON", { act: "backup", icon: "download", iconSize: 18 })}
     ${btn("Restaurar", { act: "restore", icon: "upload", iconSize: 18 })}${btn("Relatório em PDF", { act: "pdf", icon: "picture-as-pdf", iconSize: 18 })}
     ${env2.remote ? "" : btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
     <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, "database");
-    const about = fold("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
+    const about = fold2("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
     const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.remote ? "Tudo é salvo no celular, pela rede local." : env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
-    const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
-    return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
+    const left = [appearance, privacy2, notif, assist, about], right = [accounts, recurring, limits, cats, data];
+    return head + (ctx.cols === 1 ? [appearance, privacy2, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
   }
   function categoryUse(k, c) {
     const n = ctx.state.txs.filter((t) => t.kind === k && t.category === c).length;

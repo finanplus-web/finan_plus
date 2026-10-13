@@ -14,6 +14,7 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 - Calendário de lançamentos: [CALENDARIO.md](CALENDARIO.md)
 - Recorrências nos próximos meses ("Previsto"): [RECORRENCIAS.md](RECORRENCIAS.md)
 - Simulador "E se…?": [SIMULADOR.md](SIMULADOR.md)
+- Ler fatura ou boleto (PDF com senha, linha digitável e Pix): [FATURAS.md](FATURAS.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - O que foi feito nesta versão: [CHANGELOG.md](CHANGELOG.md)
 
@@ -99,7 +100,7 @@ tools/demo-data.js        dados fictícios para capturas de tela
 licenca/, third_party/    licenças e créditos
 ```
 
-Nenhuma biblioteca é carregada pelo app. As dependências de desenvolvimento são o `esbuild` (MIT), que só junta os arquivos, e o `fake-indexeddb` (Apache 2.0), usado nos testes; nenhuma delas vai para o app.
+Uma biblioteca vai junto com o app: o **PDF.js** da Mozilla (Apache 2.0), em `js/vendor/pdfjs.js`, carregado só quando a pessoa usa "Ler fatura ou boleto" (ver [FATURAS.md](FATURAS.md) e `third_party/pdfjs/`). Ela é gerada a partir do pacote `pdfjs-dist` com `npm run vendor:pdfjs`. As outras dependências de desenvolvimento são o `esbuild` (MIT), que só junta os arquivos, e o `fake-indexeddb` (Apache 2.0), usado nos testes; essas não vão para o app.
 
 ## Licença
 
@@ -107,6 +108,6 @@ Finan+ — Copyright (C) 2026 Juscelino Be.
 
 Software livre sob a **GNU GPL v3 ou posterior** (`GPL-3.0-or-later`). O texto completo está em `LICENSE` e dentro do app, em *Ajustes › Sobre*. Todos os arquivos de código trazem o aviso de copyright e `SPDX-License-Identifier: GPL-3.0-or-later`.
 
-Ícone do app (F+): desenho próprio do Finan+, GPL-3.0-or-later, com as fontes em vetor em [`docs/icone/`](docs/icone/). Ícones da interface: Material Symbols Rounded, © Google, Licença Apache 2.0 (compatível com a GPL v3). Detalhes em `third_party/material-symbols/`. Larguras das fontes padrão do PDF: métricas AFM públicas da Adobe, ver `third_party/adobe-core14-metrics/`.
+Ícone do app (F+): desenho próprio do Finan+, GPL-3.0-or-later, com as fontes em vetor em [`docs/icone/`](docs/icone/). Ícones da interface: Material Symbols Rounded, © Google, Licença Apache 2.0 (compatível com a GPL v3). Detalhes em `third_party/material-symbols/`. Larguras das fontes padrão do PDF: métricas AFM públicas da Adobe, ver `third_party/adobe-core14-metrics/`. Leitura de faturas em PDF: Mozilla PDF.js, Licença Apache 2.0, ver `third_party/pdfjs/`.
 
 Finan+ é um projeto independente idealizado e desenvolvido por Juscelino Be, com auxílio de inteligência artificial na implementação, revisão e evolução do código.

@@ -70,6 +70,7 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 - **Repetir mensalmente**: cria uma recorrência a partir da data.
 - **Sugestão de categoria** do assistente abaixo da descrição, com "Usar" e "Por quê?".
 - Pagamento de fatura editado mostra o aviso "não conta como despesa nova".
+- **Ler fatura ou boleto** (despesa nova): preenche valor e vencimento a partir de uma fatura em PDF (inclusive com senha), da linha digitável do boleto ou do Pix copia e cola. Você confere de onde cada valor saiu antes de salvar ([FATURAS.md](FATURAS.md)).
 - Validações com as mesmas mensagens do app Android ("Informe uma descrição.", "Informe um valor maior que zero. Ex.: 59,90"…).
 
 ## Cartões, faturas e recorrências
@@ -77,6 +78,7 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 - Dia de fechamento e de vencimento; compras após o fechamento vão para a fatura seguinte.
 - O limite usado inclui parcelas futuras; os pagamentos abatem primeiro a fatura mais antiga.
 - "Pagar fatura" registra o pagamento debitando a conta escolhida, sem contar como despesa nova.
+- **Ler a fatura deste cartão (PDF)**: compara o total do banco com a fatura calculada pelo Finan+ e lança a diferença no cartão. A senha do PDF pode ser lembrada só neste aparelho, cifrada, e esquecida no próprio cartão ([FATURAS.md](FATURAS.md)).
 - Recorrências geradas na abertura e na virada do dia. Meses em que o app ficou fechado são recuperados (até 24 de uma vez), nunca antes da data de início. Dia 31 vira o último dia em meses curtos. Recorrências podem ser pausadas. Nos meses que ainda não chegaram, aparecem como **Previsto** no calendário, na Lista e no saldo previsto, sem serem gravadas ([RECORRENCIAS.md](RECORRENCIAS.md)).
 
 ## Relatórios

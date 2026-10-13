@@ -10,11 +10,13 @@
     "test": "node --test tests/*.test.mjs",
     "build": "node tools/build.mjs",
     "site": "node tools/site.mjs",
-    "preview": "npm run build && npm run site && python3 -m http.server 8000 --directory _site"
+    "preview": "npm run build && npm run site && python3 -m http.server 8000 --directory _site",
+    "vendor:pdfjs": "node tools/vendor-pdfjs.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",
-    "fake-indexeddb": "^6.2.5"
+    "fake-indexeddb": "^6.2.5",
+    "pdfjs-dist": "^5.7.284"
   },
   "engines": {
     "node": ">=20"

@@ -9,6 +9,8 @@ const VERSION = 'finan-plus-web-1.1.2';
 const FILES = [
   './', './index.html', './style.css', './manifest.webmanifest',
   './js/app.bundle.js',
+  // leitor de PDF de "Ler fatura ou boleto" (carregado só quando usado, mas guardado para funcionar sem internet)
+  './js/vendor/pdfjs.js',
   './assistente/dicionario.txt', './licenca/LICENSE.txt', './licenca/APACHE-2.0.txt',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-192-maskable.png', './icons/icon-512-maskable.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png', './icons/badge-96.png',
