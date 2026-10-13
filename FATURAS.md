@@ -54,7 +54,7 @@ Ao digitar a senha da fatura de um cartão, dá para marcar **Lembrar a senha pa
 |---|---|
 | Android | Cifrada com AES-256-GCM por uma chave própria do Android Keystore (`BillPasswords`) |
 | Web (PWA) | Cifrada com AES-256-GCM pela mesma chave não extraível dos dados, num registro à parte do IndexedDB (`billpw`). Sem criptografia disponível no navegador, a opção não aparece |
-| Linux | Cifrada com AES-256-GCM pela mesma chave do arquivo de dados, num arquivo à parte (`faturas.dat`) |
+| Linux | Cifrada com XChaCha20-Poly1305 (libsodium) pela mesma chave do arquivo de dados (que fica no chaveiro do sistema), num arquivo à parte (`faturas.fin`) |
 
 ## O que ainda não faz
 
