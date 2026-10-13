@@ -11,6 +11,7 @@ import { hashPin, verifyPin, pinValidFormat } from './store.js';
 import { icon } from './icons.js';
 import { esc, attr, openSheet, closeSheet, notice, confirmDlg, ask, promptDlg, field, input, moneyInput, select, check, btn, formData, toast, why } from './ui.js';
 import { ctx, money, APP_VERSION } from './ctx.js';
+import { billImportSheet, cardHasBillPassword, forgetBillPassword } from './billsheet.js';
 
 const today = () => ctx.today;
 /** aplica a operação: sucesso fecha a folha; erro mostra a mensagem e mantém o formulário */
@@ -45,6 +46,7 @@ export function txEditor(kind = 'expense', id = null, date = null) {
   const body = `<form id="txForm" novalidate>
     ${isPayment ? `<p class="infoBox">${icon('credit-card', 18)}<span>Pagamento de fatura: debita a conta e abate da fatura do cartão. Não conta como despesa nova.</span></p>`
     : `<div class="seg" role="tablist" aria-label="Tipo">${[['expense', 'Despesa'], ['income', 'Receita']].map(([v, l]) => `<button type="button" role="tab" data-kind="${v}" class="${k === v ? 'selected' : ''}" aria-selected="${k === v}">${l}</button>`).join('')}</div>`}
+    ${t ? '' : `<div id="billWrap" class="billShortcut">${btn('Ler fatura ou boleto', { act: 'bill', icon: 'receipt-long' })}</div>`}
     ${field('Descrição', input('desc', t?.desc ?? '', { placeholder: 'Ex.: Mercado', max: 200 }))}
     <div id="catHint"></div>
     ${field('Valor (R$)', moneyInput('value', t ? Money.input(t.value) : ''))}
@@ -72,6 +74,9 @@ export function txEditor(kind = 'expense', id = null, date = null) {
     d.querySelector('#paidWrap b').textContent = k === 'income' ? 'Receita já recebida' : 'Despesa já paga';
     const r = d.querySelector('#repsModeWrap');
     if (r) r.hidden = !(parseInt(f.reps.value, 10) > 1);
+    // atalho: preencher a partir de uma fatura em PDF, linha digitável do boleto ou Pix copia e cola (FATURAS.md)
+    const b = d.querySelector('#billWrap');
+    if (b) b.hidden = k !== 'expense';
   };
   const hint = () => {
     const box = d.querySelector('#catHint'), c = sug(), desc = f.desc.value;
@@ -91,6 +96,7 @@ export function txEditor(kind = 'expense', id = null, date = null) {
     if (cats(k).includes(cur)) f.category.value = cur;
     sync(); hint();
   });
+  d.querySelector('[data-act="bill"]')?.addEventListener('click', () => billImportSheet());
   f.payMode.onchange = sync;
   if (f.reps) f.reps.oninput = () => { f.reps.value = f.reps.value.replace(/\D/g, ''); sync(); };
   f.desc.oninput = hint;
@@ -168,13 +174,22 @@ export function cardEditor(id = null) {
   const body = `<form id="f" novalidate>${field('Nome', input('name', c?.name ?? '', { max: 40 }))}
     ${field('Limite (R$)', moneyInput('limit', c ? Money.input(c.limit) : ''))}
     <div class="row2">${field('Fecha dia', input('close', String(c?.close ?? 5), { inputmode: 'numeric', max: 2 }))}${field('Vence dia', input('due', String(c?.due ?? 12), { inputmode: 'numeric', max: 2 }))}</div>
+    ${c ? `<div class="billShortcut">${btn('Ler a fatura deste cartão (PDF)', { act: 'bill', icon: 'receipt-long' })}</div>
+      <p class="hint billPw" hidden><span>Senha do PDF da fatura lembrada neste aparelho.</span>${btn('Esquecer senha', { act: 'forget-pw', cls: 'danger small' })}</p>` : ''}
     ${actions('Salvar', c ? 'Excluir cartão' : null)}</form>`;
   const d = openSheet({ title: c ? 'Editar cartão' : 'Novo cartão', subtitle: 'Compras feitas após o dia de fechamento entram na fatura seguinte.', body });
   guard(d.querySelector('#f'), v => apply(Ops.saveCard(ctx.state, c?.id ?? null, v.name, v.limit, v.close, v.due), 'Cartão salvo'));
+  if (c) {
+    d.querySelector('[data-act="bill"]').onclick = () => billImportSheet({ cardId: c.id });
+    // senha do PDF da fatura lembrada só neste aparelho (FATURAS.md): dá para esquecer a qualquer momento
+    const pwRow = d.querySelector('.billPw');
+    cardHasBillPassword(c.id).then(has => { pwRow.hidden = !has; });
+    pwRow.querySelector('[data-act="forget-pw"]').onclick = async () => { await forgetBillPassword(c.id); pwRow.hidden = true; toast('Senha esquecida'); };
+  }
   onDelete(d, async () => {
     const o = Ops.deleteCard(ctx.state, c.id);
     if (!o.ok) return notice(o.title, o.message);
-    if (await ask('Excluir cartão', `Excluir o cartão “${c.name}”?`, { ok: 'Excluir', danger: true })) { ctx.replace(o.state); closeSheet(); }
+    if (await ask('Excluir cartão', `Excluir o cartão “${c.name}”?`, { ok: 'Excluir', danger: true })) { ctx.replace(o.state); forgetBillPassword(c.id); closeSheet(); }
   });
 }
 

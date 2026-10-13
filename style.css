@@ -644,3 +644,18 @@ dialog{color:var(--text)}
 .startCard{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;border-radius:20px;text-align:left;min-width:0}
 .startCard .badge{width:40px;height:40px;border-radius:13px}
 .startCard b{font-size:14.5px}.startCard small{font-size:12.5px;line-height:1.35;color:var(--muted)}
+
+/* ---- Ler fatura ou boleto (FATURAS.md) */
+.billShortcut{margin:2px 0 6px}.billShortcut .btn{width:100%}
+.sheetActions.single{justify-content:stretch}.sheetActions.single .btn{flex:1}
+.infoBox.warn .ic{color:var(--warn)}
+.billFrom{margin:-2px 4px 6px;font-weight:500;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.billPrivacy{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-weight:500;margin-top:14px}.billPrivacy .ic{color:var(--accent);flex:none}
+.billBusy{display:flex;align-items:center;justify-content:center;gap:10px;padding:28px 0;color:var(--muted)}
+.billBusy .spinner{width:20px;height:20px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--accent) 25%,transparent);border-top-color:var(--accent);animation:billSpin .8s linear infinite}
+@keyframes billSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.billBusy .spinner{animation-duration:2.4s}}
+.formError{color:var(--red);font-size:13px;font-weight:600;margin:0 4px 8px}
+.billCompare{display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:16px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:8px 0}
+.billCompare span{color:var(--muted);font-size:14px}.billCompare strong.ok{color:var(--green)}.billCompare strong.bad{color:var(--red)}
+.billPw{display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:500}.billPw span{flex:1}

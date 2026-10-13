@@ -21,6 +21,7 @@ const LS_PLAIN = 'finanplus_plain';
 const LS_DEVICE = 'finanplus_device';
 const LEGACY = ['mf_v2', 'mf_txs'];
 const enc = new TextEncoder(), dec = new TextDecoder();
+const BILLPW_AD = 'finan-plus/billpw/v1';
 
 function b64e(u) { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
 const hasCrypto = () => typeof crypto !== 'undefined' && !!crypto.subtle && typeof crypto.getRandomValues === 'function';
@@ -210,7 +211,7 @@ export class Store {
     const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     await idbTx(this.db, s => {
       s.put({ data: box || null, previous: prev || null, key: oldKey || null, at: Date.now() }, 'unreadable-' + Date.now());
-      s.delete('data'); s.delete('previous'); s.put(key, 'key');
+      s.delete('data'); s.delete('previous'); s.delete('billpw'); s.put(key, 'key');
     });
     this.key = key; this.locked = false; this.rev = undefined;
   }
@@ -232,6 +233,36 @@ export class Store {
       await idbTx(this.db, s => { s.clear(); s.put(key, 'key'); });
       this.key = key; this.rev = undefined;
     }
+  }
+
+  // ---------------------------------------------------------------- senhas de fatura (FATURAS.md)
+  // Senhas de PDF de fatura que a pessoa pediu para lembrar, uma por cartão. Só com criptografia
+  // (IndexedDB + WebCrypto): ficam cifradas com a mesma chave não extraível dos dados, num registro
+  // à parte ("billpw"), e nunca vão para o backup. "Apagar tudo" as apaga junto (wipe limpa o banco).
+  get canRememberBillPasswords() { return this.mode === 'idb' && !!this.key && !!this.db; }
+
+  async #billMap() {
+    if (!this.canRememberBillPasswords) return {};
+    const box = await idbGet(this.db, 'billpw');
+    if (!box) return {};
+    try {
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: box.iv, additionalData: enc.encode(BILLPW_AD) }, this.key, box.ct);
+      const m = JSON.parse(dec.decode(pt));
+      return m && typeof m === 'object' ? m : {};
+    } catch { return {}; }
+  }
+  async billPassword(cardId) { const m = await this.#billMap(); return typeof m[cardId] === 'string' ? m[cardId] : null; }
+  async hasBillPassword(cardId) { return (await this.billPassword(cardId)) != null; }
+  /** [password] vazio ou null esquece a senha do cartão */
+  async setBillPassword(cardId, password) {
+    if (!this.canRememberBillPasswords) return false;
+    const m = await this.#billMap();
+    if (password) m[cardId] = String(password); else delete m[cardId];
+    if (!Object.keys(m).length) { await idbTx(this.db, st => st.delete('billpw')); return true; }
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(BILLPW_AD) }, this.key, enc.encode(JSON.stringify(m))));
+    await idbTx(this.db, st => st.put({ v: 1, iv, ct }, 'billpw'));
+    return true;
   }
 
   /** pede ao navegador para não apagar os dados quando faltar espaço */

@@ -1,5 +1,29 @@
 # Changelog — Finan+ web (PWA)
 
+## Ler fatura ou boleto (13/10/2026, ainda não publicado)
+
+Novo: o Finan+ lê o **valor** e o **vencimento** de uma fatura em PDF, de uma **linha digitável de boleto** ou de um **Pix copia e cola**, e preenche o lançamento para você conferir. Tudo no navegador, sem internet. Detalhes em [FATURAS.md](FATURAS.md). O mesmo foi feito no app Android e no Linux.
+
+- **Onde:** Novo lançamento (despesa) › **Ler fatura ou boleto**, e no cartão › **Ler a fatura deste cartão (PDF)**.
+- **Boleto e Pix:** a linha digitável (bancário, 47 números, e arrecadação, 48) e o Pix copia e cola têm os dígitos verificadores e o CRC conferidos; o valor e o vencimento saem do próprio código. O fator de vencimento considera a virada de 22/02/2025.
+- **Texto da fatura:** rótulos como "Total desta fatura" e "Vencimento", ignorando pagamento mínimo, limite, fatura anterior e próximo vencimento. Embaixo de cada valor aparece o trecho de onde ele saiu.
+- **PDF com senha:** o app pede a senha e abre o arquivo só na memória; nunca tenta adivinhar. PDF com proteção só contra cópia abre sem senha. A senha pode ser **lembrada por cartão** (desligado por padrão), cifrada com a chave dos dados num registro à parte do IndexedDB, fora do backup; dá para esquecer no cartão, e "Apagar tudo" apaga junto.
+- **Boleto ou conta** vira despesa pendente no vencimento (ou já paga). **Fatura de cartão** é comparada com a fatura calculada pelo Finan+ e a diferença pode ser lançada no cartão.
+- **PDF.js** da Mozilla (Apache 2.0) embutido em `js/vendor/pdfjs.js` (1,7 MB), carregado só quando o recurso é usado e guardado pelo service worker para funcionar offline. Roda na própria página, então também funciona abrindo da pasta (`file://`). A página continua sem `eval` (`isEvalSupported: false`).
+- PDF só imagem (escaneado) mostra o aviso "PDF sem texto": a leitura de imagens (OCR) fica para uma próxima etapa.
+
+| Arquivo | Mudança |
+|---|---|
+| `js/bill.js` | Novo: boleto, Pix, leitura do texto e comparação com a fatura do cartão |
+| `js/billpdf.js` | Novo: abre o PDF com o PDF.js (com senha) e junta o texto em linhas |
+| `js/billsheet.js` | Novo: a tela "Ler fatura ou boleto" |
+| `js/editors.js` | Atalho no novo lançamento; no cartão, "Ler a fatura deste cartão" e "Esquecer senha" |
+| `js/store.js` | Senhas lembradas cifradas (`billpw`), apagadas em "Começar do zero" e "Apagar tudo" |
+| `js/vendor/pdfjs.js`, `tools/vendor-pdfjs.mjs`, `third_party/pdfjs/` | PDF.js 5.7.284 embutido e como gerá-lo (`npm run vendor:pdfjs`) |
+| `sw.js` | Guarda o PDF.js para uso offline |
+| `style.css` | Estilos da tela (no fim do arquivo) |
+| `tests/bill.test.mjs`, `tests/fixtures/faturas/` | 19 testes, incluindo PDFs de exemplo com e sem senha (fatura fictícia) |
+
 ## Temas Gruvbox e Gruvbox OLED no lugar do Material You (12/10/2026)
 
 - **Novos temas:** **Gruvbox** (fundo `#282828`, cartões `#32302f`, texto creme `#ebdbb2`, destaque azul `#83a598`, verde `#b8bb26`, vermelho `#fb4934`) e **Gruvbox OLED** (as mesmas cores sobre preto puro, com cartões quase pretos e borda fina).
