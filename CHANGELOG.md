@@ -2,6 +2,7 @@
 
 ## Próxima versão — ajustes (13/10/2026)
 
+- **Botões do mesmo tamanho:** o botão secundário (claro) ficava mais baixo que o principal quando os dois estavam lado a lado (ex.: "Ler outra" e "Salvar como conta a pagar", "Despesa" e "Receita" no topo). A classe `.soft` das caixas de texto dava uma margem vertical também ao botão; agora `.btn.soft` e os botões de `.sheetActions` não têm margem e ocupam a mesma altura. Só `style.css` mudou.
 - **Ler fatura ou boleto, ajustes na tela de conferência:** quando o valor e o vencimento vêm do mesmo código do boleto, o trecho aparece uma vez só ("Valor e vencimento do código do boleto"); a categoria começa em **Outros** (ou Moradia para conta de consumo, ou a sugerida pelo assistente) em vez de Alimentação; na fatura de cartão sem nenhuma compra lançada, o aviso diz "Nenhuma compra deste cartão lançada nesta fatura no Finan+" em vez de "Faltam R$ X em compras".
 
 ## Ler fatura ou boleto (13/10/2026, ainda não publicado)
