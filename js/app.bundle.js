@@ -4562,17 +4562,18 @@ ${xref}
   }
   function resultStep(st2, info) {
     const s = ctx.state, c = card(s, st2.cardId), today2 = ctx.today;
-    const from = (x) => x ? `<small class="hint billFrom">Do ${esc(SOURCE_LABEL[x.source])}: “${esc(x.excerpt)}”</small>` : "";
+    const from = (x, what) => x ? `<small class="hint billFrom">${what} do ${esc(SOURCE_LABEL[x.source])}: “${esc(x.excerpt)}”</small>` : "";
+    const same = info.amount && info.due && info.amount.source === info.due.source && info.amount.excerpt === info.due.excerpt;
     const desc = c ? `Fatura ${c.name}` : info.segment || (info.payee && info.amount?.source === "pix" ? info.payee : "Boleto");
     const msg2 = isEmptyBill(info) && info.dynamicPix ? "Pix dinâmico: o valor fica no banco de quem cobra e não vem no código. Digite o valor." : isEmptyBill(info) ? "Não encontrei o valor nem o vencimento. Preencha abaixo." : !info.amount ? "Não encontrei o valor. Digite abaixo." : !info.due ? "Não encontrei o vencimento. Confira a data abaixo." : "";
     const payeeNote = !c && info.payee && info.amount?.source !== "pix" ? `<small class="hint billFrom">Boleto emitido pelo banco ${esc(info.payee)} (nem sempre é quem cobra).</small>` : "";
     const cats = s.cats.expense;
-    const cat0 = info.segment && cats.includes("Moradia") ? "Moradia" : cats[0];
+    const cat0 = info.segment && cats.includes("Moradia") ? "Moradia" : cats.find((x) => x.toLowerCase() === "outros") || cats[0];
     const body = `<form id="billRes" novalidate>
     ${msg2 ? note2(msg2, true) : ""}
     ${field("Descrição", input("desc", desc.slice(0, 200), { max: 200 }))}
-    ${field("Valor (R$)", moneyInput("value", info.amount ? Money.input(info.amount.value) : ""))}${from(info.amount)}
-    ${field("Vencimento", input("due", info.due?.value || today2, { type: "date", required: true }))}${from(info.due)}${payeeNote}
+    ${field("Valor (R$)", moneyInput("value", info.amount ? Money.input(info.amount.value) : ""))}${same ? "" : from(info.amount, "Valor")}
+    ${field("Vencimento", input("due", info.due?.value || today2, { type: "date", required: true }))}${from(info.due, same ? "Valor e vencimento" : "Vencimento")}${payeeNote}
     ${c ? '<div id="cmp" class="billCompare" aria-live="polite"></div><p class="billFrom" id="cardHint"></p><div class="sheetActions" id="cardActs"></div>' : `<div id="catHint"></div>${field("Categoria", select("category", cats.map((x) => [x, x]), cat0))}
       ${field("Conta", select("accountId", s.accounts.map((a) => [a.id, a.name]), s.accounts[0].id))}
       ${check("paid", "Já paga", false)}
@@ -4587,7 +4588,7 @@ ${xref}
         const due = f.due.value || null, ym = BillMatch.invoiceYm(s, c, due, today2), app = BillMatch.appTotal(s, c, ym);
         const bank = Money.parse(f.value.value), diff = bank == null ? null : bank - app, mes = brMonthLabel(ym);
         cmp2.innerHTML = `<b>Fatura de ${esc(mes)} · ${esc(c.name)}</b><span>No Finan+: ${money(app)}</span>${bank != null ? `<span>No PDF: ${money(bank)}</span>` : ""}
-        <strong class="${diff === 0 ? "ok" : diff < 0 ? "bad" : ""}">${diff == null ? "Informe o valor para comparar." : diff === 0 ? "Confere com as compras lançadas." : diff > 0 ? `Faltam ${money(diff)} em compras no Finan+.` : `O Finan+ tem ${money(-diff)} a mais do que o banco. Confira as compras do cartão.`}</strong>`;
+        <strong class="${diff === 0 ? "ok" : diff < 0 ? "bad" : ""}">${diff == null ? "Informe o valor para comparar." : diff === 0 ? "Confere com as compras lançadas." : diff > 0 && app === 0 ? "Nenhuma compra deste cartão lançada nesta fatura no Finan+." : diff > 0 ? `Faltam ${money(diff)} em compras no Finan+.` : `O Finan+ tem ${money(-diff)} a mais do que o banco. Confira as compras do cartão.`}</strong>`;
         acts.innerHTML = btn("Ler outra", { act: "again" }) + (diff != null && diff > 0 ? btn(app === 0 ? "Lançar a fatura no cartão" : "Lançar a diferença no cartão", { submit: true, cls: "primary" }) : btn("Fechar", { act: "close", cls: "primary" }));
         acts.querySelector('[data-act="again"]').onclick = () => chooseStep(st2);
         acts.querySelector('[data-act="close"]')?.addEventListener("click", () => closeSheet());
