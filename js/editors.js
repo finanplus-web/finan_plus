@@ -35,33 +35,68 @@ function guard(form, fn) {
 const actions = (save, del) => `<div class="sheetActions">${del ? btn(del, { act: 'sheet-delete', cls: 'danger' }) : ''}${btn(save, { submit: true, cls: 'primary' })}</div>`;
 const onDelete = (d, fn) => d.querySelector('[data-act="sheet-delete"]')?.addEventListener('click', fn);
 
+// ------------------------------------------------------------------ adicionar (botão +)
+/** Despesa, Receita ou Nova recorrência (o + do celular, como no app Android) */
+export function addChoiceSheet() {
+  const row = (act, data, ic, cls, title, sub) => `<button type="button" class="choiceRow glass" data-choice="${act}"${data ? ` data-kind="${data}"` : ''}>
+    <span class="tile ${cls}" aria-hidden="true">${icon(ic, 22)}</span><span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon('chevron-right', 20)}</button>`;
+  const d = openSheet({ title: 'Adicionar movimentação', subtitle: 'Escolha o que deseja registrar.', body: `<div class="choiceList">
+    ${row('tx', 'expense', 'arrow-downward', 'out', 'Despesa', 'Dinheiro que saiu')}
+    ${row('tx', 'income', 'arrow-upward', 'in', 'Receita', 'Dinheiro que entrou')}
+    ${row('recurring', '', 'repeat', '', 'Nova recorrência', 'Configure uma movimentação que se repete')}</div>` });
+  d.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
+    if (b.dataset.choice === 'recurring') recurringEditor(); else txEditor(b.dataset.kind);
+  });
+}
+
 // ------------------------------------------------------------------ lançamento
-/** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário); numa data futura ele começa pendente */
+/** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário). Lançamento novo só vem como
+ *  realizado se a data for hoje; trocar a data acompanha isso até a pessoa escolher a situação por conta própria. */
 export function txEditor(kind = 'expense', id = null, date = null) {
   const s = ctx.state, t = id ? s.txs.find(x => x.id === id) : null;
   if (id && !t) return;
   const isPayment = !!t?.cardPayment;
   let k = t?.kind ?? kind;
+  const startDate = t?.date ?? date ?? today();
+  let paid = t ? t.paid : Ops.defaultPaid(startDate, today()), touched = false;
   const cats = kk => { const l = [...s.cats[kk]]; if (t && t.kind === kk && !l.includes(t.category)) l.push(t.category); return l; };
+  const titleOf = () => isPayment ? 'Pagamento de fatura' : `${t ? 'Editar' : 'Nova'} ${k === 'income' ? 'receita' : 'despesa'}`;
+  const subOf = () => isPayment ? '' : k === 'income' ? 'Registre uma entrada de dinheiro' : 'Registre uma saída de dinheiro';
   const body = `<form id="txForm" novalidate>
-    ${isPayment ? `<p class="infoBox">${icon('credit-card', 18)}<span>Pagamento de fatura: debita a conta e abate da fatura do cartão. Não conta como despesa nova.</span></p>`
+    ${isPayment ? `<p class="infoBox">${icon('credit-card', 18)}<span>Este pagamento abate o valor da fatura e da conta, sem registrar uma nova despesa.</span></p>`
     : `<div class="seg" role="tablist" aria-label="Tipo">${[['expense', 'Despesa'], ['income', 'Receita']].map(([v, l]) => `<button type="button" role="tab" data-kind="${v}" class="${k === v ? 'selected' : ''}" aria-selected="${k === v}">${l}</button>`).join('')}</div>`}
     ${t ? '' : `<div id="billWrap" class="billShortcut">${btn('Ler fatura ou boleto', { act: 'bill', icon: 'receipt-long' })}</div>`}
-    ${field('Descrição', input('desc', t?.desc ?? '', { placeholder: 'Ex.: Mercado', max: 200 }))}
-    <div id="catHint"></div>
-    ${field('Valor (R$)', moneyInput('value', t ? Money.input(t.value) : ''))}
-    ${field('Categoria', select('category', cats(k).map(c => [c, c]), t?.category ?? s.cats[k][0]))}
-    <div id="payModeWrap">${field('Forma de pagamento', select('payMode', [['account', 'Conta / dinheiro'], ['card', 'Cartão de crédito']], t?.cardId ? 'card' : 'account'))}</div>
-    <div id="cardWrap">${field('Cartão', select('cardId', s.cards.map(c => [c.id, c.name]), t?.cardId || s.cards[0]?.id || ''))}</div>
-    <div id="accWrap">${field(isPayment ? 'Pago com a conta' : 'Conta', select('accountId', s.accounts.map(a => [a.id, a.name]), t?.accountId ?? s.accounts[0].id))}</div>
-    ${field('Data', input('date', t?.date ?? date ?? today(), { type: 'date', required: true }))}
-    <div id="paidWrap">${check('paid', '', t ? t.paid : !(date && date > today()))}</div>
-    ${t ? '' : `<div class="row2">${field('Parcelas', input('reps', '1', { inputmode: 'numeric', max: 2 }), { hint: 'Até 60' })}
-      <div id="repsModeWrap" hidden>${field('O valor informado é', select('repsMode', [['TOTAL', 'O total da compra (divide entre as parcelas)'], ['EACH', 'O valor de cada parcela']], 'TOTAL'))}</div></div>
-      ${check('recurring', 'Repetir mensalmente', false, { sub: 'Cria uma recorrência a partir desta data' })}`}
-    ${actions('Salvar lançamento', t ? 'Excluir lançamento' : null)}</form>`;
-  const d = openSheet({ title: t ? 'Editar lançamento' : 'Novo lançamento', subtitle: isPayment ? '' : 'Registre uma receita ou despesa', body });
+    <div class="formCard valueCard">${field(k === 'income' ? 'Valor da receita (R$)' : 'Valor da despesa (R$)', moneyInput('value', t ? Money.input(t.value) : ''), { id: 'valueField' })}</div>
+    <div class="formCard">
+      <div id="catHint"></div>
+      ${field('Categoria', select('category', cats(k).map(c => [c, c]), t?.category ?? s.cats[k][0]))}
+      ${field('Data', input('date', startDate, { type: 'date', required: true }))}
+      ${field('Descrição (opcional)', input('desc', t?.desc ?? '', { placeholder: k === 'income' ? 'Ex.: Salário' : 'Ex.: Mercado', max: 200 }))}
+      <button type="button" class="btn link moreToggle" id="moreBtn" aria-expanded="false" aria-controls="moreBox"><span>Mais opções</span>${icon('expand-more', 18)}</button>
+    </div>
+    <div id="moreBox" hidden>
+      <div class="formCard"><h4 class="formHead">Detalhes adicionais</h4>
+        <div id="payModeWrap">${field('Forma de pagamento', select('payMode', [['account', 'Conta / dinheiro'], ['card', 'Cartão de crédito']], t?.cardId ? 'card' : 'account'))}</div>
+        <div id="cardWrap">${field('Cartão', select('cardId', s.cards.map(c => [c.id, c.name]), t?.cardId || s.cards[0]?.id || ''))}</div>
+        <div id="accWrap">${field(isPayment ? 'Pago com a conta' : 'Conta', select('accountId', s.accounts.map(a => [a.id, a.name]), t?.accountId ?? s.accounts[0].id))}</div>
+        ${t?.scheduledDate ? `<p class="muted small">Data prevista original: ${brDate(t.scheduledDate)}. Ela será restaurada se o lançamento voltar a ficar pendente.</p>` : ''}
+      </div>
+      <div class="formCard" id="paidWrap" role="radiogroup" aria-labelledby="paidHead"><h4 class="formHead" id="paidHead"></h4>
+        <label class="radioRow"><input type="radio" name="paidSel" value="1"><span id="paidYes"></span></label>
+        <label class="radioRow"><input type="radio" name="paidSel" value="0"><span id="paidNo"></span></label>
+        <small class="muted" id="paidNote"></small></div>
+      ${t ? '' : `<div class="formCard"><h4 class="formHead">Parcelamento e repetição</h4>
+        <div class="row2">${field('Número de parcelas', input('reps', '1', { inputmode: 'numeric', max: 2 }), { hint: 'Até 60' })}
+        <div id="repsModeWrap" hidden>${field('O valor informado é', select('repsMode', [['TOTAL', 'O total da compra (divide entre as parcelas)'], ['EACH', 'O valor de cada parcela']], 'TOTAL'))}</div></div>
+        ${check('recurring', 'Repetir mensalmente', false, { sub: 'Cria uma recorrência a partir desta data' })}</div>`}
+    </div>
+    <div class="sheetActions">${t ? btn('Excluir lançamento', { act: 'sheet-delete', cls: 'danger' }) : ''}${btn('', { submit: true, cls: 'primary', id: 'saveBtn' })}</div></form>`;
+  const d = openSheet({ title: titleOf(), subtitle: subOf(), body });
   const f = d.querySelector('#txForm');
+  const more = d.querySelector('#moreBox'), moreBtn = d.querySelector('#moreBtn');
+  const setMore = open => { more.hidden = !open; moreBtn.setAttribute('aria-expanded', open); moreBtn.querySelector('span').textContent = open ? 'Menos opções' : 'Mais opções'; };
+  setMore(!!t); // editar já mostra tudo
+  moreBtn.onclick = () => setMore(more.hidden);
   const categorizers = {};
   const sug = () => ctx.device.assistCategory && !isPayment ? (categorizers[k] ??= new Categorizer(s, k, ctx.dict)) : null;
   const sync = () => {
@@ -71,7 +106,17 @@ export function txEditor(kind = 'expense', id = null, date = null) {
     d.querySelector('#cardWrap').hidden = !useCard;
     d.querySelector('#accWrap').hidden = useCard;
     d.querySelector('#paidWrap').hidden = useCard || isPayment;
-    d.querySelector('#paidWrap b').textContent = k === 'income' ? 'Receita já recebida' : 'Despesa já paga';
+    d.querySelector('#accWrap span').textContent = isPayment ? 'Pago com a conta' : k === 'income' ? 'Conta de destino' : 'Conta';
+    d.querySelector('#paidHead').textContent = k === 'income' ? 'Situação da receita' : 'Situação da despesa';
+    d.querySelector('#paidYes').textContent = k === 'income' ? 'Já recebida' : 'Já paga';
+    d.querySelector('#paidNo').textContent = k === 'income' ? 'A receber' : 'A pagar';
+    f.querySelector(`input[name=paidSel][value="${paid ? 1 : 0}"]`).checked = true;
+    d.querySelector('#paidNote').textContent = paid ? 'O valor será considerado no saldo realizado da conta.' : 'O valor ficará pendente até ser recebido ou pago.';
+    d.querySelector('#valueField span').textContent = k === 'income' ? 'Valor da receita (R$)' : 'Valor da despesa (R$)';
+    d.querySelector('#saveBtn').innerHTML = `<span>${isPayment ? 'Registrar pagamento' : k === 'income' ? 'Salvar receita' : 'Salvar despesa'}</span>`;
+    d.querySelector('#sheetTitle').textContent = titleOf();
+    const sub = d.querySelector('.dialogHead .dlgMsg'); if (sub) sub.textContent = subOf();
+    f.desc.placeholder = k === 'income' ? 'Ex.: Salário' : 'Ex.: Mercado';
     const r = d.querySelector('#repsModeWrap');
     if (r) r.hidden = !(parseInt(f.reps.value, 10) > 1);
     // atalho: preencher a partir de uma fatura em PDF, linha digitável do boleto ou Pix copia e cola (FATURAS.md)
@@ -96,6 +141,8 @@ export function txEditor(kind = 'expense', id = null, date = null) {
     if (cats(k).includes(cur)) f.category.value = cur;
     sync(); hint();
   });
+  f.querySelectorAll('input[name=paidSel]').forEach(i => i.onchange = () => { paid = i.value === '1'; touched = true; sync(); });
+  f.date.onchange = () => { if (!t && !touched) { paid = Ops.defaultPaid(f.date.value, today()); sync(); } };
   d.querySelector('[data-act="bill"]')?.addEventListener('click', () => billImportSheet());
   f.payMode.onchange = sync;
   if (f.reps) f.reps.oninput = () => { f.reps.value = f.reps.value.replace(/\D/g, ''); sync(); };
@@ -104,9 +151,10 @@ export function txEditor(kind = 'expense', id = null, date = null) {
   sync();
   guard(f, v => {
     const useCard = k === 'expense' && s.cards.length > 0 && !isPayment && v.payMode === 'card';
-    const draft = { kind: k, desc: v.desc, value: v.value, category: v.category, date: v.date, paid: !!f.paid.checked, accountId: v.accountId,
+    const draft = { kind: k, desc: v.desc, value: v.value, category: v.category, date: v.date, paid, accountId: v.accountId,
       cardId: useCard ? v.cardId : '', reps: parseInt(v.reps || '1', 10) || 1, repsMode: v.repsMode || 'TOTAL', recurring: !!f.recurring?.checked };
-    apply(Ops.saveTx(ctx.state, t?.id ?? null, draft), t ? 'Lançamento atualizado' : 'Lançamento salvo');
+    const label = k === 'income' ? 'Receita' : 'Despesa';
+    apply(Ops.saveTx(ctx.state, t?.id ?? null, draft, today()), t ? `${label} atualizada` : `${label} salva`);
   });
   onDelete(d, async () => {
     if (!await ask('Excluir lançamento', 'Excluir este lançamento?', { ok: 'Excluir', danger: true })) return;
@@ -127,7 +175,7 @@ export function movesFiltersSheet() {
     <div class="presetRow">${btn('Este mês', { act: 'moves-preset', data: { p: 'month' } })}${btn('30 dias', { act: 'moves-preset', data: { p: '30' } })}${btn('Tudo', { act: 'moves-preset', data: { p: 'all' } })}</div>
     ${field('Situação', select('st', [['', 'Todos'], ['paid', 'Realizados'], ['pending', 'Pendentes']], f.st || ''))}
     <div class="sheetActions">${btn('Pronto', { submit: true, cls: 'primary' })}</div></form>`;
-  const d = openSheet({ title: 'Período e filtros', subtitle: 'O período também vale para Relatórios.', body });
+  const d = openSheet({ title: 'Período e filtros', subtitle: 'O período também vale para o Resumo.', body });
   const form = d.querySelector('#f');
   const sync = () => { form.from.value = f.from || ''; form.to.value = f.to || ''; form.st.value = f.st || ''; };
   form.from.onchange = () => { f.from = form.from.value || null; f.all = !f.from && !f.to; f.limit = 300; ctx.render(); };
@@ -368,7 +416,7 @@ export async function removePin() {
 // ------------------------------------------------------------------ atalhos e novidades
 export const SHORTCUTS = [
   ['Lançamentos', [['N  ·  Ctrl+N', 'Nova despesa'], ['R  ·  Ctrl+Shift+N', 'Nova receita'], ['M  ·  Ctrl+M', 'Nova meta'], ['/  ·  Ctrl+F', 'Buscar lançamentos'], ['K  ·  Ctrl+K', 'Perguntar ao assistente']]],
-  ['Navegação', [['1 … 5  ·  Ctrl+1 … 5', 'Início, Lançamentos, Relatórios, Assistente, Ajustes'], ['Ctrl+,', 'Ajustes'], ['Esc', 'Fechar a janela aberta']]],
+  ['Navegação', [['1 … 6  ·  Ctrl+1 … 6', 'Início, Lançamentos, Meu dinheiro, Resumo, Assistente, Ajustes'], ['Ctrl+,', 'Ajustes'], ['Esc', 'Fechar a janela aberta']]],
   ['Privacidade e dados', [['H  ·  Ctrl+H', 'Ocultar ou mostrar valores'], ['Ctrl+L', 'Bloquear agora (com PIN)'], ['Ctrl+P', 'Relatório em PDF'], ['Ctrl+E', 'Exportar CSV'], ['Ctrl+S', 'Salvar backup JSON'], ['Ctrl+O', 'Restaurar backup']]],
   ['Geral', [['?  ·  Ctrl+/', 'Atalhos de teclado']]],
 ];
@@ -380,6 +428,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    '1.4.0: o mesmo visual e as mesmas regras da versão 1.6.0 do app Android. Nova aba Meu dinheiro (contas, cartões, limites, metas e categorias); Relatórios virou Resumo, com o fluxo do dinheiro; no celular, o botão + abre Despesa, Receita ou Nova recorrência. Formulário mais simples, com descrição opcional e "Mais opções". Lançamento de outro dia começa pendente; ao confirmar, a data real e a prevista ficam guardadas, com Desfazer. Backup com valores exatos (sem perder centavos) e limites de tamanho.',
     '1.3.1: receitas e despesas fixas (recorrências) aparecem nos próximos meses como "Previsto" no calendário, na Lista e no saldo previsto. Clique num previsto para abrir a recorrência. Nada é gravado antes da hora: o lançamento real é criado quando o mês chega.',
     '1.3.0: simulador "E se…?" em Relatórios: economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida, sem mudar seus dados (dá para transformar em meta). Relatórios com o mesmo ‹ mês › de Lançamentos e comparação justa (mês atual contra os mesmos dias do mês anterior).',
     '1.2.1: o assistente não avisa mais que as despesas vão passar das receitas com base em uma ou duas compras: a projeção precisa de pelo menos 5 despesas no mês (3 por categoria com limite), e uma compra grande isolada conta uma vez.',

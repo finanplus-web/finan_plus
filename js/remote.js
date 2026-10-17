@@ -73,7 +73,7 @@ export class RemoteStore {
     }
     this.rev = j.rev;
     this.palette = j.palette && typeof j.palette === 'object' ? j.palette : null;
-    return normalize(j.data);
+    return normalize(j.data, { enforceLimits: false }); // dados do próprio celular: sem limite de quantidade
   }
 
   async open() {

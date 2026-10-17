@@ -1,5 +1,27 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.4.0 — Mesmo visual e regras do Android 1.6.0 (17/10/2026)
+
+Traz para o Finan+ web tudo o que entrou no app Android 1.6.0, com o layout de computador adaptado. Também é a cópia que o celular serve no **acesso pela rede**.
+
+### Para quem usa
+
+- **Navegação:** Início, Lançamentos, **Meu dinheiro** (nova), **Resumo** (antes Relatórios), Assistente (computador) e Ajustes. No celular, a barra tem 5 abas e o botão **+** virou um botão redondo no canto, só em Início e Lançamentos, que abre **Despesa**, **Receita** ou **Nova recorrência**. Atalhos: 1 a 6.
+- **Meu dinheiro:** contas e cartões (com "Pagar fatura"), limites, metas, simulador e categorias (minimizadas por padrão), que saíram de Ajustes e do Início.
+- **Início:** saldo previsto com a data e o que considera, "Falta receber" / "Falta pagar" e os **próximos 3 vencimentos**.
+- **Formulário:** valor em destaque; categoria, data e descrição (agora **opcional**: em branco, vale o nome da categoria) logo abaixo; conta, situação, parcelas e repetição em **Mais opções**.
+- **Pendente ou realizado:** lançamento novo só vem como pago/recebido se a data for hoje. Ao confirmar um pendente, a data vira a do dia e a **data prevista** fica guardada ("previsto 10/10"); voltar a pendente restaura a data. Confirmar pede confirmação e mostra **Desfazer**.
+- **Lista:** situação por escrito (Paga, A pagar, Vencida · a pagar, No cartão, Prevista · recorrência); lista vazia com atalhos Despesa/Receita.
+- **Resumo:** resultado do período e **fluxo do dinheiro**.
+- **Ajustes** em grupos; fundo pontilhado discreto; vermelho dos temas Gruvbox com mais contraste.
+
+### Dados
+
+- **Data prevista no backup** (`scheduledDate`), a mesma do Android 1.6.0. Antes o Finan+ web descartava esse campo, e uma alteração feita pelo acesso pela rede apagava as datas previstas do celular.
+- **Valores exatos:** o backup converte o texto do número direto em centavos (1,005 vira R$ 1,01, como no Android), sem multiplicar ponto flutuante.
+- **Teto de segurança** para a soma dos valores e **limites de tamanho** para backups de fora (50.000 lançamentos, 100 contas, 100 cartões, 1.000 recorrências, 1.000 metas, 500 categorias por tipo). O próprio Finan+ não deixa criar além disso; os dados que já estão no navegador (ou no celular, no acesso pela rede) sempre abrem.
+- Testes novos em `tests/release160.test.mjs`.
+
 ## Próxima versão — ajustes (13/10/2026)
 
 - **Botões do mesmo tamanho:** o botão secundário (claro) ficava mais baixo que o principal quando os dois estavam lado a lado (ex.: "Ler outra" e "Salvar como conta a pagar", "Despesa" e "Receita" no topo). A classe `.soft` das caixas de texto dava uma margem vertical também ao botão; agora `.btn.soft` e os botões de `.sheetActions` não têm margem e ocupam a mesma altura. Só `style.css` mudou.

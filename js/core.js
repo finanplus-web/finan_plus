@@ -123,6 +123,8 @@ export function tx(o) {
     id: o.id, kind: o.kind, value: o.value, date: o.date, desc: o.desc, category: o.category, paid: !!o.paid,
     accountId: o.accountId ?? MAIN_ACCOUNT, cardId: o.cardId ?? '', cardPayment: o.cardPayment ?? '',
     recurringId: o.recurringId ?? '', groupId: o.groupId ?? '', parcelN: o.parcelN ?? 0, parcelTotal: o.parcelTotal ?? 0,
+    /** data prevista preservada quando um lançamento pendente é realizado em outro dia (null = não há) */
+    scheduledDate: o.scheduledDate ?? null,
   };
 }
 export const isFlow = t => !t.cardPayment;
@@ -143,6 +145,32 @@ export const clone = s => ({
 export const account = (s, id) => s.accounts.find(a => a.id === id);
 export const card = (s, id) => s.cards.find(c => c.id === id);
 const sumOf = l => l.reduce((n, t) => n + t.value, 0);
+
+/** Quantidades máximas aceitas num backup externo; o app também não deixa criar além delas,
+ *  para que todo backup gerado por ele possa ser restaurado (iguais ao app Android, AppState.Limits). */
+export const LIMITS = { txs: 50_000, accounts: 100, cards: 100, recurring: 1_000, goals: 1_000, categoriesPerKind: 500 };
+
+/** Valores e somas cabem no maior inteiro exato do JavaScript (em centavos). */
+export function hasSafeMoneyTotals(s) {
+  let total = 0;
+  const add = v => { const a = Math.abs(v); if (!Number.isSafeInteger(v) || a > MAX_ABS_CENTS) return false; total += a; return total <= Number.MAX_SAFE_INTEGER; };
+  return s.txs.every(t => add(t.value)) && s.accounts.every(a => add(a.initial)) && s.cards.every(c => add(c.limit)) &&
+    s.goals.every(g => add(g.target) && add(g.saved) && add(g.monthly)) && s.recurring.every(r => add(r.value)) &&
+    [...s.limits.values()].every(add);
+}
+
+/** Mensagem se [next] cria itens além de [LIMITS] (null = dentro). Só conta quando a coleção cresce:
+ *  quem já tinha mais itens antes do limite existir continua editando normalmente. */
+export function growthError(s, next) {
+  const grew = (a, b, max) => b > max && b > a;
+  if (grew(s.txs.length, next.txs.length, LIMITS.txs)) return `Limite de ${LIMITS.txs.toLocaleString('pt-BR')} lançamentos atingido.`;
+  if (grew(s.accounts.length, next.accounts.length, LIMITS.accounts)) return `Limite de ${LIMITS.accounts} contas atingido.`;
+  if (grew(s.cards.length, next.cards.length, LIMITS.cards)) return `Limite de ${LIMITS.cards} cartões atingido.`;
+  if (grew(s.recurring.length, next.recurring.length, LIMITS.recurring)) return `Limite de ${LIMITS.recurring.toLocaleString('pt-BR')} recorrências atingido.`;
+  if (grew(s.goals.length, next.goals.length, LIMITS.goals)) return `Limite de ${LIMITS.goals.toLocaleString('pt-BR')} metas atingido.`;
+  if (['expense', 'income'].some(k => grew(s.cats[k].length, next.cats[k].length, LIMITS.categoriesPerKind))) return `Limite de ${LIMITS.categoriesPerKind} categorias atingido.`;
+  return null;
+}
 
 // ------------------------------------------------------------------ cartões e faturas
 /**
@@ -232,7 +260,8 @@ export const Finance = {
       return { ...r, last };
     });
     if (!add.length && !changed) return [s, 0];
-    return [{ ...s, txs: [...s.txs, ...add], recurring: recs }, add.length];
+    const next = { ...s, txs: [...s.txs, ...add], recurring: recs };
+    return hasSafeMoneyTotals(next) && !growthError(s, next) ? [next, add.length] : [s, 0];
   },
 
   /** divide [total] em [n] parcelas; a diferença de centavos fica na primeira */
@@ -287,14 +316,16 @@ export const Finance = {
       if (inv.open > 0 && inv.due <= limit && inv.closed) out.push({ type: 'INVOICE_DUE', title: `Fatura ${c.name}`, amount: inv.open, date: inv.due, refId: c.id });
     return out.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   },
-  nextDue(s, today) {
+  /** Próximos compromissos da tela inicial: contas pendentes e faturas abertas, em ordem de vencimento. */
+  upcomingDues(s, today, limit = 3) {
+    if (limit <= 0) return [];
     const bills = s.txs.filter(t => !t.paid && !isCard(t) && t.kind === 'expense')
       .map(t => ({ type: t.date < today ? 'BILL_OVERDUE' : 'BILL_DUE', title: t.desc, amount: t.value, date: t.date, refId: t.id }));
     const invs = s.cards.flatMap(c => Finance.cardStatus(s, c, today).invoices.filter(i => i.open > 0).map(i => ({ type: 'INVOICE_DUE', title: `Fatura ${c.name}`, amount: i.open, date: i.due, refId: c.id })));
-    let best = null;
-    for (const r of [...bills, ...invs]) if (!best || r.date < best.date) best = r;
-    return best;
+    // ordem estável (como o sortedBy do Android): empate de data mantém contas antes de faturas
+    return [...bills, ...invs].map((r, i) => [r, i]).sort((a, b) => a[0].date < b[0].date ? -1 : a[0].date > b[0].date ? 1 : a[1] - b[1]).slice(0, limit).map(x => x[0]);
   },
+  nextDue: (s, today) => Finance.upcomingDues(s, today, 1)[0] ?? null,
 };
 
 // ------------------------------------------------------------------ CSV
@@ -313,7 +344,22 @@ export const Csv = {
 
 // ------------------------------------------------------------------ operações (validações e mensagens)
 const err = (message, title = 'Revise os dados') => ({ ok: false, title, message });
-const ok = state => ({ ok: true, state });
+const ok = state => hasSafeMoneyTotals(state) ? { ok: true, state }
+  : err('O total dos valores excede o limite seguro. Reduza algum valor antes de salvar.', 'Limite financeiro excedido');
+/** Como [ok], conferindo também se a alteração cria itens além de [LIMITS]. */
+const okGrow = (before, next) => { const e = growthError(before, next); return e ? err(`${e} Exclua itens antigos antes de criar novos.`, 'Limite atingido') : ok(next); };
+
+/** Data efetiva se realizado; data prevista se pendente (igual ao app Android). Devolve [data, dataPrevista]. */
+function transactionDates(old, requested, paid, isC, today) {
+  if (isC) return [requested, null];
+  if (!paid) return [old?.paid ? (old.scheduledDate ?? requested) : requested, null];
+  if (old) {
+    if (!old.paid) return [today, old.date !== today ? old.date : null];
+    return [requested, old.scheduledDate ?? null];
+  }
+  if (requested > today) return [today, requested];
+  return [requested, null];
+}
 const blank = s => !s || !String(s).trim();
 const clean = (s, max) => [...String(s ?? '').trim()].slice(0, max).join('');
 const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
@@ -323,38 +369,51 @@ const withCats = (s, k, list) => ({ ...s, cats: { ...s.cats, [k]: list } });
 
 export const Ops = {
   /** d: {kind, desc, value, category, date, paid, accountId, cardId, reps, repsMode:'TOTAL'|'EACH', recurring} */
-  saveTx(s, editId, d) {
-    const desc = clean(d.desc, 200), value = Money.parse(d.value);
+  /** Novos lançamentos só vêm como realizados por padrão quando a data é hoje. */
+  defaultPaid: (date, today) => date === today,
+
+  saveTx(s, editId, d, today = todayStr()) {
+    const value = Money.parse(d.value);
     const isC = d.kind === 'expense' && !!d.cardId;
-    if (!desc) return err('Informe uma descrição.', 'Campo obrigatório');
     if (value == null || value <= 0) return err('Informe um valor maior que zero. Ex.: 59,90', 'Valor inválido');
     if (!validDate(d.date)) return err('Informe uma data válida.', 'Data inválida');
-    if (isC && !card(s, d.cardId)) return err('Cadastre um cartão em Ajustes antes de lançar no cartão.', 'Sem cartão');
+    if (isC && !card(s, d.cardId)) return err('Cadastre um cartão em Meu dinheiro antes de lançar no cartão.', 'Sem cartão');
     const accountId = account(s, d.accountId) ? d.accountId : s.accounts[0].id;
     const category = blank(d.category) ? catsOf(s, d.kind)[0] : d.category;
+    // descrição é opcional: em branco, a categoria serve de rótulo na lista
+    const desc = clean(d.desc, 200) || category;
     const cardId = isC ? d.cardId : '';
     const paid = isC || !!d.paid;
     if (editId != null) {
       const t = s.txs.find(x => x.id === editId);
       if (!t) return err('Lançamento não encontrado.');
-      const upd = t.cardPayment ? { ...t, desc, value, category, date: d.date, accountId, paid: true }
-        : { ...t, kind: d.kind, desc, value, category, date: d.date, paid, accountId, cardId };
+      let upd;
+      if (t.cardPayment) upd = { ...t, desc, value, category, date: d.date, accountId, paid: true };
+      else {
+        const [date, scheduledDate] = transactionDates(t, d.date, paid, isC, today);
+        upd = { ...t, kind: d.kind, desc, value, category, date, paid, accountId, cardId, scheduledDate };
+      }
       return ok({ ...s, txs: s.txs.map(x => x.id === editId ? upd : x) });
     }
     const n = Math.min(60, Math.max(1, d.reps || 1));
     if (n > 1 && d.recurring) return err('Escolha parcelas ou repetição mensal, não os dois.', 'Revise o lançamento');
-    const base = tx({ id: newId(), kind: d.kind, value, date: d.date, desc, category, paid, accountId, cardId });
+    const [entryDate, scheduledDate] = transactionDates(null, d.date, paid, isC, today);
+    const base = tx({ id: newId(), kind: d.kind, value, date: entryDate, desc, category, paid, accountId, cardId, scheduledDate });
     let added;
     if (n > 1) {
       const values = d.repsMode === 'EACH' ? Array(n).fill(value) : Finance.splitInstallments(value, n);
       if (values.some(v => v <= 0)) return err('O valor é pequeno demais para tantas parcelas.', 'Valor inválido');
       const group = newId();
-      added = values.map((v, i) => ({ ...base, id: newId(), value: v, date: plusMonths(d.date, i), paid: isC || (i === 0 && !!d.paid),
-        desc: `${desc} (${i + 1}/${n})`, groupId: group, parcelN: i + 1, parcelTotal: n }));
+      added = values.map((v, i) => {
+        const instPaid = isC || (i === 0 && !!d.paid);
+        return { ...base, id: newId(), value: v, date: i === 0 ? entryDate : plusMonths(d.date, i), paid: instPaid,
+          scheduledDate: i === 0 && instPaid ? scheduledDate : null,
+          desc: `${[...desc].slice(0, 200 - ` (${i + 1}/${n})`.length).join('').trimEnd()} (${i + 1}/${n})`, groupId: group, parcelN: i + 1, parcelTotal: n };
+      });
     } else added = [base];
     let rec = s.recurring;
     if (d.recurring) rec = [...rec, { id: newId(), kind: d.kind, desc, value, category, accountId, cardId, day: dom(d.date), active: true, start: d.date, last: ymOf(d.date) }];
-    return ok({ ...s, txs: [...s.txs, ...added], recurring: rec });
+    return okGrow(s, { ...s, txs: [...s.txs, ...added], recurring: rec });
   },
   laterParcels(s, id) {
     const t = s.txs.find(x => x.id === id);
@@ -368,7 +427,12 @@ export const Ops = {
   /** Compra no cartão e pagamento de fatura não alternam pago/pendente: desmarcar um pagamento de fatura reabria
    *  a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes (igual ao app Android 1.1.1). */
   canTogglePaid: t => !isCard(t) && isFlow(t) && !isProjected(t),
-  togglePaid: (s, id) => ({ ...s, txs: s.txs.map(x => x.id === id && Ops.canTogglePaid(x) ? { ...x, paid: !x.paid } : x) }),
+  /** Ao confirmar, a data vira a de hoje e a original fica como prevista; ao voltar a pendente, a prevista é restaurada. */
+  togglePaid: (s, id, today = todayStr()) => ({ ...s, txs: s.txs.map(x => {
+    if (x.id !== id || !Ops.canTogglePaid(x)) return x;
+    if (x.paid) return { ...x, paid: false, date: x.scheduledDate ?? x.date, scheduledDate: null };
+    return { ...x, paid: true, scheduledDate: x.date !== today ? x.date : null, date: today };
+  }) }),
 
   saveGoal(s, id, name, target, move, deadline, monthly) {
     const n = clean(name, 60), t = Money.parse(target), m = blank(monthly) ? 0 : Money.parse(monthly);
@@ -378,8 +442,10 @@ export const Ops = {
     const mv = blank(move) ? 0 : Money.parse(move);
     if (mv == null) return err('Valor a guardar inválido.');
     if (deadline && !validDate(deadline)) return err('Informe um prazo válido ou deixe em branco.');
-    if (id == null) return ok({ ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m }] });
-    return ok({ ...s, goals: s.goals.map(g => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m, saved: Math.max(0, g.saved + mv) } : g) });
+    if (id == null) return okGrow(s, { ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m }] });
+    const saved = Math.max(0, (s.goals.find(g => g.id === id)?.saved ?? 0) + mv);
+    if (saved > MAX_ABS_CENTS) return err('O valor guardado excede o limite seguro.', 'Limite financeiro excedido');
+    return ok({ ...s, goals: s.goals.map(g => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m, saved } : g) });
   },
   deleteGoal: (s, id) => ({ ...s, goals: s.goals.filter(g => g.id !== id) }),
 
@@ -387,7 +453,7 @@ export const Ops = {
     const n = clean(name, 40), ini = blank(initial) ? 0 : Money.parse(initial);
     if (!n) return err('Informe o nome da conta.');
     if (ini == null) return err('Saldo inicial inválido. Ex.: 1.250,00 ou -300');
-    if (id == null) return ok({ ...s, accounts: [...s.accounts, { id: newId(), name: n, initial: ini }] });
+    if (id == null) return okGrow(s, { ...s, accounts: [...s.accounts, { id: newId(), name: n, initial: ini }] });
     return ok({ ...s, accounts: s.accounts.map(a => a.id === id ? { ...a, name: n, initial: ini } : a) });
   },
   deleteAccount(s, id) {
@@ -404,7 +470,7 @@ export const Ops = {
     if (!n) return err('Informe o nome do cartão.');
     if (lim == null || lim < 0) return err('Limite inválido.');
     if (c == null || d == null || c < 1 || c > 31 || d < 1 || d > 31) return err('Os dias de fechamento e vencimento devem estar entre 1 e 31.');
-    if (id == null) return ok({ ...s, cards: [...s.cards, { id: newId(), name: n, limit: lim, close: c, due: d }] });
+    if (id == null) return okGrow(s, { ...s, cards: [...s.cards, { id: newId(), name: n, limit: lim, close: c, due: d }] });
     return ok({ ...s, cards: s.cards.map(x => x.id === id ? { ...x, name: n, limit: lim, close: c, due: d } : x) });
   },
   deleteCard(s, id) {
@@ -419,7 +485,7 @@ export const Ops = {
     if (v == null || v <= 0) return err('Informe um valor maior que zero.');
     if (!validDate(date)) return err('Informe uma data válida.');
     const acc = account(s, accountId) ? accountId : s.accounts[0].id;
-    return ok({ ...s, txs: [...s.txs, tx({ id: newId(), kind: 'expense', value: v, date, desc: `Pagamento fatura ${c.name}`, category: CARD_PAYMENT_CAT, paid: true, accountId: acc, cardPayment: c.id })] });
+    return okGrow(s, { ...s, txs: [...s.txs, tx({ id: newId(), kind: 'expense', value: v, date, desc: `Pagamento fatura ${c.name}`, category: CARD_PAYMENT_CAT, paid: true, accountId: acc, cardPayment: c.id })] });
   },
 
   saveRecurring(s, id, kind, desc, value, day, category, accountId, cardId, active, start, today) {
@@ -436,7 +502,7 @@ export const Ops = {
       next = { ...s, recurring: [...s.recurring, { id: newId(), kind, desc: ds, value: v, category: cat, accountId: acc, cardId: cd, day: dd, active: true, start, last: null }] };
     } else next = { ...s, recurring: s.recurring.map(r => r.id === id ? { ...r, kind, desc: ds, value: v, day: dd, category: cat, accountId: acc, cardId: cd, active,
       last: !r.active && active ? Ops.resumedLast(r.last, today) : r.last } : r) };
-    return ok(Finance.generateRecurring(next, today)[0]);
+    return okGrow(s, Finance.generateRecurring(next, today)[0]);
   },
   /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
    *  (Antes, reativar em outubro uma recorrência pausada em março criava 7 lançamentos pendentes de uma vez.) */
@@ -458,7 +524,7 @@ export const Ops = {
     const n = clean(name, 40);
     if (!n) return err('Digite o nome da categoria.', 'Nome vazio');
     if (catsOf(s, kind).some(c => sameName(c, n))) return err('Essa categoria já existe.', 'Categoria duplicada');
-    return ok(withCats(s, kind, [...catsOf(s, kind), n]));
+    return okGrow(s, withCats(s, kind, [...catsOf(s, kind), n]));
   },
   renameCategory(s, kind, old, name) {
     const n = clean(name, 40);
@@ -506,11 +572,29 @@ function num(v) {
 }
 /** Maior valor aceito: 13 dígitos de reais, o mesmo limite da digitação (somas maiores perdiam precisão e trocavam de sinal). */
 export const MAX_ABS_CENTS = 999_999_999_999_999;
+/** Decimal em texto ("12.345", "1e3", "-0.5") → centavos, arredondando metade para cima (HALF_UP), sem
+ *  multiplicar ponto flutuante (1.005 * 100 dava 100,4999… e perdia um centavo). null = inválido ou acima do limite. */
+export function centsFromDecimal(text) {
+  const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(String(text).trim());
+  if (!m || (!m[2] && !m[3])) return null;
+  const exp = m[4] ? parseInt(m[4], 10) : 0;
+  if (Math.abs(exp) > 400) return null;
+  let digits = (m[2] || '') + (m[3] || '');
+  let point = (m[2] || '').length + exp + 2; // posição da vírgula em centavos
+  digits = digits.replace(/^0+(?=\d)/, s => { point -= s.length; return ''; });
+  if (point <= 0) { digits = '0'.repeat(1 - point) + digits; point = 1; }
+  const intPart = digits.slice(0, point).padEnd(point, '0'), next = digits[point] ?? '0';
+  if (intPart.replace(/^0+/, '').length > 16) return null;
+  let c = parseInt(intPart || '0', 10) + (next >= '5' ? 1 : 0);
+  if (!Number.isSafeInteger(c) || c > MAX_ABS_CENTS) return null;
+  return m[1] === '-' && c !== 0 ? -c : c;
+}
 /** Dinheiro do backup: número ou texto numérico; booleano não vale (true virava R$ 1,00) e valor acima do limite vira 0. */
 const cents = v => {
   if (typeof v === 'boolean') return 0;
-  const n = num(v);
-  return n == null || Math.abs(n) > MAX_ABS_CENTS / 100 ? 0 : Money.fromReais(n);
+  if (typeof v === 'number') return Number.isFinite(v) ? centsFromDecimal(String(v)) ?? 0 : 0;
+  if (typeof v === 'string') return NUM_RE.test(v.trim()) ? centsFromDecimal(v) ?? 0 : 0;
+  return 0;
 };
 const intIn = (v, a, b, def) => { const n = num(v); if (n == null) return def; const r = Math.round(n); return r >= a && r <= b ? r : def; };
 const safeId = v => { const s = typeof v === 'number' && Number.isFinite(v) ? numToString(v) : typeof v === 'string' ? v : ''; return ID_RE.test(s) ? s : ''; };
@@ -518,9 +602,14 @@ const parseDate = v => validDate(v) ? v : null;
 const parseYm = v => typeof v === 'string' && YM_RE.test(v) ? ymOf(v + '-01') : null;
 
 /** Valida e normaliza um backup (já lido com JSON.parse). Lança BackupError sem lista de lançamentos. */
-export function normalize(raw) {
+export function normalize(raw, { enforceLimits = true } = {}) {
   if (!isObj(raw)) throw new BackupError('Formato inválido');
   if (!Array.isArray(raw.txs)) throw new BackupError('Backup sem lista de lançamentos');
+  // limites de quantidade só para arquivos de fora; os dados do próprio app sempre abrem
+  const tooMany = (list, max, what) => { if (enforceLimits && Array.isArray(list) && list.length > max) throw new BackupError(`Muitos ${what} no backup`); };
+  tooMany(raw.txs, LIMITS.txs, 'lançamentos'); tooMany(raw.accounts, LIMITS.accounts, 'contas');
+  tooMany(raw.cards, LIMITS.cards, 'cartões'); tooMany(raw.recurring, LIMITS.recurring, 'recorrências'); tooMany(raw.goals, LIMITS.goals, 'metas');
+  if (isObj(raw.cats)) for (const k of ['income', 'expense']) tooMany(raw.cats[k], LIMITS.categoriesPerKind, 'categorias');
   const d = { txs: 0, goals: 0, accounts: 0, cards: 0, recurring: 0 };
   const used = new Set();
   const idFor = v => { let id = safeId(v); if (!id || used.has(id)) id = newId(); used.add(id); return id; };
@@ -570,10 +659,12 @@ export function normalize(raw) {
     const p = isObj(o.parcel) ? o.parcel : null;
     const pTotal = p ? intIn(p.total, 1, 120, 0) : 0, pN = p ? intIn(p.n, 1, 120, 0) : 0;
     const okP = pTotal > 0 && pN >= 1 && pN <= pTotal;
+    const paid = cardId ? true : o.paid !== false;
+    const scheduledDate = paid && !cardId && !cardPayment ? parseDate(o.scheduledDate) : null;
     txs.push(tx({ id: idFor(o.id), kind, value, date, desc: str(o.desc, 200) || 'Sem descrição',
       category: str(o.category, 40) || (cardPayment ? CARD_PAYMENT_CAT : 'Outros'),
-      paid: cardId ? true : o.paid !== false, accountId: accOf(o.accountId), cardId, cardPayment,
-      recurringId: safeId(o.recurringId), groupId: safeId(o.groupId), parcelN: okP ? pN : 0, parcelTotal: okP ? pTotal : 0 }));
+      paid, accountId: accOf(o.accountId), cardId, cardPayment,
+      recurringId: safeId(o.recurringId), groupId: safeId(o.groupId), parcelN: okP ? pN : 0, parcelTotal: okP ? pTotal : 0, scheduledDate }));
   }
 
   const goals = [];
@@ -588,11 +679,12 @@ export function normalize(raw) {
 
   const al = num(raw.autoLock), autoLock = al != null && AUTOLOCK_OPTIONS.includes(Math.round(al)) ? Math.round(al) : 0;
   const state = { txs, goals, accounts, cards, recurring, cats, limits, privacy: raw.privacy === true, autoLock, theme: themeOf(raw.theme) };
+  if (!hasSafeMoneyTotals(state)) throw new BackupError('O total dos valores excede o limite seguro');
   return { state, dropped: d, droppedTotal: d.txs + d.goals + d.accounts + d.cards + d.recurring };
 }
 
 /** Lê o texto de um backup. Recusa arquivos grandes demais e aninhamento excessivo. */
-export function parseBackup(text) {
+export function parseBackup(text, opts) {
   if (typeof text !== 'string') throw new BackupError('Arquivo vazio');
   if (text.length > BACKUP_MAX_BYTES) throw new BackupError('Arquivo grande demais');
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
@@ -606,7 +698,7 @@ export function parseBackup(text) {
   }
   let raw;
   try { raw = JSON.parse(text); } catch (e) { throw new BackupError('JSON inválido: ' + e.message); }
-  return normalize(raw);
+  return normalize(raw, opts);
 }
 
 /** Serializa no formato do Finan+ (valores em reais com 2 casas). [meta] = bloco _backup dos arquivos exportados. */
@@ -619,6 +711,7 @@ export function toJson(s, meta) {
       if (t.recurringId) x.recurringId = t.recurringId;
       if (t.groupId) x.groupId = t.groupId;
       if (t.parcelTotal > 0) x.parcel = { n: t.parcelN, total: t.parcelTotal };
+      if (t.scheduledDate) x.scheduledDate = t.scheduledDate;
       return x;
     }),
     goals: s.goals.map(g => ({ id: g.id, name: g.name, target: R(g.target), saved: R(g.saved), deadline: g.deadline || '', monthly: R(g.monthly) })),

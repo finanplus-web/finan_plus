@@ -12,12 +12,19 @@ export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ESC[c]);
 export const attr = esc;
 
 // ------------------------------------------------------------------ avisos rápidos
-export function toast(msg, ms = 2600) {
+/** aviso rápido; o: { action, onAction } mostra um botão (ex.: Desfazer) que some junto com o aviso */
+export function toast(msg, ms = 2600, o = {}) {
   const box = $('#toasts');
   if (!box) return;
   const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
+  t.className = 'toast' + (o.action ? ' withAction' : '');
+  const txt = document.createElement('span'); txt.textContent = msg; t.append(txt);
+  if (o.action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'toastAct'; b.textContent = o.action;
+    b.onclick = () => { b.disabled = true; t.classList.remove('show'); setTimeout(() => t.remove(), 300); o.onAction?.(); };
+    t.append(b);
+  }
   box.append(t);
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, ms);

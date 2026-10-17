@@ -244,7 +244,8 @@ const draft = (o = {}) => ({ kind: 'expense', desc: 'Mercado', value: '100', cat
 
 test('operações: validações com mensagens', () => {
   const s = newState();
-  assert.equal(fail(Ops.saveTx(s, null, draft({ desc: '   ' }))), 'Informe uma descrição.');
+  // descrição é opcional (1.6.0): em branco, usa a categoria como rótulo
+  assert.equal(Ops.saveTx(s, null, draft({ desc: '   ' })).state.txs[0].desc, 'Alimentação');
   assert.match(fail(Ops.saveTx(s, null, draft({ value: '0' }))), /maior que zero/);
   assert.match(fail(Ops.saveTx(s, null, draft({ cardId: 'nope' }))), /Cadastre um cartão/);
   assert.match(fail(Ops.saveTx(s, null, draft({ reps: 3, recurring: true }))), /parcelas ou repetição/);

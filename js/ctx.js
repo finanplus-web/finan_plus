@@ -5,7 +5,7 @@
 import { Money, todayStr, CARD_PAYMENT_CAT } from './core.js';
 import { Text } from './assist.js';
 
-export const APP_VERSION = '1.3.1';
+export const APP_VERSION = '1.4.0';
 
 export const ctx = {
   state: null,        // dados (AppState do core)

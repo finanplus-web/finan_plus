@@ -133,7 +133,7 @@ function layout(pen, r, s, opt) {
   pen.newPage();
   header(pen, r, opt.now);
   kpis(pen, r);
-  section(pen, 'Despesas por categoria', 'Valores realizados. Média mensal comparada com o limite mensal definido em Ajustes.', 160);
+  section(pen, 'Despesas por categoria', 'Valores realizados. Média mensal comparada com o limite mensal definido em Meu dinheiro.', 160);
   if (!r.expenseByCategory.length) note(pen, 'Sem despesas realizadas no período.');
   else { donut(pen, r.expenseByCategory, r.expense); categoryTable(pen, r.expenseByCategory, true); }
 

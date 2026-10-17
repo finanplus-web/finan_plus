@@ -10,8 +10,8 @@
 :root{--bg:#eef4ff;--surface:rgba(255,255,255,.72);--surface2:rgba(255,255,255,.55);--solid:#f7f9ff;--field:#fff;--fieldLine:#d9deea;--text:#182238;--muted:#6e788d;--accent:#4269d8;--onAccent:#fff;--accent2:#dfe8ff;--red:#c94e62;--green:#20825c;--warn:#c98a1c;--line:rgba(64,80,115,.12);--track:#dfe5ef;--shadow:0 14px 35px rgba(58,75,110,.12);--side:rgba(255,255,255,.5);--glow1:#d9e5ff;--glow2:#ffe7ed;--pill:#e1f6ec;--danger:#fde4e8;--radius:25px;color-scheme:light}
 :root[data-theme=dark]{--bg:#0f1524;--surface:rgba(32,42,66,.8);--surface2:rgba(255,255,255,.06);--solid:#18213a;--field:#0f1524;--fieldLine:#2c3857;--text:#e8edf8;--muted:#9aa6bf;--accent:#7b9bff;--onAccent:#0f1524;--accent2:#27324f;--red:#ff8a9c;--green:#4fd1a0;--warn:#f0b65a;--line:rgba(160,180,230,.13);--track:#27324f;--shadow:0 14px 35px rgba(0,0,0,.3);--side:rgba(20,28,48,.7);--glow1:#1b2542;--glow2:#24203a;--pill:#173a30;--danger:#3a1f28;color-scheme:dark}
 :root[data-theme=oledGray]{--bg:#181a1f;--surface:#23262d;--surface2:#292c33;--solid:#23262d;--field:#1c1e24;--fieldLine:#3a3e47;--text:#f1f3f6;--muted:#a8adb7;--accent:#8aa8ff;--onAccent:#14161a;--accent2:#30343d;--red:#ff8a91;--green:#63d6a5;--warn:#f0b65a;--line:#353941;--track:#30343d;--shadow:0 10px 28px rgba(0,0,0,.24);--side:#1d2025;--glow1:#181a1f;--glow2:#181a1f;--pill:#1d3b31;--danger:#3b2226;color-scheme:dark}
-:root[data-theme=gruvbox]{--bg:#282828;--surface:#32302f;--surface2:#3c3836;--solid:#32302f;--field:#1d2021;--fieldLine:#504945;--text:#ebdbb2;--muted:#a89984;--accent:#83a598;--onAccent:#1d2021;--accent2:#3a4442;--red:#fb4934;--green:#b8bb26;--warn:#fabd2f;--line:#3c3836;--track:#504945;--shadow:0 10px 28px rgba(0,0,0,.3);--side:#1d2021;--glow1:#282828;--glow2:#282828;--pill:#3a3f26;--danger:#4e2f2b;color-scheme:dark}
-:root[data-theme=gruvboxOled]{--bg:#000;--surface:#0d0d0c;--surface2:#1d2021;--solid:#0d0d0c;--field:#000;--fieldLine:#3c3836;--text:#ebdbb2;--muted:#a89984;--accent:#83a598;--onAccent:#000;--accent2:#17201f;--red:#fb4934;--green:#b8bb26;--warn:#fabd2f;--line:#1d2021;--track:#282828;--shadow:none;--side:#000;--glow1:#000;--glow2:#000;--pill:#1a1c0b;--danger:#3a1612;color-scheme:dark}
+:root[data-theme=gruvbox]{--bg:#282828;--surface:#32302f;--surface2:#3c3836;--solid:#32302f;--field:#1d2021;--fieldLine:#504945;--text:#ebdbb2;--muted:#a89984;--accent:#83a598;--onAccent:#1d2021;--accent2:#3a4442;--red:#ff7f7f;--green:#b8bb26;--warn:#fabd2f;--line:#3c3836;--track:#504945;--shadow:0 10px 28px rgba(0,0,0,.3);--side:#1d2021;--glow1:#282828;--glow2:#282828;--pill:#3a3f26;--danger:#4e2f2b;color-scheme:dark}
+:root[data-theme=gruvboxOled]{--bg:#000;--surface:#0d0d0c;--surface2:#1d2021;--solid:#0d0d0c;--field:#000;--fieldLine:#3c3836;--text:#ebdbb2;--muted:#a89984;--accent:#83a598;--onAccent:#000;--accent2:#17201f;--red:#ff7f7f;--green:#b8bb26;--warn:#fabd2f;--line:#1d2021;--track:#282828;--shadow:none;--side:#000;--glow1:#000;--glow2:#000;--pill:#1a1c0b;--danger:#3a1612;color-scheme:dark}
 :root[data-theme=tokyo]{--bg:#1a1b26;--surface:rgba(36,40,59,.86);--surface2:rgba(255,255,255,.055);--solid:#1f2335;--field:#16161e;--fieldLine:#3b4261;--text:#c0caf5;--muted:#9aa5ce;--accent:#7aa2f7;--onAccent:#16161e;--accent2:#292e42;--red:#f7768e;--green:#9ece6a;--warn:#e0af68;--line:rgba(122,162,247,.14);--track:#292e42;--shadow:0 14px 35px rgba(0,0,0,.25);--side:rgba(22,22,30,.75);--glow1:#24283b;--glow2:#292e42;--pill:#243b35;--danger:#3b2230;color-scheme:dark}
 :root[data-theme=nord]{--bg:#2e3440;--surface:rgba(59,66,82,.86);--surface2:rgba(255,255,255,.055);--solid:#3b4252;--field:#2e3440;--fieldLine:#4c566a;--text:#eceff4;--muted:#b7c0cf;--accent:#88c0d0;--onAccent:#2e3440;--accent2:#434c5e;--red:#bf616a;--green:#a3be8c;--warn:#ebcb8b;--line:rgba(216,222,233,.12);--track:#434c5e;--shadow:0 14px 35px rgba(20,24,31,.28);--side:rgba(46,52,64,.8);--glow1:#3b4252;--glow2:#354052;--pill:#34483e;--danger:#4a3036;color-scheme:dark}
 
@@ -660,3 +660,74 @@ dialog{color:var(--text)}
 .billCompare{display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:16px;background:color-mix(in srgb,var(--accent) 10%,transparent);margin:8px 0}
 .billCompare span{color:var(--muted);font-size:14px}.billCompare strong.ok{color:var(--green)}.billCompare strong.bad{color:var(--red)}
 .billPw{display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:500}.billPw span{flex:1}
+
+/* ================================================================== 1.4.0 (mesmo visual do Android 1.6.0) */
+/* fundo pontilhado discreto que acompanha o tema */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(color-mix(in srgb,var(--text) 9%,transparent) 1px,transparent 1.4px);background-size:22px 22px}
+@media print{body::before{display:none}}
+/* cabeçalho do celular */
+.mobileHeader .headTag{display:block;font-size:13px;color:var(--muted)}
+.privacyPill{display:inline-flex;align-items:center;gap:5px;padding:8px 11px;border-radius:99px;background:var(--accent2);color:var(--accent);font-size:12px;font-weight:650}
+.privacyPill.on{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.forecastBox small.forecastNote{font-size:11.5px;line-height:1.3;margin-top:2px}
+.flowCard .flowTop{justify-content:flex-start;gap:8px}
+/* próximos vencimentos */
+.dueList{display:flex;flex-direction:column;gap:10px}
+.dueList .dueRow{padding:14px;border-radius:20px}
+.dueRow .dueIc{display:grid;place-items:center;width:40px;height:40px;border-radius:13px;background:var(--accent2);color:var(--accent);flex:none}
+.dueRow .dueIc.ok{background:color-mix(in srgb,var(--green) 13%,transparent);color:var(--green)}
+.dueRow .meta small.dueGo{color:var(--accent);font-weight:700;margin-top:4px}
+/* botão + flutuante (só celular, em Início e Lançamentos) */
+.floatFab{position:fixed;z-index:6;right:18px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 104px);display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--onAccent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 40%,transparent)}
+@media (max-width:899px){body[data-view=home] .app,body[data-view=moves] .app{padding-bottom:180px}.toasts{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 104px)}}
+/* aviso com ação (Desfazer) */
+.toast.withAction{display:flex;align-items:center;gap:12px;text-align:left;pointer-events:auto}
+.toast.withAction span{flex:1}
+.toastAct{color:var(--accent2);font-weight:800;padding:6px 8px;border-radius:10px;text-transform:none}
+:root:not([data-theme=light]) .toastAct{color:var(--accent)}
+/* situação do lançamento por escrito */
+.txStatus{font-weight:650}
+/* Meu dinheiro */
+.moneyCard{padding:16px;border-radius:24px;margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.moneyHead{display:flex;align-items:center;gap:12px}
+.moneyHead .tile{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:var(--accent2);color:var(--accent);flex:none}
+.moneyHead>div{flex:1;min-width:0}.moneyHead h3{margin:0;font-size:16.5px}.moneyHead small{color:var(--muted);font-size:12.5px}
+.moneyCard .manageList{margin:0}
+.invoiceRow{display:flex;align-items:center;gap:10px;padding-top:4px}
+.invoiceRow>div{flex:1;min-width:0}.invoiceRow small{display:block;color:var(--muted);font-size:12px}.invoiceRow b{font-size:17px;font-weight:800}
+.btn.wide{width:100%}
+/* Resumo */
+.resultBox{display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:20px;margin-top:10px}
+.resultBox b{font-size:22px;font-weight:800}
+.flowBox .subhead{margin:12px 0 4px}
+.flowSeg{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--track)}
+.flowSeg i{display:block;height:100%}
+.flowSeg.sensitive{filter:blur(4px)}
+.flowLegend{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px}
+.flowLegend li{display:flex;align-items:center;gap:8px;font-size:13px}
+.flowLegend li>i{width:12px;height:12px;border-radius:50%;flex:none}
+.flowLegend li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flowLegend li b{display:flex;flex-direction:column;align-items:flex-end;font-size:13px}
+.flowLegend li b small{font-weight:500;color:var(--muted);font-size:11px}
+.flowPill{display:flex;justify-content:center;margin:12px 0}
+.flowPill span{padding:8px 20px;border-radius:24px;background:var(--text);color:var(--bg);font-weight:800;font-size:14px}
+/* Ajustes em grupos */
+.prefsGroup{margin:20px 4px 8px;font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.2px}
+.prefsGroup:first-child,.pageTitle+.prefsGroup{margin-top:8px}
+/* Adicionar movimentação */
+.choiceList{display:flex;flex-direction:column;gap:8px}
+.choiceRow{display:flex;align-items:center;gap:12px;width:100%;padding:14px;border-radius:20px;text-align:left}
+.choiceRow .tile{display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:var(--accent2);color:var(--accent);flex:none}
+.choiceRow .tile.out{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
+.choiceRow .tile.in{background:color-mix(in srgb,var(--green) 13%,transparent);color:var(--green)}
+.choiceRow .meta{flex:1;min-width:0}.choiceRow .meta b,.choiceRow .meta small{display:block}.choiceRow .meta small{color:var(--muted);font-size:12.5px}
+/* formulário de lançamento em cartões */
+.formCard{padding:12px 14px;border-radius:20px;background:var(--surface2);margin-top:10px}
+.formCard .field:first-child{margin-top:0}
+.valueCard input{font-size:22px;font-weight:800}
+.formHead{margin:0 0 6px;font-size:15px}
+.moreToggle{margin-top:4px}
+.radioRow{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 4px;border-radius:12px;cursor:pointer}
+.radioRow input{width:20px;height:20px;accent-color:var(--accent);margin:0}
+.radioRow:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+@media (min-width:900px){.floatFab{display:none}}

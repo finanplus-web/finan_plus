@@ -163,7 +163,7 @@ function resultStep(st, info) {
       const cat = s.cats.expense.find(x => x.toLowerCase() === 'outros') || s.cats.expense[0];
       const draft = { kind: 'expense', desc: app === 0 ? (f.desc.value.trim() || `Fatura ${c.name}`) : `Diferença da fatura ${c.name} (${mes})`,
         value: Money.input(diff), category: cat, date: BillMatch.dateInInvoice(c, ym), paid: true, accountId: s.accounts[0].id, cardId: c.id };
-      save(Ops.saveTx(ctx.state, null, draft), app === 0 ? 'Fatura lançada no cartão' : 'Diferença lançada no cartão');
+      save(Ops.saveTx(ctx.state, null, draft, ctx.today), app === 0 ? 'Fatura lançada no cartão' : 'Diferença lançada no cartão');
     };
     return;
   }
@@ -187,7 +187,7 @@ function resultStep(st, info) {
   f.onsubmit = e => {
     e.preventDefault();
     const draft = { kind: 'expense', desc: f.desc.value, value: f.value.value, category: f.category.value, date: f.due.value, paid: f.paid.checked, accountId: f.accountId.value };
-    save(Ops.saveTx(ctx.state, null, draft), f.paid.checked ? 'Despesa salva' : 'Conta a pagar salva');
+    save(Ops.saveTx(ctx.state, null, draft, ctx.today), f.paid.checked ? 'Despesa salva' : 'Conta a pagar salva');
   };
 }
 

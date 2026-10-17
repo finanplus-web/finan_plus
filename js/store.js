@@ -14,6 +14,8 @@
 //   no localStorage, e nunca vão para o backup.
 // - Migração automática do Finan+ web antigo ("Minhas Finanças", chaves mf_v2 / mf_txs).
 import { normalize, toJson, newState } from './core.js';
+/** Os dados do próprio navegador nunca passam pelos limites de quantidade (só backups de fora). */
+const OWN = { enforceLimits: false };
 
 export const DB_NAME = 'finan-plus';
 const DB_VERSION = 1;
@@ -103,14 +105,14 @@ export class Store {
           }
           const cur = await idbGet(this.db, 'data');
           this.key = key; this.savedAt = box.savedAt || 0; this.rev = cur?.rev;
-          const n = normalize(JSON.parse(text));
+          const n = normalize(JSON.parse(text), OWN);
           return { status: 'ok', state: n.state, dropped: n.droppedTotal };
         }
         this.key = key || await this.#ensureKey();
         // primeira abertura com criptografia: traz dados sem criptografia (versão antiga ou modo sem cifra)
         const plain = readPlain() ?? legacy;
         if (plain) {
-          const n = normalize(plain.raw);
+          const n = normalize(plain.raw, OWN);
           await this.save(n.state);              // só apaga o texto aberto depois de confirmar a gravação cifrada
           await this.#verify();
           this.#cleanupPlain(true);
@@ -125,7 +127,7 @@ export class Store {
     this.mode = ls() ? 'plain' : 'none';
     const plain = readPlain() ?? legacy;
     if (plain) {
-      const n = normalize(plain.raw);
+      const n = normalize(plain.raw, OWN);
       return { status: 'ok', state: n.state, dropped: n.droppedTotal, migrated: plain.from === LS_PLAIN ? null : plain.from, legacyPin: plain.pin };
     }
     return { status: 'new', state: newState() };
@@ -148,11 +150,11 @@ export class Store {
 
   /** relê os dados gravados (outra aba salvou). Devolve o estado. */
   async reload() {
-    if (this.mode !== 'idb') { const p = readPlain(); return p ? normalize(p.raw).state : newState(); }
+    if (this.mode !== 'idb') { const p = readPlain(); return p ? normalize(p.raw, OWN).state : newState(); }
     const key = await idbGet(this.db, 'key'), box = await idbGet(this.db, 'data');
     if (!box) { this.key = key || this.key; this.rev = undefined; return newState(); }
     const text = await decrypt(key, box);
-    const n = normalize(JSON.parse(text));
+    const n = normalize(JSON.parse(text), OWN);
     this.key = key; this.rev = box.rev; this.savedAt = box.savedAt || 0;
     return n.state;
   }
@@ -162,7 +164,7 @@ export class Store {
   async #verify() {
     const box = await idbGet(this.db, 'data');
     const text = await decrypt(this.key, box);
-    normalize(JSON.parse(text));
+    normalize(JSON.parse(text), OWN);
   }
 
   #cleanupPlain(all = false) {

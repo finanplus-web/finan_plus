@@ -1,6 +1,6 @@
 # Simulador "E se…?"
 
-Fica em **Relatórios › E se…?**. Serve para testar uma decisão **antes** de tomá-la. **Nada é gravado**: as contas usam os seus lançamentos só para leitura, e os valores digitados somem ao fechar a folha. O selo "Só simulação: seus dados não mudam" fica sempre à vista.
+Fica em **Resumo › Simular meu dinheiro** e em **Meu dinheiro › Abrir simulação** (antes "Relatórios › E se…?"). Serve para testar uma decisão **antes** de tomá-la. **Nada é gravado**: as contas usam os seus lançamentos só para leitura, e os valores digitados somem ao fechar a folha. O selo "Só simulação: seus dados não mudam" fica sempre à vista.
 
 O código das contas está em `js/simulator.js` (testado em `tests/simulator.test.mjs`, com os mesmos casos do app Android). A folha está em `js/simsheet.js`. As regras são as mesmas do app Android (`core/Simulator.kt`).
 
