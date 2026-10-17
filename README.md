@@ -4,11 +4,13 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 
 ![Início no computador](docs/inicio-computador.png)
 
-| Lançamentos | Relatórios |
+| Lançamentos | Resumo (relatórios) |
 |---|---|
-| ![Lançamentos](docs/lancamentos-computador.png) | ![Relatórios](docs/relatorios-computador.png) |
+| ![Lançamentos](docs/lancamentos-computador.png) | ![Resumo](docs/relatorios-computador.png) |
 | **Ajustes (tema Tokyo Night)** | **Celular** |
 | ![Ajustes](docs/ajustes-tokyo.png) | ![Celular](docs/celular.png) |
+| **Meu dinheiro** | |
+| ![Meu dinheiro](docs/meu-dinheiro-computador.png) | |
 
 - Lista completa do que o app faz: [FUNCIONALIDADES.md](FUNCIONALIDADES.md)
 - Calendário de lançamentos: [CALENDARIO.md](CALENDARIO.md)
@@ -82,7 +84,7 @@ js/assist.js              assistente: texto, dicionário, categorias, resumo, di
 js/report.js, js/pdf.js   números do relatório e gerador de PDF próprio
 js/store.js               armazenamento criptografado, migração, PIN
 js/app.js                 início, bloqueio, navegação, atalhos, avisos, virada do dia
-js/screens.js             telas (Início, Lançamentos, Relatórios, Assistente, Ajustes)
+js/screens.js             telas (Início, Lançamentos, Meu dinheiro, Resumo, Assistente, Ajustes)
 js/simulator.js           contas do simulador "E se…?" e comparação dos Relatórios
 js/simsheet.js            folha do simulador
 js/editors.js             editores e diálogos (lançamento, meta, conta, cartão, fatura…)

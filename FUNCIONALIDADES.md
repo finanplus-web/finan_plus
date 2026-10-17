@@ -13,9 +13,9 @@ Lista completa do que o Finan+ web (PWA) faz e de onde fica cada coisa. O núcle
 | O quê | Como funciona |
 |---|---|
 | Quando ativa | A partir de **900 px** de largura. Abaixo disso, o layout de celular (cabeçalho, navegação inferior e botão ＋ flutuante). |
-| Barra lateral | Início, Lançamentos, Relatórios, Assistente e Ajustes, com o atalho de cada um. No rodapé: **saldo atual** e **previsto para o fim do mês** sempre à vista, e botões de ocultar valores, bloquear e atalhos. |
+| Barra lateral | Início, Lançamentos, Meu dinheiro, Resumo (relatórios), Assistente e Ajustes, com o atalho de cada um. No rodapé: **saldo atual** e **previsto para o fim do mês** sempre à vista, e botões de ocultar valores, bloquear e atalhos. |
 | Barra superior | Título da tela e botões "Despesa", "Receita", buscar, ocultar valores, bloquear (com PIN) e o menu ⋯ (relatório em PDF, CSV, backup, restaurar, atalhos, sobre). |
-| Colunas | Início em **3 colunas a partir de 1360 px** (resumo e vencimentos · assistente e patrimônio · limites e metas) e em 2 colunas de 900 a 1360 px. Lançamentos com filtros e totais à esquerda (fixos ao rolar) e a lista à direita. Relatórios, Assistente e Ajustes em 2 colunas. |
+| Colunas | Início em 2 colunas (resumo e próximos vencimentos · assistente); contas, cartões, limites e metas ficam em **Meu dinheiro**, também em 2 colunas. Lançamentos com filtros e totais à esquerda (fixos ao rolar) e a lista à direita. Relatórios, Assistente e Ajustes em 2 colunas. |
 | Janelas | Editores e diálogos abrem no centro da tela (no celular, sobem de baixo). Enter salva, Esc fecha. |
 | Teclado | Todos os itens têm foco visível e funcionam com Tab/Enter/Espaço. Linhas da lista abrem com Enter. |
 
@@ -61,7 +61,7 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
   - Lançamentos **agrupados por dia** ("Quinta, 15 de outubro"), com o saldo do dia à direita (mesma regra do calendário). Cada linha tem ícone da categoria, descrição, categoria · conta ou cartão, situação ("Em atraso" em vermelho), valor e botão de pago/recebido. Compras no cartão mostram o ícone do cartão.
   - Mostra 300 por vez, com "Mostrar mais".
 - **Calendário**: o mês em grade com o saldo de cada dia, faturas no vencimento e atrasos; toque num dia para ver os lançamentos, toque de novo (ou segure) para lançar nessa data. Detalhes em [CALENDARIO.md](CALENDARIO.md).
-- **Celular**: deslizar para o lado troca de aba (Início › Lançamentos › Relatórios › Ajustes); sobre o calendário, troca de mês.
+- **Celular**: deslizar para o lado troca de aba (Início › Lançamentos › Meu dinheiro › Resumo › Ajustes); em Início e Lançamentos, o botão **+** abre Despesa, Receita ou Nova recorrência; sobre o calendário, troca de mês.
 
 ## Editor de lançamento
 
@@ -81,7 +81,13 @@ As teclas simples funcionam fora dos campos de texto, em qualquer navegador. Num
 - **Ler a fatura deste cartão (PDF)**: compara o total do banco com a fatura calculada pelo Finan+ e lança a diferença no cartão. A senha do PDF pode ser lembrada só neste aparelho, cifrada, e esquecida no próprio cartão ([FATURAS.md](FATURAS.md)).
 - Recorrências geradas na abertura e na virada do dia. Meses em que o app ficou fechado são recuperados (até 24 de uma vez), nunca antes da data de início. Dia 31 vira o último dia em meses curtos. Recorrências podem ser pausadas. Nos meses que ainda não chegaram, aparecem como **Previsto** no calendário, na Lista e no saldo previsto, sem serem gravadas ([RECORRENCIAS.md](RECORRENCIAS.md)).
 
-## Relatórios
+## Meu dinheiro
+
+Contas e cartões (com a fatura atual e "Pagar fatura"), limites mensais por categoria, metas com plano, atalho para o simulador e categorias (a lista começa minimizada; toque em **Maximizar**). Cada parte vazia explica o que fazer e tem um atalho. Tudo isso saiu de Ajustes, que ficou agrupado em Personalização, Planejamento e automação, Segurança e dados e Aplicativo.
+
+## Resumo (relatórios)
+
+Antes "Relatórios". Além do que está abaixo: **resultado do período** ("sobraram R$ X" ou "gastou R$ X a mais") e **fluxo do dinheiro** (de onde veio, por categoria de receita, e para onde foi, por categoria de despesa e a sobra).
 
 - Período: o mesmo da tela Lançamentos, com o ‹ mês › e o botão de período livre.
 - Só valores realizados. Receitas e Despesas do período com **comparação justa**: mês atual contra os mesmos dias do mês anterior, outro mês contra o anterior inteiro, período livre contra o mesmo tamanho logo antes ("Variação oculta" com valores ocultos).

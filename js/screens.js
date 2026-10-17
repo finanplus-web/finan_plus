@@ -1,7 +1,7 @@
 // Finan+ — Copyright (C) 2026 Juscelino Be
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Telas do Finan+ web: Início, Lançamentos, Relatórios, Assistente e Ajustes.
+// Telas do Finan+ web: Início, Lançamentos, Meu dinheiro, Resumo (relatórios), Assistente e Ajustes.
 // Cada tela só gera HTML; os cliques passam por data-act (tratados em app.js).
 // No computador as telas se dividem em 2 ou 3 colunas (ctx.cols); no celular, uma.
 import {
@@ -58,38 +58,36 @@ export function homeView() {
   // como o previsto foi calculado (só quando a conta fecha exatamente com os números da tela)
   const explain = !hidden() && (pend.toReceive > 0 || pend.toPay > 0) && bal + pend.toReceive - pend.toPay === fut
     ? `<small class="forecastExplain">Hoje ${Money.format(bal)} + ${Money.format(pend.toReceive)} a receber − ${Money.format(pend.toPay)} a pagar</small>` : '';
-  // embaixo de Receitas/Despesas: o que ainda falta entrar e sair no mês (o R$ 0,00 não esconde o que vem)
-  // receitas/despesas: realizado, o que falta e quanto do total previsto já entrou/saiu
-  // (a porcentagem some com "Ocultar valores": ela também revela valores)
-  const flowCard = (cls, ic, label, done, rest, restLabel, doneWord) => {
-    const frac = done + rest > 0 ? done * 100 / (done + rest) : 0;
-    // o cartão todo é um botão que abre Lançamentos; a seta › indica isso
-    return `<button type="button" class="flowCard ${cls}" data-act="go" data-view="moves"><span class="flowTop"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowGo" aria-hidden="true">${icon('chevron-right', 20)}</span></span><span class="flowLabel">${label}</span><b>${money(done)}</b>
-      ${rest > 0 ? `<small class="statSub">${restLabel} <b>${money(rest)}</b></small><span class="flowFill"></span>
-      <span class="flowBar${hidden() ? ' sensitive' : ''}" aria-hidden="true"><i style="width:${frac}%"></i></span>${hidden() ? '' : `<small class="flowPct">${pct0(frac)}% ${doneWord}</small>`}` : ''}</button>`;
-  };
   const hero = `<section class="hero glass" aria-label="Resumo do mês">
     ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today))}</span><span class="statusPill">${icon('shield', 14)}Privado</span></div>` : ''}
     <div class="balanceWrap">${WAVES}
     <div class="balanceMain"><span class="tile" aria-hidden="true">${icon('account-balance-wallet', 22)}</span><span>Saldo atual</span></div>
     <b class="balanceBig${bal < 0 ? ' negative' : ''}">${money(bal)}</b></div>
     <div class="forecastBox"><span class="tile" aria-hidden="true">${icon('bar-chart', 20)}</span>
-      <span class="meta"><small>Saldo previsto no fim do mês</small><b class="${fut < 0 ? 'negative' : ''}">${money(fut)}</b>${compareChip}</span></div>
+      <span class="meta"><small>Saldo previsto até ${brDate(ymLast(ym))}</small><b class="${fut < 0 ? 'negative' : ''}">${money(fut)}</b>
+      <small class="forecastNote">Considera valores pendentes, faturas e recorrências até esta data.</small>${compareChip}</span></div>
     ${explain}
-    ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ''}></i></div>
-    <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ''}
+    ${fl.income > 0 ? `<div class="progress${hidden() ? ' sensitive' : ''}" role="progressbar" aria-label="Despesas sobre as receitas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ''}></i></div>
+    <div class="monthProgressText"><small>${esc(hidden() ? 'Valores ocultos.' : `Despesas equivalem a ${pct1(used)}% das receitas recebidas.`)}</small>${hidden() ? '' : `<b class="savedPill">${pct0(saved)}% economizado</b>`}</div>` : ''}
   </section>
   <div class="flowGrid">
-    ${flowCard('in', 'arrow-upward', 'Receitas do mês', fl.income, pend.toReceive, 'a receber', 'recebido')}
-    ${flowCard('out', 'arrow-downward', 'Despesas do mês', fl.expense, pend.toPay, 'a pagar', 'pago')}
+    ${pendingCard('in', 'arrow-upward', 'Falta receber', pend.toReceive, fl.income, 'recebido', true)}
+    ${pendingCard('out', 'arrow-downward', 'Falta pagar', pend.toPay, fl.expense, 'pago', false)}
   </div>`;
-  // os botões Receita/Despesa/Meta saíram: o + da barra (celular) e os botões do topo (computador) fazem o mesmo
-  const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
-  const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
-  const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
-  const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2)
-    : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals, blocks.start].join('');
+  // contas, cartões, limites e metas ficam na aba Meu dinheiro; o + (celular) e os botões do topo (computador) lançam
+  const blocks = { hero, due: dueCard(), assist: homeAssistCard() };
+  const body = ctx.cols >= 2 ? cols([blocks.hero, blocks.due], [blocks.assist]) : [blocks.hero, blocks.due, blocks.assist].join('');
   return `<h2 id="homeTitle" class="srOnly">Início</h2>${body}`;
+}
+
+/** o que ainda falta entrar/sair no mês; realizado e pendente ficam separados (em despesas, sem porcentagem:
+ *  faturas abertas podem corresponder a compras já lançadas e contariam duas vezes) */
+function pendingCard(cls, ic, label, pending, realized, doneWord, showProgress) {
+  const total = pending + realized, frac = total > 0 ? realized * 100 / total : 0;
+  const foot = showProgress && total > 0
+    ? `<span class="flowBar${hidden() ? ' sensitive' : ''}" aria-hidden="true"><i style="width:${frac}%"></i></span><small class="flowPct">${hidden() ? 'Progresso oculto' : `${pct0(frac)}% ${doneWord}`}</small>`
+    : `<small class="flowPct">${!showProgress && pending > 0 ? 'Contas e faturas em aberto neste mês' : !showProgress ? 'Tudo pago neste mês' : 'Nada registrado neste mês'}</small>`;
+  return `<button type="button" class="flowCard ${cls}" data-act="go" data-view="moves"><span class="flowTop"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowLabel">${label}</span></span><b>${money(pending)}</b><span class="flowFill"></span>${foot}</button>`;
 }
 
 /** contas a pagar, a receber e faturas dos próximos 30 dias (inclui atrasados) */
@@ -105,19 +103,17 @@ export function upcoming(s, today, days = 30) {
 }
 
 function dueCard() {
-  const list = upcoming(ctx.state, ctx.today);
-  if (!list.length && ctx.cols === 1) return '';
-  const rows = list.slice(0, 8).map(r => {
-    const ic = r.kind === 'invoice' ? 'credit-card' : r.kind === 'income' ? 'arrow-upward' : 'receipt-long';
-    const when = r.date === ctx.today ? 'hoje' : r.date === addDays(ctx.today, 1) ? 'amanhã' : brDayMonth(r.date);
-    return `<button type="button" class="dueRow${r.late ? ' late' : ''}" data-act="${r.act}" data-id="${attr(r.id)}">
-      <span class="dueIc ${r.kind}">${icon(ic, 18)}</span>
-      <span class="meta"><b>${esc(r.title)}</b><small>${esc(r.sub)} · ${r.late ? `<span class="red">em atraso desde ${brDayMonth(r.date)}</span>` : `vence ${esc(when)}`}</small></span>
-      <span class="amount ${r.kind === 'income' ? 'green' : ''}">${r.kind === 'income' ? '+' : ''}${money(r.amount)}</span></button>`;
+  const s = ctx.state, list = Finance.upcomingDues(s, ctx.today, 3);
+  const rows = list.map(r => {
+    const late = r.date < ctx.today, inv = r.type === 'INVOICE_DUE';
+    return `<button type="button" class="dueRow glass${late ? ' late' : ''}" data-act="${inv ? 'pay-invoice' : 'edit-tx'}" data-id="${attr(r.refId)}">
+      <span class="dueIc">${icon(late ? 'warning' : 'calendar-month', 18)}</span>
+      <span class="meta"><b>${esc(r.title)}</b><small class="${late ? 'red' : ''}">${late ? 'Vencido em' : 'Vence em'} ${brDate(r.date)}</small><small class="dueGo">Ver pagamento ›</small></span>
+      <span class="amount red">${money(r.amount)}</span></button>`;
   }).join('');
-  return `<section class="section">${sectionHead(null, 'Vencimentos (30 dias)', list.length ? btn('Ver todos', { act: 'open-moves', data: { st: 'pending' }, cls: 'soft small' }) : '')}
-    <div class="glass compactBox dueList">${rows || '<p class="muted center">Nada a pagar ou receber nos próximos 30 dias.</p>'}
-    ${list.length > 8 ? `<p class="muted small center">e mais ${list.length - 8} vencimento(s)</p>` : ''}</div></section>`;
+  const more = list.length ? btn('Ver todos', { act: 'open-moves', data: { st: 'pending' }, cls: 'soft small' }) : '';
+  return `<section class="section">${sectionHead(null, 'Próximos vencimentos', more)}
+    <div class="dueList">${rows || `<div class="dueRow glass"><span class="dueIc ok">${icon('check', 18)}</span><span class="meta"><b>Nenhum pagamento pendente</b><small>Quando houver uma conta ou fatura, ela aparecerá aqui.</small></span></div>`}</div></section>`;
 }
 
 /** cartão compacto: as 2 frases mais úteis do mês (Insights.report().highlights), a dica principal e um link só */
@@ -148,77 +144,63 @@ export function tipItem(t, o = {}) {
     <div class="tipFoot">${why(t.why)}${canOpen && !o.dismissed ? btn('Ver lançamentos', { act: 'open-moves', data: { q: t.query ?? '', from: t.from ?? '', to: t.to ?? '' }, cls: 'link small', icon: 'chevron-right', iconSize: 16 }) : ''}</div></article>`;
 }
 
-function walletSection() {
-  const s = ctx.state, today = ctx.today;
-  const accs = s.accounts.map(a => { const b = Finance.accountBalance(s, a); return `<button type="button" class="walletCard" data-act="edit-account" data-id="${attr(a.id)}">
-    <small>${icon('account-balance-wallet', 14)}Conta</small><b class="${b < 0 ? 'negative' : ''}">${money(b)}</b><span class="sub">${esc(a.name)}</span></button>`; }).join('');
-  const cards = s.cards.map(c => {
-    const st = Finance.cardStatus(s, c, today), cur = st.current;
-    return `<div class="walletCard cardItem"><small>${icon('credit-card', 14)}${esc(c.name)}</small>
-      <b>${cur ? money(cur.open) : money(0)}</b>
-      <span class="sub">${cur ? `Fatura ${esc(brMonthLabel(cur.ym))} · vence ${brDayMonth(cur.due)}${cur.closed ? ' · fechada' : ''}` : 'Sem fatura em aberto'}</span>
-      <span class="sub">Disponível ${money(st.available)}</span>
-      <div class="cardActions">${cur ? btn('Pagar fatura', { act: 'pay-invoice', data: { id: c.id }, cls: 'primary small' }) : ''}${btn('', { act: 'edit-card', data: { id: c.id }, cls: 'icon tiny', icon: 'edit', iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
-  }).join('');
-  const head = sectionHead(null, 'Contas e cartões', btn('Gerenciar', { act: 'go', data: { view: 'prefs', fold: 'contas' }, cls: 'soft small', icon: 'settings', iconSize: 18 }));
-  // uma conta só e nenhum cartão: linha inteira
-  if (s.accounts.length === 1 && !s.cards.length) {
-    const a = s.accounts[0], b = Finance.accountBalance(s, a);
-    return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
-      <span class="badge" aria-hidden="true">${icon('account-balance', 20)}</span><span class="meta"><b>${esc(a.name)}</b><small>Conta</small></span>
-      <b class="amount${b < 0 ? ' negative' : ''}">${money(b)}</b></button></section>`;
-  }
-  return `<section class="section">${head}
-    <div class="${ctx.cols === 1 ? 'hscroll' : 'walletGrid'}">${accs}${cards}</div></section>`;
-}
+// ================================================================== Meu dinheiro
+/** contas, cartões, limites, metas, simulador e categorias, como a aba Meu dinheiro do app Android */
+const moneyHead = (ic, title, sub, action = '') => `<div class="moneyHead"><span class="tile" aria-hidden="true">${icon(ic, 22)}</span><div><h3>${esc(title)}</h3><small>${esc(sub)}</small></div>${action}</div>`;
+export const catsOpen = { on: false };
 
-function limitsSection() {
-  const s = ctx.state, usage = Finance.budgetUsage(s, ymOf(ctx.today));
-  const rows = [...s.limits].map(([cat, lim]) => {
+export function moneyView() {
+  const s = ctx.state, today = ctx.today, usage = Finance.budgetUsage(s, ymOf(today));
+  const head = `<div class="pageTitle"><h2 id="moneyTitle">Meu dinheiro</h2><p>Contas, cartões e seus planos financeiros em um só lugar.</p></div>`;
+
+  const accRows = s.accounts.map(a => manage(a.name, `Conta · Saldo ${money(Finance.accountBalance(s, a))}`, btn('Editar', { act: 'edit-account', data: { id: a.id }, cls: 'soft small' }))).join('');
+  const cardRows = s.cards.map(c => { const st = Finance.cardStatus(s, c, today); return manage(c.name, `Cartão · limite ${money(c.limit)} · usado ${money(st.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn('Editar', { act: 'edit-card', data: { id: c.id }, cls: 'soft small' })); }).join('');
+  const invoices = s.cards.map(c => { const cur = Finance.cardStatus(s, c, today).current; return cur ? `<div class="invoiceRow"><div><small>Fatura ${esc(c.name)} · ${esc(brMonthLabel(cur.ym))} · vence ${brDate(cur.due)}</small><b>${money(cur.open)}</b></div>${btn('Pagar fatura', { act: 'pay-invoice', data: { id: c.id }, cls: 'primary small' })}</div>` : ''; }).join('');
+  const wallet = `<section class="glass moneyCard">${moneyHead('account-balance', 'Contas e cartões', 'Saldo das contas e situação dos cartões')}
+    ${s.cards.length ? '' : '<p class="muted small">Sem cartão cadastrado. Você pode adicionar um para acompanhar faturas e vencimentos.</p>'}
+    <div class="manageList">${accRows}${cardRows}</div>
+    <div class="btnGrid">${btn('Adicionar conta', { act: 'new-account', icon: 'add', iconSize: 18 })}${btn('Adicionar cartão', { act: 'new-card', icon: 'add', iconSize: 18 })}</div>${invoices}</section>`;
+
+  const limitRows = [...s.limits].map(([cat, lim]) => {
     const u = usage.get(cat) || 0, p = lim > 0 ? u * 100 / lim : 0;
     const cls = u > lim ? 'over' : p >= 80 ? 'warn' : '';
-    const status = u > lim ? 'Limite ultrapassado' : p >= 100 ? 'Limite atingido' : p >= 80 ? `Atenção: ${pct0(p)}% usado` : `${pct0(p)}% usado`;
+    const status = u > lim ? 'Limite ultrapassado' : p >= 100 ? 'Limite atingido' : hidden() ? (p >= 80 ? 'Atenção: perto do limite' : 'Dentro do limite') : p >= 80 ? `Atenção: ${pct0(p)}% usado` : `${pct0(p)}% usado`;
     return `<button type="button" class="budgetLine ${cls}" data-act="edit-limit" data-cat="${attr(cat)}">
       <div><b>${esc(cat)}</b><span>${money(u)} / ${money(lim)}</span></div>
-      <div class="budgetTrack"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
+      <div class="budgetTrack${hidden() ? ' sensitive' : ''}"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
   }).join('');
-  if (!s.limits.size) return ''; // enquanto não há limites: atalho em "Comece por aqui"
-  return `<section class="section">${sectionHead(null, 'Limites do mês', btn('', { act: 'new-limit', cls: 'icon small', icon: 'add', label: 'Novo limite' }))}
-    <div class="glass compactBox"><p class="muted small">Inclui o que ainda está pendente.</p>${rows}</div></section>`;
-}
+  const limits = `<section class="glass moneyCard">${moneyHead('track-changes', 'Limites mensais', 'Acompanhe quanto gasta por categoria', s.limits.size ? btn('Adicionar limite', { act: 'new-limit', icon: 'add', iconSize: 18, cls: 'soft small' }) : '')}
+    ${s.limits.size ? `<p class="muted small">Inclui lançamentos pendentes deste mês.</p>${limitRows}`
+      : `<p class="muted small">Defina quanto deseja gastar por categoria para acompanhar seus gastos do mês.</p>${btn('Criar meu primeiro limite', { act: 'new-limit', icon: 'add', iconSize: 18, cls: 'soft wide' })}`}</section>`;
 
-function goalsSection() {
-  const s = ctx.state;
-  const rows = s.goals.map(g => {
-    const p = g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0, plan = Finance.goalPlan(g, ctx.today);
-    const info = (g.deadline ? `Até ${brDate(g.deadline)}` : 'Sem prazo') + (plan.pastDue ? ' · prazo vencido' : '');
-    const planTxt = plan.done ? `${icon('check', 14)} Meta atingida` : [
-      plan.needed != null ? `Precisa de ${esc(money(plan.needed))}/mês` : null,
-      plan.eta != null ? `Plano: conclui em ${esc(brMonthLabel(plan.eta))}${plan.late ? ` ${icon('warning', 14)} após o prazo` : ''}` : null,
+  const goalRows = s.goals.map(g => {
+    const p = g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0, plan = Finance.goalPlan(g, today);
+    const planTxt = plan.done ? 'Meta atingida' : [
+      plan.needed != null ? `Precisa de ${money(plan.needed)}/mês` : null,
+      plan.eta != null ? `Conclui em ${brMonthLabel(plan.eta)}${plan.late ? ' (após o prazo)' : ''}` : null,
     ].filter(Boolean).join(' · ');
     return `<button type="button" class="tx goal" data-act="edit-goal" data-id="${attr(g.id)}">
       <div class="goalTop"><b>${esc(g.name)}</b><span>${money(g.saved)} / ${money(g.target)}</span></div>
-      <div class="bar2"><i style="width:${p}%"></i></div>
-      <div class="goalInfo"><span>${esc(info)}</span><span>${pct0(p)}%</span></div>${planTxt ? `<small class="goalPlan">${planTxt}</small>` : ''}</button>`;
+      <div class="bar2${hidden() ? ' sensitive' : ''}"><i style="width:${p}%"></i></div>
+      <div class="goalInfo"><span>${g.deadline ? `Até ${brDate(g.deadline)}` : 'Sem prazo'}${plan.pastDue ? ' · prazo vencido' : ''}</span><span>${esc(planTxt)}</span></div></button>`;
   }).join('');
-  if (!s.goals.length) return ''; // enquanto não há metas: atalho em "Comece por aqui"
-  return `<section class="section">${sectionHead(null, 'Metas', btn('', { act: 'new-goal', cls: 'icon small', icon: 'add', label: 'Nova meta' }))}
-    <div class="list">${rows}</div></section>`;
-}
+  const goals = `<section class="glass moneyCard">${moneyHead('flag', 'Metas', 'Acompanhe seus objetivos financeiros', s.goals.length ? btn('Criar meta', { act: 'new-goal', icon: 'add', iconSize: 18, cls: 'soft small' }) : '')}
+    ${s.goals.length ? `<div class="list">${goalRows}</div>`
+      : `<p class="muted small">Uma meta ajuda a acompanhar um objetivo, como uma viagem ou uma reserva.</p>${btn('Criar minha primeira meta', { act: 'new-goal', icon: 'add', iconSize: 18, cls: 'soft wide' })}`}</section>`;
 
-/** atalhos para o que ainda não foi configurado; cada linha some quando deixa de fazer sentido */
-function startSection() {
-  const s = ctx.state;
-  const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
-    <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon('chevron-right', 20)}</button>`;
-  const tile = (act, ic, title, sub) => `<button type="button" class="startCard glass" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
-    <b>${esc(title)}</b><small>${esc(sub)}</small></button>`;
-  // os dois atalhos lado a lado (conceito de outubro/2026); se só um aparece, a linha inteira de antes
-  if (!s.limits.size && !s.goals.length) return `<section class="section">${sectionHead(null, 'Comece por aqui')}<div class="startGrid">${tile('new-limit', 'track-changes', 'Definir um limite mensal', 'Acompanhe quanto gasta por categoria')}${tile('new-goal', 'flag', 'Criar uma meta', 'Junte para um objetivo com prazo')}</div></section>`;
-  const rows = (s.limits.size ? '' : row('new-limit', 'track-changes', 'Definir um limite mensal', 'Acompanhe quanto gasta por categoria'))
-    + (s.goals.length ? '' : row('new-goal', 'flag', 'Criar uma meta', 'Junte para um objetivo com prazo'));
-  if (!rows) return '';
-  return `<section class="section">${sectionHead(null, 'Comece por aqui')}<div class="glass compactBox startBox">${rows}</div></section>`;
+  const sim = `<section class="glass moneyCard">${moneyHead('auto-awesome', 'Simular meu dinheiro', 'Teste cenários sem alterar seus dados')}
+    <p class="muted small">Explore compras, mudanças na renda, economias e quitação de dívidas.</p>${btn('Abrir simulação', { act: 'simulator', icon: 'auto-awesome', iconSize: 18, cls: 'soft' })}</section>`;
+
+  // categorias começam minimizadas (como no Android): a lista e o formulário só aparecem em "Maximizar"
+  const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map(c => manage(c, `${k === 'expense' ? 'Despesa' : 'Receita'}${categoryUse(k, c)}`,
+    btn('Renomear', { act: 'rename-cat', data: { kind: k, cat: c }, cls: 'soft small', label: `Renomear ${c}` }) + btn('Excluir', { act: 'delete-cat', data: { kind: k, cat: c }, cls: 'soft small dangerB', label: `Excluir ${c}` }))).join('')}</div>`;
+  const open = catsOpen.on;
+  const cats = `<section class="glass moneyCard" id="catsCard">${moneyHead('tune', 'Categorias', 'Organize relatórios e lançamentos',
+    `<button type="button" class="btn soft small" data-act="cats-fold" aria-expanded="${open}" aria-controls="catsBody">${icon('expand-more', 18)}<span>${open ? 'Minimizar' : 'Maximizar'}</span></button>`)}
+    <div id="catsBody"${open ? '' : ' hidden'}><form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== 'income' ? ' selected' : ''}>Despesa</option><option value="income"${ctx.catKind === 'income' ? ' selected' : ''}>Receita</option></select>
+    ${btn('Adicionar categoria', { submit: true, cls: 'primary wide' })}</form>${catList('expense', 'Despesas')}${catList('income', 'Receitas')}</div></section>`;
+
+  return head + (ctx.cols === 1 ? [wallet, limits, goals, sim, cats].join('') : cols([wallet, goals, sim], [limits, cats]));
 }
 
 // ================================================================== Lançamentos
@@ -279,19 +261,20 @@ export function movesData() {
       ${col('Receitas', fl.income, 'green', 'a receber', pend.toReceive, 'green', pend.toReceive > 0)}
       ${col('Despesas', fl.expense, 'red', 'a pagar', pend.toPay, 'red', pend.toPay > 0)}
       ${col('Saldo', bal, bal < 0 ? 'negative' : '', 'previsto', forecast, forecast < 0 ? 'negative' : 'accent', hasPend)}</div>
-    ${fl.income > 0 && !hidden() ? `<small class="muted sumNote">As despesas são ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.</small>` : ''}</section>`;
+    ${(fl.income > 0 || fl.expense > 0) && !hidden() ? `<small class="muted sumNote">${esc(resultText(fl))}</small>` : ''}</section>`;
   // lista agrupada por dia (mais recentes primeiro), com o saldo de cada dia pela mesma regra do calendário
   const shown = all.slice(0, f.limit), groups = [];
   for (const t of shown) { const g = groups.at(-1); if (g && g.date === t.date) g.txs.push(t); else groups.push({ date: t.date, txs: [t] }); }
   const rows = groups.map(g => {
     const net = Period.cashNet(g.txs), cash = g.txs.some(t => !isCard(t));
     return `<h4 class="dayHead"><span>${esc((g.date === today ? 'Hoje · ' : '') + MonthCalendar.dayTitle(g.date, today))}</span>
-      ${cash && !hidden() ? `<b class="${net < 0 ? 'red' : 'green'}">${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}</b>` : ''}</h4>${g.txs.map(t => txRow(t, { noDate: true })).join('')}`;
+      ${cash && !hidden() ? `<b class="${net < 0 ? 'red' : 'green'}" title="Resultado das movimentações deste dia" aria-label="Resultado das movimentações deste dia: ${net > 0 ? 'mais ' : net < 0 ? 'menos ' : ''}${attr(Money.format(Math.abs(net)))}">${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}</b>` : ''}</h4>${g.txs.map(t => txRow(t, { noDate: true })).join('')}`;
   }).join('');
   return {
     totals, count: all.length,
     list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: 'moves-more', cls: 'soft wide' }) : '')
-      : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês, ajuste os filtros ou adicione uma movimentação.</span></div>`,
+      : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês ou ajuste os filtros. Você também pode começar por aqui:</span>
+        <div class="btnGrid">${btn('Despesa', { act: 'new-tx', data: { kind: 'expense' }, icon: 'arrow-downward', iconSize: 18 })}${btn('Receita', { act: 'new-tx', data: { kind: 'income' }, icon: 'arrow-upward', iconSize: 18 })}</div></div>`,
   };
 }
 
@@ -300,21 +283,58 @@ export function txRow(t, o = {}) {
   const s = ctx.state, payment = !isFlow(t), cardT = isCard(t), prev = isProjected(t);
   const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ''}` : account(s, t.accountId)?.name ?? '';
   const late = !t.paid && !cardT && t.date < ctx.today;
-  const status = prev ? 'Previsto · recorrência' : payment ? 'Pagamento de fatura' : cardT ? '' : t.paid ? '' : late ? '<span class="red">Em atraso</span>' : (t.kind === 'income' ? 'A receber' : 'A pagar');
-  const meta = [esc(t.category), esc(where), o.noDate ? '' : brDate(t.date), status].filter(Boolean).join(' · ');
+  // situação por escrito, junto da data (como no Android 1.6.0)
+  const statusTxt = prev ? 'Prevista · recorrência' : payment ? 'Pagamento de fatura' : cardT ? 'No cartão'
+    : !t.paid ? (late ? (t.kind === 'income' ? 'Vencida · a receber' : 'Vencida · a pagar') : (t.kind === 'income' ? 'A receber' : 'A pagar'))
+    : t.kind === 'income' ? 'Recebida' : 'Paga';
+  const stCls = late ? 'red' : t.paid && !cardT && !payment && !prev ? 'green' : cardT ? 'accent' : '';
+  const status = `<span class="txStatus ${stCls}">${esc(statusTxt)}</span>`;
+  const when = (o.noDate ? '' : brDate(t.date)) + (t.paid && t.scheduledDate ? `${o.noDate ? '' : ' · '}previsto ${brDate(t.scheduledDate)}` : '');
+  const meta = [status, esc(t.category), esc(where), when].filter(Boolean).join(' · ');
   // recorrência prevista (mês que ainda não chegou): não existe nos dados; clicar abre a recorrência
   const toggle = prev ? `<span class="chk card" title="Previsto: o lançamento é criado quando o mês chegar">${icon('repeat', 16)}</span>`
     : cardT ? `<span class="chk card" title="Compra no cartão">${icon('credit-card', 16)}</span>`
     : payment ? `<span class="chk on" title="Pagamento de fatura">${icon('check', 16)}</span>`
-      : `<button type="button" class="chk${t.paid ? ' on' : ''}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-pressed="${t.paid}" aria-label="${t.paid ? (t.kind === 'income' ? 'Recebido' : 'Pago') : (t.kind === 'income' ? 'Marcar como recebido' : 'Marcar como pago')}: ${attr(t.desc)}">${icon('check', 16)}</button>`;
+      : `<button type="button" class="chk${t.paid ? ' on' : ''}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-label="${t.paid ? `Desfazer confirmação: ${t.kind === 'income' ? 'recebido' : 'pago'}` : (t.kind === 'income' ? 'Marcar como recebido' : 'Marcar como pago')}: ${attr(t.desc)}">${icon('check', 16)}</button>`;
   return `<div class="tx ${t.kind}${t.paid ? '' : ' pending'}${payment ? ' payment' : ''}${prev ? ' projected' : ''}" data-act="${prev ? 'edit-recurring' : 'edit-tx'}" data-id="${attr(prev ? t.recurringId : t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${prev ? 'previsto, ' : ''}${t.kind === 'income' ? 'receita' : 'despesa'} de ${attr(money(t.value))} em ${brDate(t.date)}">
     ${glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
     <span class="amount">${t.kind === 'income' ? '+' : '−'}${money(t.value)}</span>${toggle}</div>`;
 }
 
 // ================================================================== Relatórios
+/** "Depois das despesas, sobraram R$ X." e variantes (Resumo e Lançamentos) */
+export function resultText(fl) {
+  if (fl.income === fl.expense) return 'Neste período, você gastou o mesmo valor que recebeu.';
+  if (fl.expense > fl.income) return `Você gastou ${Money.format(fl.expense - fl.income)} a mais do que recebeu.`;
+  return `Depois das despesas, sobraram ${Money.format(fl.income - fl.expense)}.`;
+}
+
+/** Fluxo agregado do período: de onde veio (receitas por categoria) e para onde foi (despesas e a sobra).
+ *  Não liga uma receita a uma despesa específica. */
+const FLOW_COLORS = ['#00afc1', 'var(--red)', '#278ae5', 'var(--green)', '#8c9499', 'var(--accent)'];
+function flowCard(inRange, s, f, fl) {
+  const by = new Map();
+  for (const t of inRange) if (t.kind === 'income' && t.paid && isFlow(t)) by.set(t.category || 'Sem categoria', (by.get(t.category || 'Sem categoria') || 0) + t.value);
+  const ins = [...by].sort((a, b) => b[1] - a[1]).map(([n, v], i) => [n, v, FLOW_COLORS[i % 6]]);
+  const outs = Finance.categoryTotals(s, f.from, f.to).map(([n, v], i) => [n, v, FLOW_COLORS[(i + 1) % 6]]);
+  const left = Math.max(0, fl.income - fl.expense);
+  if (left > 0) outs.push(['Sobrou', left, 'var(--green)']);
+  const scale = Math.max(fl.income, fl.expense, 1);
+  const bar = parts => `<div class="flowSeg${hidden() ? ' sensitive' : ''}" aria-hidden="true">${parts.map(([, v, c]) => `<i style="width:${v * 100 / scale}%;background:${c}"></i>`).join('')}</div>`;
+  const legend = (parts, total) => `<ul class="flowLegend">${parts.map(([n, v, c]) => `<li><i style="background:${c}"></i><span>${esc(n)}</span><b>${money(v)}<small>${hidden() || total <= 0 ? '••%' : Math.min(100, Math.floor(v * 100 / total)) + '%'}</small></b></li>`).join('')}</ul>`;
+  const desc = `Fluxo do dinheiro. Entradas realizadas: ${hidden() ? 'valores ocultos' : Money.format(fl.income)}. Despesas realizadas: ${hidden() ? 'valores ocultos' : Money.format(fl.expense)}`
+    + (left > 0 ? `. Sobra: ${hidden() ? 'valor oculto' : Money.format(left)}` : fl.expense > fl.income ? `. Despesas acima das receitas: ${hidden() ? 'valor oculto' : Money.format(fl.expense - fl.income)}` : '');
+  return `<section class="comparison glass flowBox" role="group" aria-label="${attr(desc)}">${eyebrow('Análises')}<h3>Fluxo do dinheiro</h3>
+    <p class="muted small">De onde veio (em cima) e para onde foi (embaixo).</p>
+    <h4 class="subhead">De onde veio</h4>${bar(ins)}${legend(ins, fl.income)}
+    <div class="flowPill"><span>${hidden() ? 'Entradas ocultas' : `Entrou ${esc(Money.format(fl.income))}`}</span></div>
+    <h4 class="subhead">Para onde foi</h4>${outs.length ? bar(outs) + legend(outs, Math.max(fl.income, fl.expense)) : '<p class="muted small">Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.</p>'}
+    ${fl.expense > fl.income ? '<p class="small red">As despesas passaram o valor recebido neste período.</p>' : ''}
+    <small class="muted">Considera apenas lançamentos pagos ou recebidos; não associa uma entrada a uma despesa específica.</small></section>`;
+}
+
 /**
- * Relatórios: o mesmo período da aba Lançamentos (‹ mês › e período livre), só valores realizados.
+ * Resumo (relatórios): o mesmo período da aba Lançamentos (‹ mês › e período livre), só valores realizados.
  * Resumo com comparação justa (PeriodCompare), atalho para o simulador "E se…?", despesas por categoria e evolução.
  */
 export function reportsView() {
@@ -322,7 +342,7 @@ export function reportsView() {
   const s = ctx.state, f = ctx.moves, today = ctx.today;
   const inRange = s.txs.filter(t => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to));
   const fl = Finance.flow(inRange);
-  const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Relatórios</h2>${btn('PDF', { act: 'pdf', cls: 'pill', icon: 'receipt-long', iconSize: 18, label: 'Exportar relatório em PDF' })}</div>
+  const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Resumo</h2>${btn('PDF', { act: 'pdf', cls: 'pill', icon: 'receipt-long', iconSize: 18, label: 'Exportar relatório em PDF' })}</div>
     ${periodBar()}<p class="muted small reportsNote">Só valores realizados (pagos ou recebidos). O período é o mesmo da aba Lançamentos.</p>`;
   let summary;
   if (fl.income === 0 && fl.expense === 0) {
@@ -340,9 +360,13 @@ export function reportsView() {
     // com "Ocultar valores", a variação também fica oculta (revelaria a proporção entre os períodos)
     const chg = (cur, old) => hidden() ? 'Variação oculta' : c ? PeriodCompare.text(cur, old, c) : '';
     const box = (l, ic, v, cls, ch) => `<div class="glass"><small>${icon(ic, 14)}${l}</small><b class="${cls}">${money(v)}</b>${ch ? `<small class="chg">${esc(ch)}</small>` : ''}</div>`;
-    summary = `<section class="reportSum" aria-label="Resumo do período">${box('Receitas', 'arrow-upward', fl.income, 'green', chg(fl.income, prev?.income))}${box('Despesas', 'arrow-downward', fl.expense, 'red', chg(fl.expense, prev?.expense))}</section>`;
+    const res = fl.income - fl.expense;
+    summary = `<section class="reportSum" aria-label="Resumo do período">${box('Receitas', 'arrow-upward', fl.income, 'green', chg(fl.income, prev?.income))}${box('Despesas', 'arrow-downward', fl.expense, 'red', chg(fl.expense, prev?.expense))}</section>
+      <section class="glass resultBox"><small class="muted">Resultado do período</small><b class="${res < 0 ? 'negative' : 'accent'}">${money(res)}</b>
+      <small class="muted">${esc(hidden() ? 'Os relatórios consideram somente valores já pagos ou recebidos.' : resultText(fl))}</small></section>`;
   }
-  const sim = `<button type="button" class="whatIf" data-act="simulator">${icon('auto-awesome', 22)}<span><b>E se…?</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon('chevron-right', 20)}</button>`;
+  const flow = fl.income > 0 || fl.expense > 0 ? flowCard(inRange, s, f, fl) : '';
+  const sim = `<button type="button" class="whatIf" data-act="simulator">${icon('auto-awesome', 22)}<span><b>Simular meu dinheiro</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon('chevron-right', 20)}</button>`;
   const cats = Finance.categoryTotals(s, f.from, f.to), total = cats.reduce((n, [, v]) => n + v, 0);
   const slices = cats.slice(0, 7).map(([n, v]) => [n, v]);
   if (cats.length > 7) slices.push([`Outras (${cats.length - 7})`, cats.slice(7).reduce((n, [, v]) => n + v, 0)]);
@@ -359,7 +383,7 @@ export function reportsView() {
   const evo = `<section class="comparison glass">${eyebrow('Evolução')}<h3>Últimos 6 meses</h3>
     ${empty ? '<p class="muted small">Aparece quando houver pelo menos um mês com valores realizados.</p>' : `<div class="evo${hidden() ? ' sensitive' : ''}" role="img" aria-label="Gráfico de receitas e despesas. ${attr(desc)}">${months.map(([m, x]) => `<div class="evoCol"><div class="pair"><i class="inc" style="height:${x.income * 100 / max}%"></i><i class="exp" style="height:${x.expense * 100 / max}%"></i></div><span>${MONTHS_SHORT[(m % 12)]}</span></div>`).join('')}</div>
     <small class="legendLine"><i class="dot inc"></i>Receitas <i class="dot exp"></i>Despesas</small>`}</section>`;
-  return head + (ctx.cols === 1 ? summary + sim + catCard + evo : cols([summary, sim, evo], [catCard]));
+  return head + (ctx.cols === 1 ? summary + sim + flow + catCard + evo : cols([summary, sim, flow], [catCard, evo]));
 }
 
 function donutSvg(slices, total) {
@@ -453,27 +477,12 @@ export function prefsView(env) {
     ${d.dismissedTips.length ? btn(`Restaurar ${d.dismissedTips.length} dica(s) dispensada(s)`, { act: 'restore-all-tips', cls: 'soft small' }) : ''}
     <details class="learned"><summary>${icon('expand-more', 18)}Ver o que o assistente aprendeu</summary>${learnedHtml()}</details>`, 'auto-awesome');
 
-  const accounts = fold('contas', 'Contas e cartões', `${s.accounts.length} conta(s) · ${s.cards.length} cartão(ões)`, `
-    <div class="manageList">${s.accounts.map(a => manage(a.name, `Saldo ${money(Finance.accountBalance(s, a))}`, btn('Editar', { act: 'edit-account', data: { id: a.id }, cls: 'soft small' }))).join('')}
-    ${s.cards.map(c => { const st = Finance.cardStatus(s, c, ctx.today); return manage(`Cartão ${c.name}`, `Limite ${money(c.limit)} · usado ${money(st.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn('Editar', { act: 'edit-card', data: { id: c.id }, cls: 'soft small' })); }).join('')}</div>
-    <div class="btnGrid">${btn('Conta', { act: 'new-account', icon: 'add', iconSize: 18 })}${btn('Cartão', { act: 'new-card', icon: 'add', iconSize: 18 })}</div>`, 'account-balance-wallet');
-
   const recurring = fold('recorrencias', 'Recorrências', s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : 'Nenhuma recorrência cadastrada', `
     <div class="foldTools">${btn('Nova', { act: 'new-recurring', icon: 'add', iconSize: 18, cls: 'soft small' })}</div>
     ${s.recurring.length ? `<div class="manageList">${s.recurring.map(r => {
       const where = r.cardId ? `Cartão ${card(s, r.cardId)?.name ?? ''}` : account(s, r.accountId)?.name ?? '';
       return manage(r.desc, `${r.kind === 'income' ? 'Receita' : 'Despesa'} · ${money(r.value)} · dia ${r.day} · ${r.category} · ${where}${r.active ? '' : ' · pausada'}`, btn('Editar', { act: 'edit-recurring', data: { id: r.id }, cls: 'soft small' }));
     }).join('')}</div>` : '<p class="muted small">Você também pode marcar “Repetir mensalmente” ao criar um lançamento.</p>'}`, 'repeat');
-
-  const limits = fold('limites', 'Limites mensais', s.limits.size ? `${s.limits.size} limite(s) definido(s)` : 'Nenhum limite definido', `
-    <div class="foldTools">${btn('Adicionar', { act: 'new-limit', icon: 'add', iconSize: 18, cls: 'soft small' })}</div>
-    ${s.limits.size ? `<div class="manageList">${[...s.limits].map(([c, v]) => manage(c, `${money(v)} por mês`, btn('Editar', { act: 'edit-limit', data: { cat: c }, cls: 'soft small' }))).join('')}</div>` : '<p class="muted small">Defina apenas os limites que quiser acompanhar. Despesas pendentes do mês também contam.</p>'}`, 'donut-large');
-
-  const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map(c => manage(c, `${k === 'expense' ? 'Despesa' : 'Receita'}${categoryUse(k, c)}`,
-    btn('', { act: 'rename-cat', data: { kind: k, cat: c }, cls: 'icon tiny', icon: 'edit', iconSize: 16, label: `Renomear ${c}` }) + btn('', { act: 'delete-cat', data: { kind: k, cat: c }, cls: 'icon tiny dangerIc', icon: 'delete', iconSize: 16, label: `Excluir ${c}` }))).join('')}</div>`;
-  const cats = fold('categorias', 'Categorias', `${s.cats.expense.length + s.cats.income.length} categorias cadastradas`, `
-    <form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== 'income' ? ' selected' : ''}>Despesa</option><option value="income"${ctx.catKind === 'income' ? ' selected' : ''}>Receita</option></select>
-    ${btn('Adicionar categoria', { submit: true, cls: 'primary wide' })}</form>${catList('expense', 'Despesas')}${catList('income', 'Receitas')}`, 'category');
 
   const data = fold('dados', 'Dados', 'Backup, restauração, CSV e relatório em PDF', `
     <div class="btnGrid">${btn('Exportar CSV', { act: 'csv', icon: 'table-view', iconSize: 18 })}${btn('Backup JSON', { act: 'backup', icon: 'download', iconSize: 18 })}
@@ -483,8 +492,11 @@ export function prefsView(env) {
 
   const about = fold('sobre', 'Sobre', `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env), 'info');
   const head = pageTitle('prefsTitle', 'Configurações', 'Ajustes', env.remote ? 'Tudo é salvo no celular, pela rede local.' : env.encrypted ? 'Tudo fica salvo e criptografado neste aparelho.' : 'Tudo fica salvo neste aparelho.');
-  const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
-  return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join('') : cols(left, right));
+  // agrupado como no Android 1.6.0; contas, cartões, limites e categorias estão em Meu dinheiro
+  const group = (title, ...items) => `<h3 class="prefsGroup">${esc(title)}</h3>${items.join('')}`;
+  const left = [group('Personalização', appearance, notif), group('Planejamento e automação', assist, recurring)];
+  const right = [group('Segurança e dados', privacy, data), group('Aplicativo', about)];
+  return head + (ctx.cols === 1 ? [...left, ...right].join('') : cols(left, right));
 }
 
 function categoryUse(k, c) { const n = ctx.state.txs.filter(t => t.kind === k && t.category === c).length; return n ? ` · ${n} lançamento(s)` : ''; }
@@ -543,10 +555,10 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
 
 // ================================================================== barra lateral, topo e navegação
 export const NAV = [
-  ['home', 'Início', 'home', 'home-fill'], ['moves', 'Lançamentos', 'swap-horiz', 'swap-horiz-fill'], ['reports', 'Relatórios', 'pie-chart', 'pie-chart-fill'],
-  ['assist', 'Assistente', 'auto-awesome', 'auto-awesome'], ['prefs', 'Ajustes', 'settings', 'settings-fill'],
+  ['home', 'Início', 'home', 'home-fill'], ['moves', 'Lançamentos', 'swap-horiz', 'swap-horiz-fill'], ['money', 'Meu dinheiro', 'account-balance', 'account-balance'],
+  ['reports', 'Resumo', 'pie-chart', 'pie-chart-fill'], ['assist', 'Assistente', 'auto-awesome', 'auto-awesome'], ['prefs', 'Ajustes', 'settings', 'settings-fill'],
 ];
-export const VIEW_TITLES = { home: 'Início', moves: 'Lançamentos', reports: 'Relatórios', assist: 'Assistente', prefs: 'Ajustes' };
+export const VIEW_TITLES = { home: 'Início', moves: 'Lançamentos', money: 'Meu dinheiro', reports: 'Resumo', assist: 'Assistente', prefs: 'Ajustes' };
 
 export function sideNavHtml() {
   return NAV.map(([id, label, ic, icOn], i) => `<button type="button" class="${ctx.view === id ? 'active' : ''}" data-act="go" data-view="${id}" aria-current="${ctx.view === id ? 'page' : 'false'}">
@@ -579,13 +591,17 @@ export function topbarHtml() {
 }
 export function mobileHeaderHtml() {
   const s = ctx.state;
-  return `<div><h1>Finan+</h1><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
-    <span class="statusPill">${icon('shield', 14)}Privado</span>
-    ${btn('', { act: 'toggle-privacy', cls: 'icon', icon: s.privacy ? 'visibility' : 'visibility-off', label: s.privacy ? 'Mostrar valores' : 'Ocultar valores' })}</div>`;
+  return `<div><h1>Finan+</h1><small class="headTag">Seu dinheiro, sem complicação.</small><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
+    <button type="button" class="privacyPill${s.privacy ? ' on' : ''}" data-act="toggle-privacy" aria-label="${s.privacy ? 'Mostrar valores financeiros' : 'Ocultar valores financeiros'}">${icon('shield', 15)}<span>${s.privacy ? 'Mostrar valores' : 'Ocultar valores'}</span></button></div>`;
 }
 export function bottomNavHtml() {
   const item = id => { const [, label, ic, icOn] = NAV.find(n => n[0] === id); const on = ctx.view === id || (id === 'home' && ctx.view === 'assist'); return `<button type="button" class="${on ? 'active' : ''}" data-act="go" data-view="${id}" aria-current="${on ? 'page' : 'false'}">${icon(on ? icOn : ic, 22)}<span>${label}</span></button>`; };
-  return `${item('home')}${item('moves')}<button type="button" class="fab" data-act="new-tx" data-kind="expense" aria-label="Novo lançamento">${icon('add', 28)}</button>${item('reports')}${item('prefs')}`;
+  return `${item('home')}${item('moves')}${item('money')}${item('reports')}${item('prefs')}`;
+}
+/** botão + flutuante (celular), só em Início e Lançamentos: abre Despesa, Receita ou Nova recorrência */
+export function fabHtml() {
+  return ctx.view === 'home' || ctx.view === 'moves'
+    ? `<button type="button" class="fab floatFab" data-act="add-choice" aria-label="Adicionar movimentação">${icon('add', 26)}</button>` : '';
 }
 
 export { cap, MONTHS, CARD_PAYMENT_CAT };

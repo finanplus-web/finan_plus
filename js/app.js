@@ -21,7 +21,7 @@ import { isRemote, RemoteStore, pairFlow, getToken, setToken } from './remote.js
 const env = { encrypted: false, remote: false };
 /** aberto pelo endereço do celular (Finan+ Android › Acesso pela rede): os dados ficam no celular */
 const REMOTE = isRemote();
-const VIEWS = { home: 'inicio', moves: 'lancamentos', reports: 'relatorios', assist: 'assistente', prefs: 'ajustes' };
+const VIEWS = { home: 'inicio', moves: 'lancamentos', money: 'meu-dinheiro', reports: 'relatorios', assist: 'assistente', prefs: 'ajustes' };
 const HASH_TO_VIEW = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v, k]));
 let channel = null;
 
@@ -138,11 +138,12 @@ function render() {
   $('#appHeader').innerHTML = S.mobileHeaderHtml();
   $('#appHeader').hidden = ctx.view !== 'home';
   $('#bottomNav').innerHTML = S.bottomNavHtml();
+  $('#fabSlot').innerHTML = S.fabHtml();
   for (const v of Object.keys(VIEWS)) {
     const el = $(`#${v}View`);
     el.classList.toggle('activeView', v === ctx.view);
     if (v !== ctx.view) { el.innerHTML = ''; continue; }
-    el.innerHTML = v === 'home' ? S.homeView() : v === 'moves' ? S.movesView() : v === 'reports' ? S.reportsView() : v === 'assist' ? S.assistView() : S.prefsView(env);
+    el.innerHTML = v === 'home' ? S.homeView() : v === 'moves' ? S.movesView() : v === 'money' ? S.moneyView() : v === 'reports' ? S.reportsView() : v === 'assist' ? S.assistView() : S.prefsView(env);
   }
   bindView();
   if (keep && (keep.act || keep.el)) {
@@ -171,6 +172,15 @@ function bindView() {
   if (ctx.view === 'assist') {
     const form = $('#askForm');
     if (form) form.onsubmit = e => { e.preventDefault(); askQuestion($('#askInput').value); };
+  }
+  if (ctx.view === 'money') {
+    const cf = $('#catForm');
+    if (cf) cf.onsubmit = e => {
+      e.preventDefault();
+      ctx.catKind = $('#newCatKind').value;
+      const r = OpsAddCategory(ctx.catKind, $('#newCat').value);
+      if (r) { $('#newCat')?.focus(); toast('Categoria adicionada'); }
+    };
   }
   if (ctx.view === 'prefs') {
     $$('#prefsView input[type=checkbox][role=switch]').forEach(i => i.onchange = () => onSwitch(i));
@@ -227,7 +237,27 @@ async function onSwitch(i) {
 const ACTIONS = {
   'new-tx': el => E.txEditor(el.dataset.kind || 'expense', null, el.dataset.date || null),
   'edit-tx': el => E.txEditor('expense', el.dataset.id),
-  'toggle-paid': el => { ctx.replace(Ops.togglePaid(ctx.state, el.dataset.id)); },
+  // confirmar pede confirmação e oferece Desfazer logo depois (a mesma operação, de novo, volta ao que era)
+  'toggle-paid': async el => {
+    const id = el.dataset.id, t = ctx.state.txs.find(x => x.id === id);
+    if (!t || !Ops.canTogglePaid(t)) return;
+    const action = t.kind === 'income' ? 'recebido' : 'pago';
+    const ok = await ask(t.paid ? 'Desfazer confirmação?' : t.kind === 'income' ? 'Confirmar recebimento?' : 'Confirmar pagamento?',
+      t.paid ? `Marcar “${t.desc}” como pendente novamente?` : `Marcar “${t.desc}” como ${action}?`,
+      { ok: t.paid ? 'Marcar pendente' : 'Confirmar', danger: t.paid });
+    if (!ok) return;
+    ctx.replace(Ops.togglePaid(ctx.state, id, ctx.today));
+    toast(t.paid ? 'Movimentação voltou para pendente.' : `Movimentação marcada como ${action}.`, 6000,
+      { action: 'Desfazer', onAction: () => ctx.replace(Ops.togglePaid(ctx.state, id, ctx.today)) });
+  },
+  'add-choice': () => E.addChoiceSheet(),
+  'cats-fold': el => {
+    S.catsOpen.on = !S.catsOpen.on;
+    const body = $('#catsBody');
+    if (body) body.hidden = !S.catsOpen.on;
+    el.setAttribute('aria-expanded', S.catsOpen.on);
+    el.querySelector('span').textContent = S.catsOpen.on ? 'Minimizar' : 'Maximizar';
+  },
   'new-goal': () => E.goalEditor(), 'edit-goal': el => E.goalEditor(el.dataset.id),
   'new-account': () => E.accountEditor(), 'edit-account': el => E.accountEditor(el.dataset.id),
   'new-card': () => E.cardEditor(), 'edit-card': el => E.cardEditor(el.dataset.id),
@@ -344,10 +374,10 @@ document.addEventListener('contextmenu', e => { if (e.target.closest?.('.calDay'
 
 /*
  * Deslizar para o lado (celular): sobre o calendário troca de mês; no resto da tela, troca de aba
- * na ordem Início › Lançamentos › Relatórios › Ajustes. Os botões da barra continuam funcionando.
+ * na ordem Início › Lançamentos › Meu dinheiro › Resumo › Ajustes. Os botões da barra continuam funcionando.
  * Fica de fora: campos de texto, fileiras que rolam para o lado, folhas e diálogos abertos.
  */
-const SWIPE_TABS = ['home', 'moves', 'reports', 'prefs'];
+const SWIPE_TABS = ['home', 'moves', 'money', 'reports', 'prefs'];
 let swipe = null;
 document.addEventListener('touchstart', e => {
   swipe = null;
@@ -383,7 +413,7 @@ document.addEventListener('pointerdown', e => {
 // ================================================================== atalhos de teclado
 // Teclas simples (fora de campos de texto) funcionam em qualquer navegador; com Ctrl/⌘ também,
 // mas em uma aba comum alguns (Ctrl+N, Ctrl+1…) são do próprio navegador: no app instalado, todos funcionam.
-const SIMPLE = { n: 'n', r: 'N', m: 'm', '/': 'f', k: 'k', h: 'h', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '?': '/' };
+const SIMPLE = { n: 'n', r: 'N', m: 'm', '/': 'f', k: 'k', h: 'h', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '?': '/' };
 document.addEventListener('keydown', e => {
   if (ctx.locked || ctx.problem || !ctx.state) return;
   if (dialogOpen()) return; // com uma janela aberta, os atalhos esperam
@@ -404,7 +434,7 @@ function runShortcut(k, shift, e) {
     n: () => E.txEditor(shift ? 'income' : 'expense'), m: () => E.goalEditor(), f: () => ctx.go('moves', { focus: 'search' }),
     k: () => ctx.go('assist', { focus: 'ask' }), h: () => ACTIONS['toggle-privacy'](), l: () => ctx.device.pinHash && lockNow(),
     p: () => E.pdfDialog(), e: () => E.exportCsv(), s: () => E.exportBackup(), o: () => E.restoreBackup(),
-    '1': () => ctx.go('home'), '2': () => ctx.go('moves'), '3': () => ctx.go('reports'), '4': () => ctx.go('assist'), '5': () => ctx.go('prefs'),
+    '1': () => ctx.go('home'), '2': () => ctx.go('moves'), '3': () => ctx.go('money'), '4': () => ctx.go('reports'), '5': () => ctx.go('assist'), '6': () => ctx.go('prefs'),
     ',': () => ctx.go('prefs'), '/': () => E.shortcutsDialog(), '?': () => E.shortcutsDialog(),
   };
   const fn = map[k];

@@ -7,7 +7,7 @@ Tudo acontece no aparelho, sem internet: o arquivo é lido só na memória, não
 ## Onde fica
 
 - **Novo lançamento** (despesa) › **Ler fatura ou boleto**.
-- **Ajustes › Contas e cartões ›** um cartão › **Ler a fatura deste cartão (PDF)**.
+- **Meu dinheiro › Contas e cartões ›** um cartão › **Ler a fatura deste cartão (PDF)**.
 - **Android:** também em **Compartilhar › Finan+** a partir do app do banco ou do e-mail (só PDF). O app abre a leitura depois do desbloqueio.
 
 ## Como funciona
