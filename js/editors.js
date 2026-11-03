@@ -3,7 +3,7 @@
 //
 // Editores (folhas): lançamento, meta, conta, cartão, pagamento de fatura, recorrência e limite;
 // relatório em PDF; categorias; PIN; atalhos. Validações e mensagens vêm de Ops (core.js).
-import { Ops, Finance, Money, account, card, brDate, brMonthLabel, toJson, BACKUP_VERSION, Csv, parseBackup, BackupError, newState, ymOf, CARD_PAYMENT_CAT } from './core.js';
+import { Ops, Finance, Money, account, card, brDate, brMonthLabel, toJson, BACKUP_VERSION, Csv, parseBackup, BackupError, newState, ymOf, CARD_PAYMENT_CAT, isGoal } from './core.js';
 import { Categorizer } from './assist.js';
 import { buildReport, preset, PRESETS, reportFileName } from './report.js';
 import { renderPdf } from './pdf.js';
@@ -12,6 +12,8 @@ import { icon } from './icons.js';
 import { esc, attr, openSheet, closeSheet, notice, confirmDlg, ask, promptDlg, field, input, moneyInput, select, check, btn, formData, toast, why } from './ui.js';
 import { ctx, money, APP_VERSION } from './ctx.js';
 import { billImportSheet, cardHasBillPassword, forgetBillPassword } from './billsheet.js';
+import { sharedEditor } from './sharedview.js';
+import { BackupCrypto } from './backupcrypto.js';
 
 const today = () => ctx.today;
 /** aplica a operação: sucesso fecha a folha; erro mostra a mensagem e mantém o formulário */
@@ -43,9 +45,10 @@ export function addChoiceSheet() {
   const d = openSheet({ title: 'Adicionar movimentação', subtitle: 'Escolha o que deseja registrar.', body: `<div class="choiceList">
     ${row('tx', 'expense', 'arrow-downward', 'out', 'Despesa', 'Dinheiro que saiu')}
     ${row('tx', 'income', 'arrow-upward', 'in', 'Receita', 'Dinheiro que entrou')}
-    ${row('recurring', '', 'repeat', '', 'Nova recorrência', 'Configure uma movimentação que se repete')}</div>` });
+    ${row('recurring', '', 'repeat', '', 'Nova recorrência', 'Configure uma movimentação que se repete')}
+    ${row('shared', '', 'group', '', 'Despesa compartilhada', 'Divida uma conta e veja quem já pagou')}</div>` });
   d.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
-    if (b.dataset.choice === 'recurring') recurringEditor(); else txEditor(b.dataset.kind);
+    if (b.dataset.choice === 'recurring') recurringEditor(); else if (b.dataset.choice === 'shared') sharedEditor(); else txEditor(b.dataset.kind);
   });
 }
 
@@ -55,6 +58,7 @@ export function addChoiceSheet() {
 export function txEditor(kind = 'expense', id = null, date = null) {
   const s = ctx.state, t = id ? s.txs.find(x => x.id === id) : null;
   if (id && !t) return;
+  if (t && isGoal(t)) return goalMoveView(t); // reserva para meta: não se edita aqui (o valor muda pela meta)
   const isPayment = !!t?.cardPayment;
   let k = t?.kind ?? kind;
   const startDate = t?.date ?? date ?? today();
@@ -187,19 +191,77 @@ export function movesFiltersSheet() {
 }
 
 // ------------------------------------------------------------------ meta
-/** [pre]: valores iniciais de uma meta nova ({ name, target, monthly }), ex.: vindos do simulador "E se…?" */
+/**
+ * [pre]: valores iniciais de uma meta nova ({ name, target, monthly }), ex.: vindos do simulador "E se…?".
+ * Reserva para meta (METAS.md): ao guardar, com "Tirar da conta" ligado (padrão), o valor sai da conta escolhida
+ * num lançamento "Meta › nome", que não conta como despesa; ao retirar, "Devolver para a conta" faz o caminho inverso.
+ */
 export function goalEditor(id = null, pre = null) {
-  const g = id ? ctx.state.goals.find(x => x.id === id) : null;
+  const s = ctx.state, g = id ? s.goals.find(x => x.id === id) : null;
+  if (id && !g) return;
+  // a conta do último depósito nesta meta (ou a primeira)
+  let last = null;
+  if (g) for (const t of s.txs) if (t.goalId === g.id && t.kind === 'expense' && (!last || t.date > last.date)) last = t;
+  const acc0 = last && account(s, last.accountId) ? last.accountId : s.accounts[0].id;
   const body = `<form id="f" novalidate>
     ${field('Nome', input('name', g?.name ?? pre?.name ?? '', { max: 60 }))}
     ${field('Valor da meta (R$)', moneyInput('target', g ? Money.input(g.target) : pre?.target > 0 ? Money.input(pre.target) : ''))}
-    ${g ? field('Guardar ou retirar agora (R$)', moneyInput('move', '', 'Ex.: 100 ou -50')) : ''}
+    ${g ? `${field('Guardar ou retirar agora (R$)', moneyInput('move', '', 'Ex.: 100 ou -50'), { hint: 'Valor negativo retira da meta.' })}
+      <div class="formCard goalMoveBox" id="moveBox" hidden>
+        <label class="switchRow"><span><b id="fromLabel">Tirar da conta</b><small id="fromSub"></small></span><input type="checkbox" role="switch" name="fromAccount" checked></label>
+        <div id="goalAccWrap">${field('Conta', select('accountId', s.accounts.map(a => [a.id, a.name]), acc0))}</div></div>` : ''}
     ${field('Prazo (opcional)', input('deadline', g?.deadline ?? '', { type: 'date' }))}
     ${field('Contribuição mensal planejada (opcional)', moneyInput('monthly', g?.monthly > 0 ? Money.input(g.monthly) : !g && pre?.monthly > 0 ? Money.input(pre.monthly) : ''))}
     ${actions('Salvar', g ? 'Excluir meta' : null)}</form>`;
   const d = openSheet({ title: g ? 'Editar meta' : 'Nova meta', subtitle: g ? `Guardado até agora: ${money(g.saved)}` : 'Dê um nome e um valor ao seu objetivo.', body });
-  guard(d.querySelector('#f'), v => apply(Ops.saveGoal(ctx.state, g?.id ?? null, v.name, v.target, v.move ?? '', v.deadline || null, v.monthly), 'Meta salva'));
-  onDelete(d, async () => { if (await ask('Excluir meta', `Excluir a meta “${g.name}”?`, { ok: 'Excluir', danger: true })) { ctx.replace(Ops.deleteGoal(ctx.state, g.id)); closeSheet(); } });
+  const f = d.querySelector('#f');
+  const sync = () => {
+    if (!g) return;
+    const mv = Money.parse(f.move.value), on = f.fromAccount.checked, withdraw = mv != null && mv < 0;
+    d.querySelector('#moveBox').hidden = !(mv != null && mv !== 0);
+    d.querySelector('#fromLabel').textContent = withdraw ? 'Devolver para a conta' : 'Tirar da conta';
+    d.querySelector('#fromSub').textContent = on ? (withdraw ? 'O valor volta para o saldo da conta.' : 'O valor sai do saldo da conta, mas não conta como despesa.')
+      : 'Só o valor guardado na meta muda; o saldo da conta continua igual.';
+    d.querySelector('#goalAccWrap').hidden = !on;
+  };
+  if (g) { f.move.oninput = sync; f.fromAccount.onchange = sync; sync(); }
+  guard(f, v => {
+    const mv = g ? Money.parse(v.move ?? '') : null, moving = mv != null && mv !== 0 && !!f.fromAccount?.checked;
+    apply(Ops.saveGoal(ctx.state, g?.id ?? null, v.name, v.target, v.move ?? '', v.deadline || null, v.monthly, !!f.fromAccount?.checked, v.accountId || '', today()),
+      moving ? (mv > 0 ? 'Valor guardado na meta' : 'Valor devolvido para a conta') : 'Meta salva');
+  });
+  onDelete(d, async () => {
+    const back = Ops.goalFromAccounts(ctx.state, g.id);
+    const msg = back > 0 ? `Excluir a meta “${g.name}”? ${money(back)} que saíram das contas para ela voltam para a conta.` : `Excluir a meta “${g.name}”?`;
+    if (!await ask('Excluir meta', msg, { ok: 'Excluir', danger: true })) return;
+    const before = ctx.state;
+    ctx.replace(Ops.deleteGoal(ctx.state, g.id, today()));
+    const after = ctx.state;
+    closeSheet();
+    toast(back > 0 ? 'Meta excluída · o valor voltou para a conta' : 'Meta excluída', 6000, { action: 'Desfazer', onAction: () => {
+      if (ctx.state === after) { ctx.replace(before); toast('Meta restaurada'); } else notice('Não foi possível desfazer', 'Os dados mudaram depois da exclusão.');
+    } });
+  });
+}
+
+/** reserva para meta aberta em Lançamentos: só leitura, com "Abrir a meta" e "Excluir lançamento" */
+export function goalMoveView(t) {
+  const s = ctx.state, goal = s.goals.find(x => x.id === t.goalId), saved = t.kind === 'expense';
+  const body = `<div class="goalView">
+    <div class="formCard"><b class="goalViewValue ${saved ? 'goalTxt' : 'green'}">${saved ? '' : '+ '}${money(t.value)}</b>
+      <small class="muted">${esc(`${brDate(t.date)} · ${account(s, t.accountId)?.name ?? 'Conta'}`)}</small>
+      <p class="muted small">${saved ? 'Este valor saiu do saldo da conta para a meta. Não conta como despesa, nem nos limites ou no assistente.' : 'Este valor voltou da meta para o saldo da conta. Não conta como receita.'}</p></div>
+    <p class="muted small">Para mudar o valor, guarde ou retire pela própria meta.</p>
+    <div class="sheetActions">${btn('Excluir lançamento', { act: 'sheet-delete', cls: 'danger' })}${goal ? btn('Abrir a meta', { id: 'openGoal', cls: 'primary', icon: 'flag', iconSize: 18 }) : ''}</div></div>`;
+  const d = openSheet({ title: saved ? 'Guardado na meta' : 'Retirado da meta', subtitle: goal?.name ?? 'Meta excluída', body });
+  d.querySelector('#openGoal')?.addEventListener('click', () => goalEditor(goal.id));
+  onDelete(d, async () => {
+    const what = !goal ? 'O saldo da conta volta ao que era antes deste lançamento.'
+      : saved ? `O valor guardado na meta diminui ${money(t.value)} e volta para o saldo da conta.`
+        : `O valor guardado na meta aumenta ${money(t.value)} e sai de novo do saldo da conta.`;
+    if (!await ask('Excluir lançamento', what, { ok: 'Excluir', danger: true })) return;
+    ctx.replace(Ops.deleteTx(ctx.state, t.id, false)); closeSheet(); toast('Lançamento excluído');
+  });
 }
 
 // ------------------------------------------------------------------ conta
@@ -309,13 +371,33 @@ export function pickFile(accept) {
     document.body.append(i); i.click();
   });
 }
+/**
+ * Lê um arquivo de backup: o JSON comum ou a cópia criptografada do backup automático (pede a senha).
+ * Devolve o resultado de parseBackup, null (cancelado) ou lança BackupError.
+ */
+export async function readBackupFile(file) {
+  if (file.size > 30 * 1024 * 1024) throw new BackupError('Arquivo grande demais');
+  let text = await file.text();
+  if (BackupCrypto.isEncrypted(text)) {
+    for (;;) {
+      const pw = await promptDlg('Backup criptografado', 'Esta é uma cópia do backup automático. Digite a senha do backup.', { label: 'Senha do backup', type: 'password', max: 128 }, { ok: 'Abrir' });
+      if (pw == null) return null;
+      try { text = await BackupCrypto.decrypt(text, pw); break; } catch (e) {
+        if (/Senha incorreta/.test(e?.message)) { await notice('Senha incorreta', 'A senha não abre esta cópia (ou o arquivo está danificado). Tente de novo.'); continue; }
+        throw new BackupError(e?.message || 'Arquivo danificado');
+      }
+    }
+  }
+  return parseBackup(text);
+}
+
 export async function restoreBackup() {
   const file = await pickFile('application/json,.json');
   if (!file) return;
   let n;
   try {
-    if (file.size > 30 * 1024 * 1024) throw new BackupError('Arquivo grande demais');
-    n = parseBackup(await file.text());
+    n = await readBackupFile(file);
+    if (!n) return;
   } catch (e) {
     return notice('Não foi possível restaurar', 'Arquivo de backup inválido ou danificado. Nada foi alterado.' + (e instanceof BackupError ? `\n(${e.message})` : ''));
   }
@@ -339,6 +421,7 @@ export function pdfDialog() {
     <div class="presetRow" id="pdfPresets">${PRESETS.map(([k, l]) => `<button type="button" data-p="${k}">${l}</button>`).join('')}</div>
     <div class="row2">${field('De', input('from', from, { type: 'date' }))}${field('Até', input('to', to, { type: 'date' }))}</div>
     ${check('withTxs', 'Incluir a lista de lançamentos', true, { sub: 'Todos os lançamentos do período, inclusive pendentes' })}
+    ${ctx.device.accumulateBalance ? '<p class="muted small">Com “Acumular saldo entre os meses” ligado, o PDF mostra o saldo anterior, o saldo acumulado e a coluna Acumulado.</p>' : ''}
     <p class="muted small" id="pdfPreview"></p>
     <p class="infoBox warnBox">${icon('warning', 18)}<span>O PDF mostra os valores mesmo com “Ocultar valores” ligado e não é criptografado: guarde em local seguro e cuidado ao compartilhar.</span></p>
     ${actions('Gerar PDF')}</form>`;
@@ -348,8 +431,8 @@ export function pdfDialog() {
     const a = f.from.value, b = f.to.value, p = d.querySelector('#pdfPreview');
     d.querySelectorAll('#pdfPresets button').forEach(x => { const [pa, pb] = preset(x.dataset.p, t, first, last); x.setAttribute('aria-pressed', pa === a && pb === b); x.classList.toggle('selected', pa === a && pb === b); });
     if (!a || !b || b < a) { p.textContent = ''; return; }
-    const r = buildReport(ctx.state, a, b, t);
-    p.textContent = `${r.txs.length} lançamento(s) · receitas ${money(r.income)} · despesas ${money(r.expense)} · saldo ${money(r.balance)}`;
+    const r = buildReport(ctx.state, a, b, t, !!ctx.device.accumulateBalance);
+    p.textContent = `${r.txs.length} lançamento(s) · receitas ${money(r.income)} · despesas ${money(r.expense)} · saldo ${money(r.balance)}` + (r.accumulated != null ? ` · saldo acumulado ${money(r.accumulated)}` : '');
   };
   d.querySelectorAll('#pdfPresets button').forEach(b => b.onclick = () => { [from, to] = preset(b.dataset.p, t, first, last); f.from.value = from; f.to.value = to; upd(); });
   f.from.onchange = f.to.onchange = upd;
@@ -358,7 +441,7 @@ export function pdfDialog() {
     if (!v.from || !v.to) return notice('Período incompleto', 'Escolha as datas inicial e final.');
     if (v.to < v.from) return notice('Período inválido', 'A data final deve ser igual ou posterior à inicial.');
     try {
-      const r = buildReport(ctx.state, v.from, v.to, today());
+      const r = buildReport(ctx.state, v.from, v.to, today(), !!ctx.device.accumulateBalance);
       const { bytes } = renderPdf(r, ctx.state, { includeTransactions: !!f.withTxs.checked, appVersion: APP_VERSION });
       download(reportFileName(v.from, v.to), new Blob([bytes], { type: 'application/pdf' }));
       closeSheet();
@@ -428,6 +511,7 @@ export function shortcutsDialog() {
 }
 export function whatsNew() {
   const items = [
+    'Paridade com o app Android 1.7 a 1.9: reserva para meta (guardar tira o dinheiro da conta, sem contar como despesa; "Guardado em metas" no Resumo), despesas compartilhadas (divisão igual ou por valor, pagamentos parciais, comprovante em PDF e imagem para compartilhar), "Acumular saldo entre os meses", efeito vidro opcional, apresentação de boas-vindas e backup automático criptografado numa pasta (Chrome e Edge no computador). Restaurar também abre as cópias criptografadas do backup automático do Android.',
     '1.4.0: o mesmo visual e as mesmas regras da versão 1.6.0 do app Android. Nova aba Meu dinheiro (contas, cartões, limites, metas e categorias); Relatórios virou Resumo, com o fluxo do dinheiro; no celular, o botão + abre Despesa, Receita ou Nova recorrência. Formulário mais simples, com descrição opcional e "Mais opções". Lançamento de outro dia começa pendente; ao confirmar, a data real e a prevista ficam guardadas, com Desfazer. Backup com valores exatos (sem perder centavos) e limites de tamanho.',
     '1.3.1: receitas e despesas fixas (recorrências) aparecem nos próximos meses como "Previsto" no calendário, na Lista e no saldo previsto. Clique num previsto para abrir a recorrência. Nada é gravado antes da hora: o lançamento real é criado quando o mês chega.',
     '1.3.0: simulador "E se…?" em Relatórios: economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida, sem mudar seus dados (dá para transformar em meta). Relatórios com o mesmo ‹ mês › de Lançamentos e comparação justa (mês atual contra os mesmos dias do mês anterior).',

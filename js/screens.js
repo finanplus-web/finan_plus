@@ -5,7 +5,7 @@
 // Cada tela só gera HTML; os cliques passam por data-act (tratados em app.js).
 // No computador as telas se dividem em 2 ou 3 colunas (ctx.cols); no celular, uma.
 import {
-  Finance, isCard, isFlow, isProjected, Projection, ymOf, ymFirst, ymLast, ymLen, addDays, brDate, brDayMonth, brMonthLabel, brMonthYear, fullDate,
+  Finance, isCard, isFlow, isGoal, isProjected, Projection, ymOf, ymFirst, ymLast, ymLen, addDays, brDate, brDayMonth, brMonthLabel, brMonthYear, fullDate,
   MONTHS, MONTHS_SHORT, THEMES, themeLabel, AUTOLOCK_OPTIONS, account, card, CARD_PAYMENT_CAT, Money,
 } from './core.js';
 import { Insights, Ask, ASK_EXAMPLES, Categorizer, Text, INSIGHT_LABELS } from './assist.js';
@@ -17,6 +17,8 @@ import { ctx, money, hidden, categoryIcon, APP_VERSION } from './ctx.js';
 import { MonthCalendar, Period } from './calendar.js';
 import { PeriodCompare } from './simulator.js';
 import { calendarView, roundBtn } from './calendarview.js';
+import { sharedCardSubtitle } from './sharedview.js';
+import * as AutoBackup from './autobackup.js';
 
 const pct1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
 const pct0 = v => String(Math.round(v));
@@ -188,6 +190,9 @@ export function moneyView() {
     ${s.goals.length ? `<div class="list">${goalRows}</div>`
       : `<p class="muted small">Uma meta ajuda a acompanhar um objetivo, como uma viagem ou uma reserva.</p>${btn('Criar minha primeira meta', { act: 'new-goal', icon: 'add', iconSize: 18, cls: 'soft wide' })}`}</section>`;
 
+  const shared = `<section class="glass moneyCard">${moneyHead('group', 'Despesas compartilhadas', sharedCardSubtitle(s))}
+    <div class="btnGrid">${btn((s.shared ?? []).length ? 'Ver despesas' : 'Ver histórico', { act: 'shared-list', icon: 'group', iconSize: 18 })}${btn('Nova', { act: 'shared-new', icon: 'add', iconSize: 18 })}</div></section>`;
+
   const sim = `<section class="glass moneyCard">${moneyHead('auto-awesome', 'Simular meu dinheiro', 'Teste cenários sem alterar seus dados')}
     <p class="muted small">Explore compras, mudanças na renda, economias e quitação de dívidas.</p>${btn('Abrir simulação', { act: 'simulator', icon: 'auto-awesome', iconSize: 18, cls: 'soft' })}</section>`;
 
@@ -200,7 +205,7 @@ export function moneyView() {
     <div id="catsBody"${open ? '' : ' hidden'}><form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== 'income' ? ' selected' : ''}>Despesa</option><option value="income"${ctx.catKind === 'income' ? ' selected' : ''}>Receita</option></select>
     ${btn('Adicionar categoria', { submit: true, cls: 'primary wide' })}</form>${catList('expense', 'Despesas')}${catList('income', 'Receitas')}</div></section>`;
 
-  return head + (ctx.cols === 1 ? [wallet, limits, goals, sim, cats].join('') : cols([wallet, goals, sim], [limits, cats]));
+  return head + (ctx.cols === 1 ? [wallet, limits, goals, shared, sim, cats].join('') : cols([wallet, goals, shared, sim], [limits, cats]));
 }
 
 // ================================================================== Lançamentos
@@ -254,22 +259,23 @@ export function movesView() {
 
 export function movesData() {
   const all = filteredTxs(), f = ctx.moves, today = ctx.today;
-  const fl = Finance.flow(all), pend = Period.pending(all), bal = fl.income - fl.expense;
-  const forecast = bal + pend.toReceive - pend.toPay, hasPend = pend.toReceive > 0 || pend.toPay > 0;
+  const fl = Finance.flow(all), pend = Period.pending(all);
+  // "Acumular saldo entre os meses" (Ajustes): o saldo é o das contas ao fim do período; com filtro, volta a ser só o do período
+  const acc = movesAccumulated();
+  const bal = acc ? acc.balance : fl.income - fl.expense;
+  const forecast = acc ? acc.forecast : bal + pend.toReceive - pend.toPay, hasPend = acc ? forecast !== bal : pend.toReceive > 0 || pend.toPay > 0;
   const col = (label, v, cls, subL, sv, scls, show) => `<div><small>${label}</small><b class="${cls}">${money(v)}</b>${show ? `<small class="statSub">${subL} <b class="${scls}">${money(sv)}</b></small>` : ''}</div>`;
   const totals = `<section class="periodSummary glass" aria-label="Resumo do período"><div class="sumGrid">
       ${col('Receitas', fl.income, 'green', 'a receber', pend.toReceive, 'green', pend.toReceive > 0)}
       ${col('Despesas', fl.expense, 'red', 'a pagar', pend.toPay, 'red', pend.toPay > 0)}
       ${col('Saldo', bal, bal < 0 ? 'negative' : '', 'previsto', forecast, forecast < 0 ? 'negative' : 'accent', hasPend)}</div>
-    ${(fl.income > 0 || fl.expense > 0) && !hidden() ? `<small class="muted sumNote">${esc(resultText(fl))}</small>` : ''}</section>`;
+    ${(fl.income > 0 || fl.expense > 0) && !hidden() ? `<small class="muted sumNote">${esc(resultText(fl))}</small>` : ''}
+    ${acc ? '<small class="muted sumNote">Saldo acumulado: inclui o saldo das contas que vem dos meses anteriores.</small>'
+      : ctx.device.accumulateBalance ? '<small class="muted sumNote">Com filtro, o saldo mostra só este período (sem acumular).</small>' : ''}</section>`;
   // lista agrupada por dia (mais recentes primeiro), com o saldo de cada dia pela mesma regra do calendário
   const shown = all.slice(0, f.limit), groups = [];
   for (const t of shown) { const g = groups.at(-1); if (g && g.date === t.date) g.txs.push(t); else groups.push({ date: t.date, txs: [t] }); }
-  const rows = groups.map(g => {
-    const net = Period.cashNet(g.txs), cash = g.txs.some(t => !isCard(t));
-    return `<h4 class="dayHead"><span>${esc((g.date === today ? 'Hoje · ' : '') + MonthCalendar.dayTitle(g.date, today))}</span>
-      ${cash && !hidden() ? `<b class="${net < 0 ? 'red' : 'green'}" title="Resultado das movimentações deste dia" aria-label="Resultado das movimentações deste dia: ${net > 0 ? 'mais ' : net < 0 ? 'menos ' : ''}${attr(Money.format(Math.abs(net)))}">${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}</b>` : ''}</h4>${g.txs.map(t => txRow(t, { noDate: true })).join('')}`;
-  }).join('');
+  const rows = groups.map(g => `<h4 class="dayHead"><span>${esc((g.date === today ? 'Hoje · ' : '') + MonthCalendar.dayTitle(g.date, today))}</span>${dayTotalHtml(Period.dayTotal(g.txs))}</h4>${g.txs.map(t => txRow(t, { noDate: true })).join('')}`).join('');
   return {
     totals, count: all.length,
     list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: 'moves-more', cls: 'soft wide' }) : '')
@@ -278,27 +284,53 @@ export function movesData() {
   };
 }
 
+/** "Acumular saldo entre os meses" ligada e sem filtro de tipo, situação ou busca: { balance, forecast } das contas ao fim do período */
+export function movesAccumulated() {
+  const f = ctx.moves, s = ctx.state, today = ctx.today;
+  if (!ctx.device.accumulateBalance || f.kind || f.st || String(f.q || '').trim()) return null;
+  // sem fim de período: até o último lançamento (ou hoje), sem recorrências previstas, como a lista
+  const lastTx = s.txs.reduce((m, t) => t.date > m ? t.date : m, today);
+  const until = f.to || lastTx;
+  return { balance: Finance.balanceAt(s, until), forecast: Finance.forecastAt(s, until, today, !!f.to) };
+}
+
+/**
+ * Total do dia na lista (Android 1.9): só receitas e despesas (verde entrou, vermelho saiu); as reservas para meta
+ * ficam fora, numa linha "R$ X em metas" (cor das metas) ou "R$ X retirados de metas" (verde, voltou para a conta).
+ */
+export function dayTotalHtml(t) {
+  if (hidden() || (!t.hasFlow && !t.goals)) return '';
+  const net = t.net;
+  const flow = t.hasFlow ? `<b class="${net < 0 ? 'red' : 'green'}" title="Resultado das movimentações deste dia" aria-label="Resultado das movimentações deste dia: ${net > 0 ? 'mais ' : net < 0 ? 'menos ' : ''}${attr(Money.format(Math.abs(net)))}">${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}</b>` : '';
+  const goals = t.goals ? `<small class="dayGoals ${t.goals > 0 ? 'goalTxt' : 'green'}${t.hasFlow ? '' : ' only'}">${icon('flag', 14)}${esc(t.goals > 0 ? `${Money.format(t.goals)} em metas` : `${Money.format(-t.goals)} retirados de metas`)}</small>` : '';
+  return `<span class="dayTotal">${flow}${goals}</span>`;
+}
+
 /** linha de lançamento; o: { noDate } quando o dia já aparece no título (lista por dia e calendário) */
 export function txRow(t, o = {}) {
-  const s = ctx.state, payment = !isFlow(t), cardT = isCard(t), prev = isProjected(t);
+  const s = ctx.state, goalT = isGoal(t), payment = !isFlow(t) && !goalT, cardT = isCard(t), prev = isProjected(t);
   const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ''}` : account(s, t.accountId)?.name ?? '';
   const late = !t.paid && !cardT && t.date < ctx.today;
   // situação por escrito, junto da data (como no Android 1.6.0)
-  const statusTxt = prev ? 'Prevista · recorrência' : payment ? 'Pagamento de fatura' : cardT ? 'No cartão'
+  const statusTxt = prev ? 'Prevista · recorrência' : goalT ? (t.kind === 'expense' ? 'Guardado na meta' : 'Retirado da meta') : payment ? 'Pagamento de fatura' : cardT ? 'No cartão'
     : !t.paid ? (late ? (t.kind === 'income' ? 'Vencida · a receber' : 'Vencida · a pagar') : (t.kind === 'income' ? 'A receber' : 'A pagar'))
     : t.kind === 'income' ? 'Recebida' : 'Paga';
-  const stCls = late ? 'red' : t.paid && !cardT && !payment && !prev ? 'green' : cardT ? 'accent' : '';
+  const stCls = goalT ? 'goalTxt' : late ? 'red' : t.paid && !cardT && !payment && !prev ? 'green' : cardT ? 'cardTxt' : '';
   const status = `<span class="txStatus ${stCls}">${esc(statusTxt)}</span>`;
   const when = (o.noDate ? '' : brDate(t.date)) + (t.paid && t.scheduledDate ? `${o.noDate ? '' : ' · '}previsto ${brDate(t.scheduledDate)}` : '');
   const meta = [status, esc(t.category), esc(where), when].filter(Boolean).join(' · ');
   // recorrência prevista (mês que ainda não chegou): não existe nos dados; clicar abre a recorrência
   const toggle = prev ? `<span class="chk card" title="Previsto: o lançamento é criado quando o mês chegar">${icon('repeat', 16)}</span>`
+    : goalT ? `<span class="chk goalChk" title="${t.kind === 'expense' ? 'Guardado na meta' : 'Retirado da meta'}">${icon('flag', 16)}</span>`
     : cardT ? `<span class="chk card" title="Compra no cartão">${icon('credit-card', 16)}</span>`
     : payment ? `<span class="chk on" title="Pagamento de fatura">${icon('check', 16)}</span>`
       : `<button type="button" class="chk${t.paid ? ' on' : ''}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-label="${t.paid ? `Desfazer confirmação: ${t.kind === 'income' ? 'recebido' : 'pago'}` : (t.kind === 'income' ? 'Marcar como recebido' : 'Marcar como pago')}: ${attr(t.desc)}">${icon('check', 16)}</button>`;
-  return `<div class="tx ${t.kind}${t.paid ? '' : ' pending'}${payment ? ' payment' : ''}${prev ? ' projected' : ''}" data-act="${prev ? 'edit-recurring' : 'edit-tx'}" data-id="${attr(prev ? t.recurringId : t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${prev ? 'previsto, ' : ''}${t.kind === 'income' ? 'receita' : 'despesa'} de ${attr(money(t.value))} em ${brDate(t.date)}">
-    ${glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
-    <span class="amount">${t.kind === 'income' ? '+' : '−'}${money(t.value)}</span>${toggle}</div>`;
+  // reserva para meta (Android 1.9): sem "−", na cor das metas (continua seu, separado na meta); retirada: "+" em verde
+  const what = goalT ? (t.kind === 'expense' ? 'guardado na meta' : 'retirado da meta') : t.kind === 'income' ? 'receita' : 'despesa';
+  const sign = goalT && t.kind === 'expense' ? '' : t.kind === 'income' ? '+' : '−';
+  return `<div class="tx ${t.kind}${goalT ? ' goalMove' : ''}${t.paid ? '' : ' pending'}${payment ? ' payment' : ''}${prev ? ' projected' : ''}" data-act="${prev ? 'edit-recurring' : 'edit-tx'}" data-id="${attr(prev ? t.recurringId : t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${prev ? 'previsto, ' : ''}${what}${goalT ? ',' : ' de'} ${attr(money(t.value))} em ${brDate(t.date)}">
+    ${goalT ? `<span class="badge goalBadge" aria-hidden="true">${icon('flag', 20)}</span>` : glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
+    <span class="amount">${sign}${money(t.value)}</span>${toggle}</div>`;
 }
 
 // ================================================================== Relatórios
@@ -317,18 +349,23 @@ function flowCard(inRange, s, f, fl) {
   for (const t of inRange) if (t.kind === 'income' && t.paid && isFlow(t)) by.set(t.category || 'Sem categoria', (by.get(t.category || 'Sem categoria') || 0) + t.value);
   const ins = [...by].sort((a, b) => b[1] - a[1]).map(([n, v], i) => [n, v, FLOW_COLORS[i % 6]]);
   const outs = Finance.categoryTotals(s, f.from, f.to).map(([n, v], i) => [n, v, FLOW_COLORS[(i + 1) % 6]]);
-  const left = Math.max(0, fl.income - fl.expense);
+  // reservas para meta (METAS.md): o que foi para metas em "Para onde foi › Metas" e o que voltou em "De onde veio", separados dos gastos
+  const gm = Finance.goalMoves(inRange);
+  if (gm.withdrawn > 0) ins.push(['Retirado de metas', gm.withdrawn, 'var(--goal)']);
+  if (gm.saved > 0) outs.push(['Metas', gm.saved, 'var(--goal)']);
+  const inTotal = fl.income + gm.withdrawn, outTotal = fl.expense + gm.saved;
+  const left = Math.max(0, inTotal - outTotal);
   if (left > 0) outs.push(['Sobrou', left, 'var(--green)']);
-  const scale = Math.max(fl.income, fl.expense, 1);
+  const scale = Math.max(inTotal, outTotal, 1);
   const bar = parts => `<div class="flowSeg${hidden() ? ' sensitive' : ''}" aria-hidden="true">${parts.map(([, v, c]) => `<i style="width:${v * 100 / scale}%;background:${c}"></i>`).join('')}</div>`;
   const legend = (parts, total) => `<ul class="flowLegend">${parts.map(([n, v, c]) => `<li><i style="background:${c}"></i><span>${esc(n)}</span><b>${money(v)}<small>${hidden() || total <= 0 ? '••%' : Math.min(100, Math.floor(v * 100 / total)) + '%'}</small></b></li>`).join('')}</ul>`;
   const desc = `Fluxo do dinheiro. Entradas realizadas: ${hidden() ? 'valores ocultos' : Money.format(fl.income)}. Despesas realizadas: ${hidden() ? 'valores ocultos' : Money.format(fl.expense)}`
     + (left > 0 ? `. Sobra: ${hidden() ? 'valor oculto' : Money.format(left)}` : fl.expense > fl.income ? `. Despesas acima das receitas: ${hidden() ? 'valor oculto' : Money.format(fl.expense - fl.income)}` : '');
   return `<section class="comparison glass flowBox" role="group" aria-label="${attr(desc)}">${eyebrow('Análises')}<h3>Fluxo do dinheiro</h3>
     <p class="muted small">De onde veio (em cima) e para onde foi (embaixo).</p>
-    <h4 class="subhead">De onde veio</h4>${bar(ins)}${legend(ins, fl.income)}
-    <div class="flowPill"><span>${hidden() ? 'Entradas ocultas' : `Entrou ${esc(Money.format(fl.income))}`}</span></div>
-    <h4 class="subhead">Para onde foi</h4>${outs.length ? bar(outs) + legend(outs, Math.max(fl.income, fl.expense)) : '<p class="muted small">Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.</p>'}
+    <h4 class="subhead">De onde veio</h4>${bar(ins)}${legend(ins, inTotal)}
+    <div class="flowPill"><span>${hidden() ? 'Entradas ocultas' : `Entrou ${esc(Money.format(inTotal))}`}</span></div>
+    <h4 class="subhead">Para onde foi</h4>${outs.length ? bar(outs) + legend(outs, Math.max(inTotal, outTotal)) : '<p class="muted small">Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.</p>'}
     ${fl.expense > fl.income ? '<p class="small red">As despesas passaram o valor recebido neste período.</p>' : ''}
     <small class="muted">Considera apenas lançamentos pagos ou recebidos; não associa uma entrada a uma despesa específica.</small></section>`;
 }
@@ -344,6 +381,19 @@ export function reportsView() {
   const fl = Finance.flow(inRange);
   const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Resumo</h2>${btn('PDF', { act: 'pdf', cls: 'pill', icon: 'receipt-long', iconSize: 18, label: 'Exportar relatório em PDF' })}</div>
     ${periodBar()}<p class="muted small reportsNote">Só valores realizados (pagos ou recebidos). O período é o mesmo da aba Lançamentos.</p>`;
+  // "Acumular saldo entre os meses" (Ajustes › Cálculo do saldo): o que vem dos meses anteriores e o saldo do fim do período
+  let accBox = '';
+  if (ctx.device.accumulateBalance) {
+    const carried = f.from ? Finance.balanceAt(s, addDays(f.from, -1)) : s.accounts.reduce((n, a) => n + a.initial, 0);
+    const until = f.to || s.txs.reduce((m, t) => t.date > m ? t.date : m, today);
+    const closing = Finance.balanceAt(s, until);
+    accBox = `<section class="glass resultBox accBox"><small class="muted">Saldo acumulado</small><b class="${closing < 0 ? 'negative' : 'accent'}">${money(closing)}</b>
+      <div class="accRow"><small class="muted">Vindo dos meses anteriores</small><b class="${carried < 0 ? 'negative' : ''}">${money(carried)}</b></div>
+      <small class="muted">Saldo das contas ao fim do período, com o saldo inicial e o que sobrou dos meses anteriores (opção em Ajustes › Cálculo do saldo).</small></section>`;
+  }
+  // reservas para meta no período: saem das contas, mas não são despesas
+  const gm = Finance.goalMoves(inRange);
+  const goalsRow = gm.saved > 0 || gm.withdrawn > 0 ? `<div class="goalsSaved"><span class="goalTxt">${icon('flag', 18)}</span><span class="meta"><b>Guardado em metas</b><small>Não entra nas despesas</small></span><b class="goalTxt">${money(gm.net)}</b></div>` : '';
   let summary;
   if (fl.income === 0 && fl.expense === 0) {
     // nada realizado: em vez de zeros, mostra o que está pendente e leva ao calendário
@@ -363,8 +413,10 @@ export function reportsView() {
     const res = fl.income - fl.expense;
     summary = `<section class="reportSum" aria-label="Resumo do período">${box('Receitas', 'arrow-upward', fl.income, 'green', chg(fl.income, prev?.income))}${box('Despesas', 'arrow-downward', fl.expense, 'red', chg(fl.expense, prev?.expense))}</section>
       <section class="glass resultBox"><small class="muted">Resultado do período</small><b class="${res < 0 ? 'negative' : 'accent'}">${money(res)}</b>
-      <small class="muted">${esc(hidden() ? 'Os relatórios consideram somente valores já pagos ou recebidos.' : resultText(fl))}</small></section>`;
+      <small class="muted">${esc(hidden() ? 'Os relatórios consideram somente valores já pagos ou recebidos.' : resultText(fl))}</small>${goalsRow}</section>`;
   }
+  if (goalsRow && fl.income === 0 && fl.expense === 0) summary += `<section class="glass resultBox">${goalsRow}</section>`;
+  summary = accBox + summary;
   const flow = fl.income > 0 || fl.expense > 0 ? flowCard(inRange, s, f, fl) : '';
   const sim = `<button type="button" class="whatIf" data-act="simulator">${icon('auto-awesome', 22)}<span><b>Simular meu dinheiro</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon('chevron-right', 20)}</button>`;
   const cats = Finance.categoryTotals(s, f.from, f.to), total = cats.reduce((n, [, v]) => n + v, 0);
@@ -444,7 +496,9 @@ const manage = (title, sub, actions) => `<div class="manageItem"><div><b>${esc(t
 
 export function prefsView(env) {
   const s = ctx.state, d = ctx.device;
-  const appearance = fold('aparencia', 'Aparência', `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? ' active' : ''}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
+  const appearance = fold('aparencia', 'Aparência', `Tema: ${themeLabel(s.theme)}${d.glass ? ' · efeito vidro' : ''}`, `
+    ${check('glass', 'Efeito vidro', d.glass, { sub: 'Cartões translúcidos sobre um fundo com brilhos suaves nas cores do tema. Vale para todos os temas e fica só neste aparelho.' })}
+    <div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? ' active' : ''}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
       <span>${esc(label)}${s.theme === id ? icon('check', 16) : ''}</span><span class="swatches t-${id}"><i></i><i></i><i></i><i></i></span></button>`).join('')}</div>
     <p class="muted small">“Sistema” acompanha o modo claro/escuro do aparelho.</p>`, 'palette');
 
@@ -477,6 +531,10 @@ export function prefsView(env) {
     ${d.dismissedTips.length ? btn(`Restaurar ${d.dismissedTips.length} dica(s) dispensada(s)`, { act: 'restore-all-tips', cls: 'soft small' }) : ''}
     <details class="learned"><summary>${icon('expand-more', 18)}Ver o que o assistente aprendeu</summary>${learnedHtml()}</details>`, 'auto-awesome');
 
+  const balance = fold('saldo', 'Cálculo do saldo', d.accumulateBalance ? 'Saldo acumulado entre os meses' : 'Cada mês com o seu saldo', `
+    ${check('accumulateBalance', 'Acumular saldo entre os meses', d.accumulateBalance, { sub: 'Ligado, o saldo de cada mês em Lançamentos soma o saldo inicial das contas e o que sobrou dos meses anteriores; o Resumo e o relatório em PDF mostram o saldo acumulado. Desligado, cada mês mostra só o que entrou e saiu nele.' })}
+    <p class="muted small">Fica só neste aparelho (não vai para o backup). Receitas e despesas continuam sendo só as do período.</p>`, 'tune');
+
   const recurring = fold('recorrencias', 'Recorrências', s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : 'Nenhuma recorrência cadastrada', `
     <div class="foldTools">${btn('Nova', { act: 'new-recurring', icon: 'add', iconSize: 18, cls: 'soft small' })}</div>
     ${s.recurring.length ? `<div class="manageList">${s.recurring.map(r => {
@@ -488,15 +546,33 @@ export function prefsView(env) {
     <div class="btnGrid">${btn('Exportar CSV', { act: 'csv', icon: 'table-view', iconSize: 18 })}${btn('Backup JSON', { act: 'backup', icon: 'download', iconSize: 18 })}
     ${btn('Restaurar', { act: 'restore', icon: 'upload', iconSize: 18 })}${btn('Relatório em PDF', { act: 'pdf', icon: 'picture-as-pdf', iconSize: 18 })}
     ${env.remote ? '' : btn('Apagar tudo', { act: 'wipe', cls: 'dangerB', icon: 'delete', iconSize: 18 })}</div>
-    <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, 'database');
+    <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro. Restaurar também abre as cópias criptografadas do backup automático (pede a senha).</p>
+    ${autoBackupHtml()}`, 'database');
 
   const about = fold('sobre', 'Sobre', `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env), 'info');
   const head = pageTitle('prefsTitle', 'Configurações', 'Ajustes', env.remote ? 'Tudo é salvo no celular, pela rede local.' : env.encrypted ? 'Tudo fica salvo e criptografado neste aparelho.' : 'Tudo fica salvo neste aparelho.');
   // agrupado como no Android 1.6.0; contas, cartões, limites e categorias estão em Meu dinheiro
   const group = (title, ...items) => `<h3 class="prefsGroup">${esc(title)}</h3>${items.join('')}`;
-  const left = [group('Personalização', appearance, notif), group('Planejamento e automação', assist, recurring)];
+  const left = [group('Personalização', appearance, notif), group('Planejamento e automação', balance, assist, recurring)];
   const right = [group('Segurança e dados', privacy, data), group('Aplicativo', about)];
   return head + (ctx.cols === 1 ? [...left, ...right].join('') : cols(left, right));
+}
+
+/** Ajustes › Dados › Backup automático (autobackup.js; BACKUP-AUTOMATICO.md) */
+function autoBackupHtml() {
+  const why = AutoBackup.unavailable(), c = AutoBackup.config();
+  const head = '<h4 class="subhead" id="autoBackup">Backup automático</h4>';
+  if (why) return `${head}<p class="muted small">${esc(why)}</p>`;
+  if (!c.enabled) return `${head}<p class="muted small">Uma cópia criptografada por dia numa pasta sua (por exemplo, uma pasta sincronizada com o Google Drive, o Syncthing ou o Nextcloud). A cópia do dia é feita quando o Finan+ está aberto. Só o Finan+ com a senha consegue abrir.</p>
+    ${btn('Definir senha e escolher pasta', { act: 'ab-enable', cls: 'soft', icon: 'sync', iconSize: 18 })}`;
+  const when = c.lastAt ? (() => { const t = new Date(c.lastAt); return `Última cópia: ${brDate(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`)} às ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}${c.lastFile ? ` (${c.lastFile})` : ''}`; })() : 'Nenhuma cópia ainda.';
+  return `${head}<div class="manageItem"><div><b>Pasta: ${esc(c.folder || 'escolhida')}</b><small>${esc(when)}</small></div></div>
+    ${c.lastError ? `<p class="small red" role="alert">${esc(c.lastError)}</p>` : ''}
+    ${btn('Permitir acesso à pasta', { act: 'ab-permit', cls: 'primary wide', icon: 'lock-open', iconSize: 18, id: 'abPermit' }).replace('<button', '<button hidden')}
+    <label class="field"><span>Guardar</span><select id="abKeep">${AutoBackup.KEEP_OPTIONS.map(k => `<option value="${k}"${k === c.keep ? ' selected' : ''}>As últimas ${k} cópias</option>`).join('')}</select>
+      <small class="hint">Cópias mais antigas com o nome finan-plus-auto-… são apagadas. Os outros arquivos da pasta não são tocados.</small></label>
+    <div class="btnGrid">${btn('Fazer agora', { act: 'ab-now', icon: 'download', iconSize: 18 })}${btn('Trocar pasta', { act: 'ab-folder', icon: 'sync', iconSize: 18 })}
+      ${btn('Trocar senha', { act: 'ab-password', icon: 'key', iconSize: 18 })}${btn('Desligar', { act: 'ab-disable', cls: 'dangerB', icon: 'close', iconSize: 18 })}</div>`;
 }
 
 function categoryUse(k, c) { const n = ctx.state.txs.filter(t => t.kind === k && t.category === c).length; return n ? ` · ${n} lançamento(s)` : ''; }
@@ -550,7 +626,8 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       ${extLink(REPO_LINUX, 'code', 'Código-fonte do Finan+ para Linux', 'github.com/finanplus-web/finan_plus_linux')}
     </div>
     <p class="muted small">Também publicado junto com o app, na pasta js/ (módulos legíveis; js/app.bundle.js é a junção deles, sem minificar). ${env.storageNote || ''}</p>
-    <div class="btnGrid">${btn('Atalhos de teclado', { act: 'shortcuts', icon: 'keyboard', iconSize: 18 })}${btn('Novidades desta versão', { act: 'whatsnew', icon: 'history', iconSize: 18 })}</div>`;
+    <div class="btnGrid">${btn('Atalhos de teclado', { act: 'shortcuts', icon: 'keyboard', iconSize: 18 })}${btn('Novidades desta versão', { act: 'whatsnew', icon: 'history', iconSize: 18 })}
+      ${btn('Ver apresentação', { act: 'welcome', icon: 'auto-awesome', iconSize: 18 })}</div>`;
 }
 
 // ================================================================== barra lateral, topo e navegação
@@ -585,7 +662,7 @@ export function topbarHtml() {
     ${ctx.device.pinHash ? btn('', { act: 'lock', cls: 'icon', icon: 'lock', label: 'Bloquear agora (Ctrl+L)' }) : ''}
     <div class="menuWrap">${btn('', { act: 'menu', cls: 'icon', icon: 'more-horiz', label: 'Mais opções', id: 'menuBtn' })}
       <div class="menu glass" id="menu" role="menu" hidden>
-        ${[['pdf', 'Relatório em PDF', 'picture-as-pdf', 'Ctrl+P'], ['csv', 'Exportar CSV', 'table-view', 'Ctrl+E'], ['backup', 'Salvar backup JSON', 'download', 'Ctrl+S'], ['restore', 'Restaurar backup', 'upload', 'Ctrl+O'], ['shortcuts', 'Atalhos de teclado', 'keyboard', 'Ctrl+/'], ['about', 'Sobre o Finan+', 'info', '']]
+        ${[['shared-list', 'Despesas compartilhadas', 'group', ''], ['pdf', 'Relatório em PDF', 'picture-as-pdf', 'Ctrl+P'], ['csv', 'Exportar CSV', 'table-view', 'Ctrl+E'], ['backup', 'Salvar backup JSON', 'download', 'Ctrl+S'], ['restore', 'Restaurar backup', 'upload', 'Ctrl+O'], ['shortcuts', 'Atalhos de teclado', 'keyboard', 'Ctrl+/'], ['about', 'Sobre o Finan+', 'info', '']]
           .map(([a, l, ic, k]) => `<button type="button" role="menuitem" data-act="${a}">${icon(ic, 18)}<span>${l}</span>${k ? `<kbd>${k}</kbd>` : ''}</button>`).join('')}
       </div></div></div>`;
 }

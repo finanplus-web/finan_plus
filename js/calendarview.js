@@ -40,7 +40,7 @@ function calCard(days, ym, today) {
     <div class="calWeek" aria-hidden="true">${MonthCalendar.WEEK_HEADER.map(w => `<span>${w}</span>`).join('')}</div>
     <div class="calGrid">${cells}</div>
     <div class="calLegend" aria-hidden="true"><span><i class="dot income"></i>Receita</span><span><i class="dot expense"></i>Despesa</span>
-      <span><i class="dot card"></i>Cartão</span><span>${icon('warning', 13, 'red')}Em atraso</span></div>
+      <span><i class="dot card"></i>Cartão</span><span><i class="dot goal"></i>Meta</span><span>${icon('warning', 13, 'red')}Em atraso</span></div>
     <p class="srOnly">Toque num dia para ver os lançamentos. Toque de novo no dia escolhido, ou toque e segure, para lançar nessa data.</p>
   </section>`;
 }
@@ -50,8 +50,11 @@ export const roundBtn = (ic, label, act, data = {}, cls = '') =>
 
 function dayCell(d, day, today) {
   const sel = d === ctx.cal.day, cls = ['calDay', sel && 'sel', d === today && 'today', d < today && 'past'].filter(Boolean).join(' ');
-  const val = day && !hidden() && (day.income || day.expense)
-    ? `<span class="v ${day.net < 0 ? 'red' : 'green'}">${esc(MonthCalendar.signed(day.net))}</span>` : '';
+  // o mesmo total da lista (Android 1.9): sem as reservas para meta; dia só com reserva mostra o valor guardado, na cor das metas
+  const hasFlow = day && (day.hasFlow ?? !!(day.income || day.expense)), flowNet = day?.flowNet ?? day?.net ?? 0;
+  const val = !day || hidden() ? ''
+    : hasFlow ? `<span class="v ${flowNet < 0 ? 'red' : 'green'}">${esc(MonthCalendar.signed(flowNet))}</span>`
+      : day.goals ? `<span class="v ${day.goals > 0 ? 'goalTxt' : 'green'}">${esc(day.goals > 0 ? MonthCalendar.compact(day.goals) : MonthCalendar.signed(-day.goals))}</span>` : '';
   const dots = day?.marks.length ? `<span class="dots">${day.marks.map(m => `<i class="dot ${m}"></i>`).join('')}</span>` : '';
   return `<button type="button" class="${cls}" data-act="cal-day" data-date="${d}" data-id="${d}" aria-pressed="${sel}"
     aria-label="${attr(MonthCalendar.describe(d, day, today, hidden()) + (sel ? '. Toque de novo para lançar nesta data' : ''))}">
@@ -70,8 +73,9 @@ function monthTotals(days) {
 function dayBox(d, day, today) {
   const n = day?.count || 0;
   const count = n === 0 ? 'Sem lançamentos' : n === 1 ? '1 lançamento' : `${n} lançamentos`;
-  const net = day?.net || 0;
-  const netTxt = hidden() || !day || (!day.income && !day.expense) ? '' : ` · saldo do dia ${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}`;
+  const net = day?.flowNet ?? day?.net ?? 0, hasFlow = day && (day.hasFlow ?? !!(day.income || day.expense));
+  const netTxt = hidden() || !day || !hasFlow ? '' : ` · resultado das movimentações ${net > 0 ? '+ ' : net < 0 ? '− ' : ''}${Money.format(Math.abs(net))}`;
+  const goalsTxt = hidden() || !day?.goals ? '' : `<small class="dayGoals ${day.goals > 0 ? 'goalTxt' : 'green'}">${icon('flag', 14)}${esc(day.goals > 0 ? `${Money.format(day.goals)} em metas` : `${Money.format(-day.goals)} retirados de metas`)}</small>`;
   const forecast = d >= today ? (() => {
     const f = Finance.futureBalance(ctx.state, d, today);
     return `<div class="forecastRow glass"><span>Saldo previsto ao fim do dia</span><b class="${f < 0 ? 'negative' : ''}">${money(f)}</b></div>`;
@@ -80,7 +84,7 @@ function dayBox(d, day, today) {
     : `<div class="empty glass"><b>Nada neste dia</b><span>Use Receita ou Despesa para lançar algo com esta data.</span></div>`;
   return `<section class="section calDayBox" aria-label="Lançamentos do dia">
     <div class="sectionHead"><div>${eyebrow(d === today ? 'Hoje' : d < today ? 'Dia escolhido' : 'Previsto')}<h3>${esc(MonthCalendar.dayTitle(d, today))}</h3>
-      <small class="muted">${esc(count + netTxt)}</small></div></div>
+      <small class="muted">${esc(count + netTxt)}</small>${goalsTxt}</div></div>
     <div class="dayBtns">${btn('Receita', { act: 'new-tx', data: { kind: 'income', date: d }, icon: 'add', iconSize: 18 })}${btn('Despesa', { act: 'new-tx', data: { kind: 'expense', date: d }, icon: 'remove', iconSize: 18 })}</div>
     ${forecast}<div class="list">${rows}</div></section>`;
 }

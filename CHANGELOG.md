@@ -1,5 +1,25 @@
 # Changelog — Finan+ web (PWA)
 
+## Em desenvolvimento — Paridade com o Android 1.7 a 1.9 (interface)
+
+As regras já tinham vindo do Android (núcleo em `core.js`, `shared.js`, `report.js`, `pdf.js`, `calendar.js`); agora a interface.
+
+### Para quem usa
+
+- **Reserva para meta:** em Meu dinheiro › Metas › Editar, "Guardar ou retirar agora" com **Tirar da conta** (ligado por padrão) e a conta; ao retirar, **Devolver para a conta**. O lançamento "Meta › nome" sai do saldo, mas não é despesa. Excluir a meta devolve à conta o que saiu dela ("Meta excluída › nome"), com Desfazer.
+- **Lançamentos:** reservas aparecem como "Guardado na meta", sem "−", na cor das metas (âmbar de cada tema), fora do total do dia, com a linha "R$ X em metas" (retirada: "+" em verde e "R$ X retirados de metas"). Tocar abre uma folha só de leitura com **Abrir a meta** e **Excluir lançamento**. O calendário segue a mesma regra e ganhou "Meta" na legenda.
+- **Resumo:** "Guardado em metas" abaixo do resultado; no fluxo do dinheiro, "Para onde foi › Metas" e "De onde veio › Retirado de metas".
+- **Despesas compartilhadas:** em Meu dinheiro, no botão + e no menu ⋯. Histórico com busca, situação, período e participante; formulário com divisão igual ou pelo valor de cada um, quem pagou e observação; detalhe com Registrar pagamento, Quitar, pagamentos (com exclusão), **Comprovante em PDF** e **Compartilhar como imagem** (o "Compartilhar" do aparelho quando existe; senão, o arquivo é baixado). "Eu"/"Você" viram "você" e "Sua parte". No navegador não dá para anexar o comprovante (fica no Android).
+- **Ajustes › Cálculo do saldo › Acumular saldo entre os meses** (desligada por padrão; só neste aparelho): saldo e previsto de Lançamentos ao fim do período, "Saldo acumulado" no Resumo e cartões e coluna "Acumulado" no PDF. Com filtro, o saldo volta a ser só o do período.
+- **Ajustes › Aparência › Efeito vidro** (desligado por padrão; só neste aparelho): cartões translúcidos sobre brilhos suaves, em todos os temas.
+- **Boas-vindas:** 4 páginas na primeira abertura sem lançamentos (Pular, Continuar, Começar, Já tenho um backup); dá para rever em Ajustes › Sobre › Ver apresentação.
+- **Backup automático** (Ajustes › Dados), no Chrome, Edge e outros Chromium do computador: uma cópia criptografada com senha por dia numa pasta escolhida, no formato do Android (`finan-plus-auto-AAAA-MM-DD.json`), guardando as últimas 7 a 60. Feita quando o Finan+ está aberto. **Restaurar** abre essas cópias (e as do Android) pedindo a senha.
+- Categorias antigas ("Cartão de Crédito", "Limite Especial", "Empréstimo") são migradas ao abrir, como no Android.
+
+### Ajustes do aparelho (fora do backup)
+
+`accumulateBalance`, `glass`, `welcomeSeen` e `autoBackup` (`{ enabled, keep, folder, lastAt, lastFile, lastError, lastDay }`) em `finanplus_device`. A pasta e a senha do backup automático ficam no IndexedDB (`autobackup`), a senha cifrada com a chave não extraível dos dados; "Apagar tudo" apaga as duas.
+
 ## 1.4.0 — Mesmo visual e regras do Android 1.6.0 (17/10/2026)
 
 Traz para o Finan+ web tudo o que entrou no app Android 1.6.0, com o layout de computador adaptado. Também é a cópia que o celular serve no **acesso pela rede**.

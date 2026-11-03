@@ -24,6 +24,7 @@ const LS_DEVICE = 'finanplus_device';
 const LEGACY = ['mf_v2', 'mf_txs'];
 const enc = new TextEncoder(), dec = new TextDecoder();
 const BILLPW_AD = 'finan-plus/billpw/v1';
+const AUTOBACKUP_AD = 'finan-plus/autobackup/v1';
 
 function b64e(u) { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
 const hasCrypto = () => typeof crypto !== 'undefined' && !!crypto.subtle && typeof crypto.getRandomValues === 'function';
@@ -267,6 +268,31 @@ export class Store {
     return true;
   }
 
+  // ---------------------------------------------------------------- backup automático (BACKUP-AUTOMATICO.md)
+  // A pasta escolhida (FileSystemDirectoryHandle) e a senha das cópias ficam só neste navegador, num registro à
+  // parte ("autobackup"): a senha cifrada com a mesma chave não extraível dos dados. Nunca vão para o backup.
+  // "Apagar tudo" apaga junto (wipe limpa o banco). Só com criptografia (IndexedDB + WebCrypto).
+  get canKeepSecrets() { return this.canRememberBillPasswords; }
+  /** { dir, password } ou null */
+  async autoBackupSecret() {
+    if (!this.canKeepSecrets) return null;
+    const box = await idbGet(this.db, 'autobackup');
+    if (!box?.dir || !box.iv || !box.ct) return null;
+    try {
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: box.iv, additionalData: enc.encode(AUTOBACKUP_AD) }, this.key, box.ct);
+      return { dir: box.dir, password: dec.decode(pt) };
+    } catch { return null; }
+  }
+  /** grava a pasta e a senha (null apaga as duas) */
+  async setAutoBackupSecret(secret) {
+    if (!this.canKeepSecrets) return false;
+    if (!secret) { await idbTx(this.db, st => st.delete('autobackup')); return true; }
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(AUTOBACKUP_AD) }, this.key, enc.encode(String(secret.password))));
+    await idbTx(this.db, st => st.put({ v: 1, dir: secret.dir, iv, ct }, 'autobackup'));
+    return true;
+  }
+
   /** pede ao navegador para não apagar os dados quando faltar espaço */
   static async persist() {
     try { return navigator.storage?.persist ? await navigator.storage.persist() : false; } catch { return false; }
@@ -297,6 +323,14 @@ function readLegacy() {
 export const DEVICE_DEFAULTS = {
   pinHash: '', notifications: false, lastNotified: '', assistCategory: true, assistTips: true, assistAsk: true,
   dismissedTips: [], pinFails: 0, pinWaitUntil: 0, notice: '',
+  /** "Acumular saldo entre os meses" (Ajustes › Cálculo do saldo): saldo de Lançamentos, Resumo e PDF somando os meses anteriores */
+  accumulateBalance: false,
+  /** "Efeito vidro" (Ajustes › Aparência): cartões translúcidos sobre brilhos suaves, em todos os temas */
+  glass: false,
+  /** a apresentação de boas-vindas já foi vista (ou o app já tinha dados ao abrir) */
+  welcomeSeen: false,
+  /** backup automático: { enabled, keep, folder, lastAt, lastFile, lastError, lastDay } (autobackup.js); a pasta e a senha ficam no IndexedDB */
+  autoBackup: null,
 };
 export function loadDevice() {
   const l = ls();

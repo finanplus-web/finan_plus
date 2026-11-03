@@ -13,7 +13,7 @@ import { HELVETICA, HELVETICA_BOLD } from './pdf-metrics.js';
 
 const W = 595, H = 842, M = 36, CW = W - 2 * M, FOOTER = 28;
 const hex = n => [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-const INK = hex(0x182238), MUTED = hex(0x5B6579), ACCENT = hex(0x3A5FC8), GREEN = hex(0x1B7351), RED = hex(0xB03A4F),
+export const INK = hex(0x182238), MUTED = hex(0x5B6579), ACCENT = hex(0x3A5FC8), GREEN = hex(0x1B7351), RED = hex(0xB03A4F),
   CARD = hex(0xF3F6FD), LINE = hex(0xDDE3EE), TRACK = hex(0xE6EBF5), WHITE = hex(0xFFFFFF), ZEBRA = hex(0xF8FAFE);
 const SERIES = [0x3A5FC8, 0xE07A2F, 0x1B9E77, 0xB03A4F, 0x7B61C9, 0x2A9DB5, 0xC49A1A, 0x8A8F99].map(hex);
 export const PDF_SERIES = [0x3A5FC8, 0xE07A2F, 0x1B9E77, 0xB03A4F, 0x7B61C9, 0x2A9DB5, 0xC49A1A, 0x8A8F99].map(n => '#' + n.toString(16).toUpperCase().padStart(6, '0'));
@@ -49,7 +49,7 @@ const n2 = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ?
 const rgb = (c, op) => `${n2(c[0] / 255)} ${n2(c[1] / 255)} ${n2(c[2] / 255)} ${op}`;
 
 // ------------------------------------------------------------------ "caneta" com paginação
-class Pen {
+export class Pen {
   constructor(total, r, draw) { this.total = total; this.r = r; this.draw = draw; this.pages = 0; this.y = 0; this.ops = null; this.out = []; this.size = 10; this.bold = false; }
 
   newPage() {
@@ -416,7 +416,7 @@ function txTable(pen, r, s) {
 // ------------------------------------------------------------------ arquivo PDF
 const pdfDate = d => `D:${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 
-function assemble(pages, info) {
+export function assemble(pages, info) {
   const objs = [];
   const add = body => { objs.push(body); return objs.length; };
   const catalog = add(null), pagesId = add(null);
