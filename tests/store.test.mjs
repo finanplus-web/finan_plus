@@ -130,3 +130,18 @@ test('aparelho: configurações à parte dos dados', () => {
   assert.equal(d.notifications, true);
   assert.deepEqual(d.dismissedTips, ['x']);
 });
+
+test('armazenamento: guarda reservas para meta e despesas compartilhadas', async () => {
+  const st = new Store();
+  await st.open();
+  const s = newState({
+    txs: [tx({ id: 'm', kind: 'expense', value: 100, date: '2026-10-17', desc: 'Meta › X', category: 'Metas', paid: true, goalId: 'g1' })],
+    shared: [{ id: 'e1', name: 'Pizza', total: 100, date: '2026-11-02', payerId: 'p1', split: 'equal', note: '', receipt: '', receiptType: '',
+      people: [{ id: 'p1', name: 'Eu', share: 50 }, { id: 'p2', name: 'Ana', share: 50 }], payments: [] }],
+  });
+  await st.save(s);
+  const back = await st.reload();
+  assert.equal(back.txs[0].goalId, 'g1');
+  assert.deepEqual(back.shared, s.shared);
+  st.close();
+});

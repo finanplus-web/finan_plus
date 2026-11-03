@@ -4,7 +4,7 @@
 // Calendário da aba Lançamentos e período da Lista: tradução de core/MonthCalendar.kt e core/Period.kt
 // do Finan+ Android, com as mesmas regras e os mesmos testes (tests/calendar.test.mjs).
 // Datas são textos "AAAA-MM-DD"; meses (ym) são inteiros ano*12 + mês-1, como no core.js.
-import { Finance, Money, MONTHS, isCard, ymOf, ymFirst, ymLast, ymLen, ymDay, weekday, Projection } from './core.js';
+import { Finance, Money, MONTHS, isCard, isGoal, isFlow, ymOf, ymFirst, ymLast, ymLen, ymDay, weekday, Projection } from './core.js';
 
 const WEEKDAYS = { 1: 'segunda-feira', 2: 'terça-feira', 3: 'quarta-feira', 4: 'quinta-feira', 5: 'sexta-feira', 6: 'sábado', 7: 'domingo' };
 const capFirst = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -35,6 +35,9 @@ export const MonthCalendar = {
    * Dias do mês que têm algo (Map data → dia). income/expense = dinheiro que entra/sai das contas no dia
    * (realizado ou pendente): receitas e despesas fora do cartão, pagamentos de fatura e faturas em aberto
    * no vencimento. Compras no cartão aparecem em txs (marca 'card'), mas não entram na soma.
+   * Reservas para meta (marca 'goal') entram em income/expense (saem da conta), e à parte em goals
+   * (guardado − retirado); flowNet = net sem as reservas (o total do dia, como na lista); hasFlow = o dia tem
+   * receita, despesa, pagamento ou fatura fora as reservas.
    */
   build(s, ym, today) {
     const byDay = new Map();
@@ -47,18 +50,20 @@ export const MonthCalendar = {
     for (const d of [...byDay.keys()].sort()) {
       const g = byDay.get(d);
       const txs = g.txs.sort((a, b) => (a.kind !== 'income') - (b.kind !== 'income') || isCard(a) - isCard(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-      let income = 0, expense = 0, overdue = false;
+      let income = 0, expense = 0, overdue = false, goals = 0, hasFlow = g.invoices.length > 0;
       const marks = new Set();
       for (const t of txs) {
-        if (isCard(t)) marks.add('card');
-        else if (t.kind === 'income') { income += t.value; marks.add('income'); }
-        else { expense += t.value; marks.add(t.cardPayment ? 'card' : 'expense'); }
+        if (isCard(t)) marks.add('card'); // compra no cartão: só na fatura
+        else if (isGoal(t)) { if (t.kind === 'income') { income += t.value; goals -= t.value; } else { expense += t.value; goals += t.value; } marks.add('goal'); }
+        else if (t.kind === 'income') { income += t.value; hasFlow = true; marks.add('income'); }
+        else { expense += t.value; hasFlow = true; marks.add(t.cardPayment ? 'card' : 'expense'); }
         if (!t.paid && !isCard(t) && t.date < today) overdue = true;
       }
       for (const i of g.invoices) { expense += i.amount; marks.add('card'); if (i.overdue) overdue = true; }
       days.set(d, {
-        date: d, txs, invoices: g.invoices, income, expense, net: income - expense, overdue,
-        marks: ['income', 'expense', 'card'].filter(m => marks.has(m)), count: txs.length + g.invoices.length,
+        date: d, txs, invoices: g.invoices, income, expense, net: income - expense, overdue, goals, hasFlow,
+        flowNet: income - expense + goals,
+        marks: ['income', 'expense', 'card', 'goal'].filter(m => marks.has(m)), count: txs.length + g.invoices.length,
       });
     }
     return days;
@@ -101,7 +106,10 @@ export const MonthCalendar = {
     if (!day || !day.count) parts.push('sem lançamentos');
     else {
       parts.push(day.count === 1 ? '1 lançamento' : `${day.count} lançamentos`);
-      if (!hide && (day.income || day.expense)) parts.push(day.net > 0 ? `saldo do dia mais ${Money.format(day.net)}` : day.net < 0 ? `saldo do dia menos ${Money.format(-day.net)}` : 'saldo do dia zero');
+      // dias montados por versões antigas (sem hasFlow/flowNet) seguem a regra anterior
+      const hasFlow = day.hasFlow ?? !!(day.income || day.expense), net = day.flowNet ?? day.net;
+      if (!hide && hasFlow) parts.push(net > 0 ? `saldo do dia mais ${Money.format(net)}` : net < 0 ? `saldo do dia menos ${Money.format(-net)}` : 'saldo do dia zero');
+      if (!hide && day.goals) parts.push(day.goals > 0 ? `${Money.format(day.goals)} guardados em metas` : `${Money.format(-day.goals)} retirados de metas`);
       if (day.overdue) parts.push('em atraso');
     }
     return parts.join(', ');
@@ -148,10 +156,23 @@ export const Period = {
   pending(list) {
     let toReceive = 0, toPay = 0;
     for (const t of list) {
-      if (t.paid || t.cardPayment || isCard(t)) continue;
+      if (t.paid || !isFlow(t) || isCard(t)) continue;
       if (t.kind === 'income') toReceive += t.value; else toPay += t.value;
     }
     return { toReceive, toPay };
+  },
+  /**
+   * Total de um dia na lista e no calendário: net = receitas − despesas das contas (realizadas ou pendentes), sem
+   * compras no cartão e sem reservas para meta; goals = guardado − retirado das metas; hasFlow = há algo em net.
+   */
+  dayTotal(txs) {
+    let net = 0, goals = 0, hasFlow = false;
+    for (const t of txs) {
+      if (isCard(t)) continue;
+      if (isGoal(t)) goals += t.kind === 'expense' ? t.value : -t.value;
+      else { hasFlow = true; net += t.kind === 'income' ? t.value : -t.value; }
+    }
+    return { net, goals, hasFlow };
   },
   /** saldo de um dia na lista agrupada (mesma regra do calendário, sem as faturas) */
   cashNet: txs => txs.reduce((n, t) => isCard(t) ? n : t.kind === 'income' ? n + t.value : n - t.value, 0),

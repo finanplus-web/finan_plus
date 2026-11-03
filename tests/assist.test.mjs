@@ -263,7 +263,7 @@ test('pergunta: palavras desconhecidas são ignoradas e avisadas', () => {
 
 test('pergunta: média por dia', () => {
   const t = Ask.answer('média de gastos este mês', askState(), TODAY, money).text;
-  assert.ok(t.includes('R$ 105,39 por dia') && t.includes('15 dia(s)'));
+  assert.ok(t.includes('R$ 105,39 por dia') && t.includes('15 dias'));
 });
 
 // ------------------------------------------------------------------ relatório
