@@ -113,3 +113,26 @@ test('remoto: resposta fora do formato é recusada sem alterar nada', async () =
   await assert.rejects(st.open(), e => e.status === 502);
   assert.equal(st.rev, undefined);
 });
+
+test('remoto: reservas para meta e despesas compartilhadas vão e voltam do celular', async () => {
+  setToken('tok');
+  const s0 = newState({
+    goals: [{ id: 'g1', name: 'Viagem', target: 600000, saved: 30000, deadline: null, monthly: 0 }],
+    txs: [tx({ id: 'm', kind: 'expense', value: 30000, date: '2026-10-17', desc: 'Meta › Viagem', category: 'Metas', paid: true, goalId: 'g1' })],
+    shared: [{ id: 'e1', name: 'Mercado', total: 45000, date: '2026-11-02', payerId: 'p1', split: 'equal', note: '', receipt: 'rcpt1', receiptType: 'image/jpeg',
+      people: [{ id: 'p1', name: 'Eu', share: 22500 }, { id: 'p2', name: 'Ana', share: 22500 }], payments: [{ id: 'y1', personId: 'p2', value: 1000, date: '2026-11-02' }] }],
+  });
+  const phone = fakePhone(s0);
+  const st = new RemoteStore(phone.fetch);
+  const { state } = await st.open();
+  assert.equal(state.txs[0].goalId, 'g1');
+  assert.equal(state.shared[0].receipt, 'rcpt1');
+  await st.save({ ...state, privacy: true });
+  // o celular recebe o goalId (RemoteSave.protectGoalReserves) e o campo "shared" com tudo, inclusive o comprovante
+  assert.equal(phone.data.txs[0].goalId, 'g1');
+  assert.equal(phone.data.shared[0].receipt, 'rcpt1');
+  assert.equal(phone.data.shared[0].payments.length, 1);
+  // sem despesas, "shared" vai vazio (sem o campo, o celular manteria as que foram excluídas aqui)
+  await st.save({ ...state, shared: [] });
+  assert.deepEqual(phone.data.shared, []);
+});

@@ -7,10 +7,24 @@ Controle financeiro pessoal **simples, privado e offline**, no navegador do celu
 | Lançamentos | Resumo (relatórios) |
 |---|---|
 | ![Lançamentos](docs/lancamentos-computador.png) | ![Resumo](docs/relatorios-computador.png) |
-| **Ajustes (tema Tokyo Night)** | **Celular** |
-| ![Ajustes](docs/ajustes-tokyo.png) | ![Celular](docs/celular.png) |
+| **Ajustes (tema Gruvbox)** | **Celular** |
+| ![Ajustes](docs/ajustes-computador.png) | ![Celular](docs/celular.png) |
 | **Meu dinheiro** | |
 | ![Meu dinheiro](docs/meu-dinheiro-computador.png) | |
+
+**English:** [README.en.md](README.en.md)
+
+## Novidades da versão 1.5.0
+
+O Finan+ web chega ao mesmo visual e às mesmas regras do app Android 1.11.0:
+
+- **Um número, um nome, uma regra:** o mesmo cálculo de A receber, A pagar, Reservado para metas e Previsto em todas as telas.
+- **Início, Resumo e Lançamentos redesenhados**, com a nova tela de lançamento (chips de categoria e data, "Mais opções" e Desfazer).
+- **Meu dinheiro** com páginas próprias: Contas e cartões, Dívidas, Limites, Metas e Categorias.
+- **Reserva para meta, despesas compartilhadas** (PDF e imagem), **saldo acumulado entre os meses**, **efeito vidro**, **boas-vindas** e **backup automático** criptografado (Chrome e Edge).
+- O backup passa a preservar as reservas para meta e as despesas compartilhadas do app Android.
+
+Detalhes em [CHANGELOG.md](CHANGELOG.md).
 
 - Lista completa do que o app faz: [FUNCIONALIDADES.md](FUNCIONALIDADES.md)
 - Calendário de lançamentos: [CALENDARIO.md](CALENDARIO.md)

@@ -6,13 +6,14 @@
 // Layout idêntico ao do app Android (export/PdfReport.kt) e da versão Linux (pdf_render.c).
 // Os números vêm de buildReport() (report.js, testado). O layout roda duas vezes: a primeira só
 // conta as páginas (para o rodapé "Página n de N"), a segunda desenha.
-import { Money, MONTHS, brDate, brMonthYear, ymMonth, ymYear, pad2, isFlow, isCard, account, card } from './core.js';
+import { Money, MONTHS, brDate, brMonthYear, ymMonth, ymYear, pad2, isFlow, isCard, isGoal, account, card, addDays } from './core.js';
+import { Words } from './words.js';
 import { compact, niceStep, TOP, MAX_CHART_MONTHS } from './report.js';
 import { HELVETICA, HELVETICA_BOLD } from './pdf-metrics.js';
 
 const W = 595, H = 842, M = 36, CW = W - 2 * M, FOOTER = 28;
 const hex = n => [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-const INK = hex(0x182238), MUTED = hex(0x5B6579), ACCENT = hex(0x3A5FC8), GREEN = hex(0x1B7351), RED = hex(0xB03A4F),
+export const INK = hex(0x182238), MUTED = hex(0x5B6579), ACCENT = hex(0x3A5FC8), GREEN = hex(0x1B7351), RED = hex(0xB03A4F),
   CARD = hex(0xF3F6FD), LINE = hex(0xDDE3EE), TRACK = hex(0xE6EBF5), WHITE = hex(0xFFFFFF), ZEBRA = hex(0xF8FAFE);
 const SERIES = [0x3A5FC8, 0xE07A2F, 0x1B9E77, 0xB03A4F, 0x7B61C9, 0x2A9DB5, 0xC49A1A, 0x8A8F99].map(hex);
 export const PDF_SERIES = [0x3A5FC8, 0xE07A2F, 0x1B9E77, 0xB03A4F, 0x7B61C9, 0x2A9DB5, 0xC49A1A, 0x8A8F99].map(n => '#' + n.toString(16).toUpperCase().padStart(6, '0'));
@@ -48,7 +49,7 @@ const n2 = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ?
 const rgb = (c, op) => `${n2(c[0] / 255)} ${n2(c[1] / 255)} ${n2(c[2] / 255)} ${op}`;
 
 // ------------------------------------------------------------------ "caneta" com paginação
-class Pen {
+export class Pen {
   constructor(total, r, draw) { this.total = total; this.r = r; this.draw = draw; this.pages = 0; this.y = 0; this.ops = null; this.out = []; this.size = 10; this.bold = false; }
 
   newPage() {
@@ -151,7 +152,7 @@ function layout(pen, r, s, opt) {
   accountsAndGoals(pen, r);
 
   if (opt.includeTransactions) {
-    section(pen, 'Lançamentos do período', `${r.txs.length} lançamento(s), incluindo pendentes. Pagamentos de fatura aparecem, mas não contam como despesa.`);
+    section(pen, 'Lançamentos do período', `${Words.count(r.txs.length, 'lançamento', 'lançamentos')}, incluindo pendentes. Pagamentos de fatura aparecem, mas não contam como despesa.`);
     if (!r.txs.length) note(pen, 'Nenhum lançamento no período.'); else txTable(pen, r, s);
   }
   section(pen, 'Como ler este relatório', '', 40);
@@ -167,7 +168,7 @@ function header(pen, r, now) {
   pen.rect(0, 0, W, 112, ACCENT);
   pen.text('FINAN+', M, 40, 10, over(0.8, WHITE, ACCENT), { bold: true });
   pen.text('Relatório financeiro', M, 68, 24, WHITE, { bold: true });
-  pen.text(`${brDate(r.from)} a ${brDate(r.to)} · ${r.days} dia(s)`, M, 92, 12, WHITE);
+  pen.text(`${brDate(r.from)} a ${brDate(r.to)} · ${Words.count(r.days, 'dia', 'dias')}`, M, 92, 12, WHITE);
   const d = now || new Date();
   const ds = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   pen.text(`Gerado em ${brDate(ds)} às ${pad2(d.getHours())}:${pad2(d.getMinutes())}`, W - M, 40, 9, over(0.87, WHITE, ACCENT), { align: 'right' });
@@ -190,6 +191,20 @@ function kpis(pen, r) {
     pen.text(sub, x + 12, pen.y + 61, 7.5, MUTED, { maxW: w3 - 24 });
   });
   pen.y += 82;
+  // saldo acumulado (opção ligada): o que vem dos meses anteriores e o saldo das contas ao fim do período
+  if (r.carried != null && r.accumulated != null) {
+    pen.need(70);
+    const w2 = (CW - gap) / 2;
+    [['Saldo anterior (meses anteriores)', r.carried, `Saldo das contas em ${brDate(addDays(r.from, -1))}, com o saldo inicial`],
+      ['Saldo acumulado', r.accumulated, `Saldo das contas em ${brDate(r.to)}, somando os meses anteriores`]].forEach(([l, v, sub], i) => {
+      const x = M + i * (w2 + gap);
+      pen.rect(x, pen.y, w2, 58, CARD, 12);
+      pen.text(l, x + 12, pen.y + 18, 9, MUTED, { maxW: w2 - 24 });
+      pen.text(money(v), x + 12, pen.y + 38, 14, v < 0 ? RED : ACCENT, { bold: true, maxW: w2 - 24 });
+      pen.text(sub, x + 12, pen.y + 51, 7.5, MUTED, { maxW: w2 - 24 });
+    });
+    pen.y += 68;
+  }
   const w4 = (CW - 3 * gap) / 4;
   [['A receber (pendente)', money(r.pendingIncome)], ['A pagar (pendente)', money(r.pendingExpense)],
     ['Média diária de gastos', money(r.dailyAverage)], ['Lançamentos', String(r.txs.length)]].forEach(([l, v], i) => {
@@ -317,7 +332,9 @@ function monthChart(pen, r) {
 }
 
 function monthTable(pen, r) {
-  const cols = [['Mês', 160], ['Receitas', 120], ['Despesas', 120], ['Saldo', CW - 400]];
+  const acc = r.months.some(m => m.accumulated != null);
+  const cols = acc ? [['Mês', 130], ['Receitas', 100], ['Despesas', 100], ['Saldo', 95], ['Acumulado', CW - 425]]
+    : [['Mês', 160], ['Receitas', 120], ['Despesas', 120], ['Saldo', CW - 400]];
   tableHeader(pen, cols, 1);
   for (const m of r.months) {
     rowBreak(pen, 18, cols, 1);
@@ -327,6 +344,7 @@ function monthTable(pen, r) {
     pen.text(money(m.income), x + cols[1][1] - 8, base, 9, GREEN, { align: 'right' }); x += cols[1][1];
     pen.text(money(m.expense), x + cols[2][1] - 8, base, 9, RED, { align: 'right' }); x += cols[2][1];
     pen.text(money(m.balance), x + cols[3][1] - 8, base, 9, m.balance < 0 ? RED : INK, { bold: true, align: 'right' });
+    if (acc && m.accumulated != null) { x += cols[3][1]; pen.text(money(m.accumulated), x + cols[4][1] - 8, base, 9, m.accumulated < 0 ? RED : ACCENT, { bold: true, align: 'right' }); }
     pen.line(M, pen.y + 17, W - M, pen.y + 17);
     pen.y += 18;
   }
@@ -381,7 +399,7 @@ function txTable(pen, r, s) {
     const base = pen.y + 11.5, payment = !isFlow(t);
     let x = M + 6;
     const where = isCard(t) ? 'Cartão ' + (card(s, t.cardId)?.name ?? '') : account(s, t.accountId)?.name ?? '';
-    const status = payment ? 'Pag. fatura' : isCard(t) ? 'Cartão' : t.paid ? (t.kind === 'income' ? 'Recebido' : 'Pago') : (t.kind === 'income' ? 'A receber' : 'A pagar');
+    const status = isGoal(t) ? (t.kind === 'expense' ? 'Meta' : 'Da meta') : payment ? 'Pag. fatura' : isCard(t) ? 'Cartão' : t.paid ? (t.kind === 'income' ? 'Recebido' : 'Pago') : (t.kind === 'income' ? 'A receber' : 'A pagar');
     pen.text(brDate(t.date), x, base, 8, MUTED); x += cols[0][1];
     pen.text(t.desc, x, base, 8.5, payment ? MUTED : INK, { maxW: cols[1][1] - 8 }); x += cols[1][1];
     pen.text(t.category, x, base, 8, MUTED, { maxW: cols[2][1] - 8 }); x += cols[2][1];
@@ -398,7 +416,7 @@ function txTable(pen, r, s) {
 // ------------------------------------------------------------------ arquivo PDF
 const pdfDate = d => `D:${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 
-function assemble(pages, info) {
+export function assemble(pages, info) {
   const objs = [];
   const add = body => { objs.push(body); return objs.length; };
   const catalog = add(null), pagesId = add(null);

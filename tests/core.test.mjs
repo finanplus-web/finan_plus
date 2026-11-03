@@ -44,7 +44,9 @@ test('dinheiro: leitura', () => {
 test('dinheiro: formatação', () => {
   assert.equal(Money.format(123456789), 'R$ 1.234.567,89');
   assert.equal(Money.format(0), 'R$ 0,00');
-  assert.equal(Money.format(-50), '-R$ 0,50');
+  assert.equal(Money.format(-50), '− R$ 0,50');
+  assert.equal(Money.parse('− R$ 0,50'), -50);
+  assert.equal(Money.parse('0.500'), 50); // milhar não começa com zero (RegressionTest)
   assert.equal(Money.input(150050), '1500,50');
 });
 
@@ -361,4 +363,16 @@ test('auditoria: valores gigantes e booleanos no backup viram 0 (descartados)', 
   assert.equal(r.state.accounts[0].initial, 0);
   assert.deepEqual(r.state.txs.map(t => t.id), ['c'], 'valor inválido descarta o lançamento; o limite exato ainda vale');
   assert.equal(r.state.txs[0].value, 999999999999999);
+});
+
+test('backup: referências acompanham id trocado e versão do arquivo (Android 1.8)', () => {
+  const raw = { backupVersion: 7, accounts: [{ id: 'conta 1', name: 'A' }, { id: 'b', name: 'B' }], cards: [{ id: 'cartão!', name: 'C', limit: 1, close: 5, due: 12 }],
+    txs: [{ id: 't1', kind: 'expense', value: 1, date: '2026-10-01', desc: 'x', accountId: 'conta 1' }, { id: 't2', kind: 'expense', value: 1, date: '2026-10-01', desc: 'y', cardId: 'cartão!' }] };
+  const n = normalize(raw);
+  assert.equal(n.state.txs[0].accountId, n.state.accounts[0].id);
+  assert.notEqual(n.state.accounts[0].id, 'conta 1');
+  assert.equal(n.state.txs[1].cardId, n.state.cards[0].id);
+  assert.equal(n.version, 7); assert.equal(n.newer, true);
+  assert.equal(normalize({ txs: [] }).version, null);
+  assert.equal(normalize({ txs: [] }).newer, false);
 });

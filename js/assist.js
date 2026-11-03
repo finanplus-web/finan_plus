@@ -156,7 +156,7 @@ export class Categorizer {
     if (wd < MIN_WORD_DOCS) return null;
     let totalW = 0; for (const v of this.wordDocs.get(word).values()) totalW += v;
     return { category: cat, source: 'LEARNED', confidence: p,
-      why: `A palavra “${word}” aparece em ${wd} lançamento(s) seus de ${cat}` + (totalW > wd ? ` (de ${totalW} com essa palavra)` : '') + `. Confiança: ${pct(p * 100)}.` };
+      why: `A palavra “${word}” aparece em ${plural(wd, 'lançamento seu', 'lançamentos seus')} de ${cat}` + (totalW > wd ? ` (de ${totalW} com essa palavra)` : '') + `. Confiança: ${pct(p * 100)}.` };
   }
 
   #dictionary(desc) {
@@ -496,7 +496,7 @@ export const Ask = {
     const scope = (filter.length ? ` (${filter.join(', ')})` : '') + ` em ${p.period.label}`;
     const total = sum(done), verb = p.kind === 'income' ? 'recebeu' : 'gastou';
     const pendNote = pending.length && p.intent !== 'BALANCE'
-      ? ` Há ainda ${money(sum(pending))} pendente(s) em ${plural(pending.length, 'lançamento', 'lançamentos')}.` : '';
+      ? ` Há ainda ${money(sum(pending))} pendente em ${plural(pending.length, 'lançamento', 'lançamentos')}.` : '';
     let text;
     switch (p.intent) {
       case 'TOTAL':
@@ -518,7 +518,7 @@ export const Ask = {
         const end = p.period.to < today ? p.period.to : today;
         const days = Math.max(1, dayNum(end) - dayNum(p.period.from) + 1);
         text = !done.length ? `Não encontrei ${what} realizadas${scope}.`
-          : `Média de ${money(Math.trunc(total / days))} por dia${scope} (${money(total)} em ${days} dia(s) até ${brDate(end)}).`;
+          : `Média de ${money(Math.trunc(total / days))} por dia${scope} (${money(total)} em ${plural(days, 'dia', 'dias')} até ${brDate(end)}).`;
         break;
       }
       default: {

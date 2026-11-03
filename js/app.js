@@ -3,7 +3,7 @@
 //
 // Ponto de entrada do Finan+ web: abre os dados, bloqueio por PIN, navegação, layout
 // (celular × computador), atalhos de teclado, temas, avisos de vencimento e virada do dia.
-import { Finance, Ops, todayStr, themeOf, ymOf, ymFirst, ymLast, addDays, Money, newState, parseBackup } from './core.js';
+import { Finance, Ops, todayStr, themeOf, ymOf, ymFirst, ymLast, addDays, Money, newState } from './core.js';
 import { Period } from './calendar.js';
 import { Dictionary } from './assist.js';
 import { DICT_TEXT, LICENSES } from './embedded-data.js';
@@ -11,12 +11,19 @@ import * as Core from './core.js';
 import * as StoreMod from './store.js';
 import { Store, ConflictError, loadDevice, saveDevice, wipeDevice, verifyPin, hashPin, Throttle } from './store.js';
 import { icon } from './icons.js';
-import { $, $$, esc, toast, notice, ask, closeDialogs, dialogOpen, closeSheet, setDialogGuard } from './ui.js';
+import { $, $$, esc, toast, notice, ask, promptDlg, closeDialogs, dialogOpen, closeSheet, setDialogGuard } from './ui.js';
 import { ctx, money, APP_VERSION } from './ctx.js';
 import { simulatorSheet } from './simsheet.js';
 import * as S from './screens.js';
 import * as E from './editors.js';
 import { isRemote, RemoteStore, pairFlow, getToken, setToken } from './remote.js';
+import { TxForm } from './txform.js';
+import { sharedListSheet, sharedEditor } from './sharedview.js';
+import { showWelcome, shouldShowWelcome } from './welcome.js';
+import { MONEY_PAGES, cardDetailSheet, bindCategories, archiveCategory, categoryEditSheet, newCategory, moveCategoryBy, catClickSuppressed } from './moneyscreens.js';
+import { closePicker } from './ui.js';
+import * as AutoBackup from './autobackup.js';
+import { BackupCrypto } from './backupcrypto.js';
 
 const env = { encrypted: false, remote: false };
 /** aberto pelo endereço do celular (Finan+ Android › Acesso pela rede): os dados ficam no celular */
@@ -26,7 +33,10 @@ const HASH_TO_VIEW = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v
 let channel = null;
 
 // ================================================================== estado
+/** migração das categorias (TxForm.migrate, como o Root.kt do Android a cada mudança de s.cats): devolve o estado já migrado */
+const migrated = state => TxForm.migrate(state) ?? state;
 ctx.replace = (state, o = {}) => {
+  if (!ctx.state || state.cats !== ctx.state.cats) state = migrated(state);
   ctx.state = state;
   if (!o.noSave) persist();
   render();
@@ -97,25 +107,33 @@ mq2.addEventListener?.('change', () => render());
 mq3.addEventListener?.('change', () => render());
 
 // ================================================================== navegação
+// páginas de Meu dinheiro e Ajustes no endereço (#meu-dinheiro/contas, #ajustes/dados): o Voltar do navegador funciona
+const PAGES = { money: MONEY_PAGES, prefs: S.PREF_PAGES };
 ctx.go = (view, o = {}) => {
   if (!VIEWS[view]) view = 'home';
-  if (o.fold) S.openFolds.add(o.fold);
-  const h = '#' + VIEWS[view];
+  let page = o.page ?? o.fold ?? null;
+  if (page && !(PAGES[view] || []).includes(page)) page = null;
+  if (PAGES[view]) ctx.page[view] = page || null;
+  const h = '#' + VIEWS[view] + (page ? '/' + page : '');
   if (location.hash !== h) { history.pushState(null, '', view === 'home' ? location.pathname + location.search : h); }
-  showView(view, o);
+  showView(view, { ...o, page });
 };
-function viewFromHash() { return HASH_TO_VIEW[location.hash.slice(1)] || 'home'; }
-window.addEventListener('popstate', () => { closeSheet(); showView(viewFromHash()); });
+function viewFromHash() {
+  const [v, page] = location.hash.slice(1).split('/');
+  const view = HASH_TO_VIEW[v] || 'home';
+  if (PAGES[view]) ctx.page[view] = page && PAGES[view].includes(page) ? page : null;
+  return view;
+}
+window.addEventListener('popstate', () => { closeSheet(); showView(viewFromHash(), { pageNav: true }); });
 
 function showView(view, o = {}) {
-  const changed = ctx.view !== view;
+  const changed = ctx.view !== view || o.page !== undefined || o.pageNav;
   ctx.view = view;
   render();
   if (changed) window.scrollTo({ top: 0 });
-  if (o.fold) $(`#fold-${o.fold}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   if (o.focus === 'ask') $('#askInput')?.focus();
   if (o.focus === 'search') $('#q')?.focus();
-  if (changed && !o.focus) $('#main')?.focus({ preventScroll: true });
+  if (changed && !o.focus) ($('.activeView .pageH') || $('#main'))?.focus({ preventScroll: true });
 }
 
 ctx.openMoves = (q = '', from = '', to = '', kind = '', st = '') => {
@@ -124,9 +142,12 @@ ctx.openMoves = (q = '', from = '', to = '', kind = '', st = '') => {
 };
 
 // ================================================================== desenho
+/** efeito vidro (Ajustes › Aparência): cartões translúcidos e brilhos suaves no fundo, em qualquer tema */
+const applyGlass = () => document.documentElement.classList.toggle('glassy', !!ctx.device?.glass);
 function render() {
   if (!ctx.state || ctx.locked || ctx.problem) return;
   applyTheme(ctx.state.theme);
+  applyGlass();
   ctx.cols = colsFor(ctx.view);
   const act = document.activeElement;
   const keep = act && act.dataset ? { act: act.dataset.act, id: act.dataset.id, view: act.dataset.view, el: act.id } : null;
@@ -173,26 +194,14 @@ function bindView() {
     const form = $('#askForm');
     if (form) form.onsubmit = e => { e.preventDefault(); askQuestion($('#askInput').value); };
   }
-  if (ctx.view === 'money') {
-    const cf = $('#catForm');
-    if (cf) cf.onsubmit = e => {
-      e.preventDefault();
-      ctx.catKind = $('#newCatKind').value;
-      const r = OpsAddCategory(ctx.catKind, $('#newCat').value);
-      if (r) { $('#newCat')?.focus(); toast('Categoria adicionada'); }
-    };
-  }
+  if (ctx.view === 'money' && ctx.page.money === 'categorias') bindCategories($('#moneyView'));
   if (ctx.view === 'prefs') {
     $$('#prefsView input[type=checkbox][role=switch]').forEach(i => i.onchange = () => onSwitch(i));
-    const al = $('#autoLockSel');
+    const keep = $('#prefsView input[name=abKeep]');
+    if (keep) keep.onchange = () => AutoBackup.setKeep(parseInt(keep.value, 10));
+    if ($('#abPermit')) AutoBackup.needsPermission().then(n => { const b = $('#abPermit'); if (b) b.hidden = !n; }).catch(() => {});
+    const al = $('#prefsView input[name=autoLock]');
     if (al) al.onchange = () => ctx.replace({ ...ctx.state, autoLock: parseInt(al.value, 10) || 0 });
-    const cf = $('#catForm');
-    if (cf) cf.onsubmit = e => {
-      e.preventDefault();
-      ctx.catKind = $('#newCatKind').value;
-      const r = OpsAddCategory(ctx.catKind, $('#newCat').value);
-      if (r) { $('#newCat')?.focus(); toast('Categoria adicionada'); }
-    };
     $$('details.license').forEach(d => d.addEventListener('toggle', async () => {
       const pre = d.querySelector('pre');
       if (!d.open || pre.dataset.loaded) return;
@@ -220,6 +229,8 @@ async function onSwitch(i) {
   switch (i.name) {
     case 'privacy': ctx.replace({ ...ctx.state, privacy: v }); break;
     case 'assistCategory': case 'assistTips': case 'assistAsk': ctx.setDevice({ [i.name]: v }); break;
+    case 'glass': ctx.setDevice({ glass: v }); toast(v ? 'Efeito vidro ligado' : 'Efeito vidro desligado'); break;
+    case 'accumulateBalance': ctx.setDevice({ accumulateBalance: v }); toast(v ? 'Saldo acumulado entre os meses' : 'Cada mês com o seu saldo'); break;
     case 'notifications': {
       if (!v) { ctx.setDevice({ notifications: false }); break; }
       if (typeof Notification === 'undefined') { i.checked = false; return notice('Avisos', 'Este navegador não oferece notificações.'); }
@@ -235,7 +246,16 @@ async function onSwitch(i) {
 
 // ================================================================== ações (data-act)
 const ACTIONS = {
-  'new-tx': el => E.txEditor(el.dataset.kind || 'expense', null, el.dataset.date || null),
+  'new-tx': el => E.txEditor(el.dataset.kind || 'expense', null, el.dataset.date || null, { category: el.dataset.category || undefined }),
+  // páginas de Meu dinheiro e Ajustes (‹ volta com page vazio)
+  page: el => ctx.go(el.dataset.view, { page: el.dataset.page || null }),
+  'forecast-info': () => S.forecastInfo(), 'summary-info': () => S.summaryInfo(),
+  'all-categories': () => S.allCategoriesSheet(), 'month-detail': el => S.monthDetailSheet(el.dataset.ym),
+  'card-detail': el => cardDetailSheet(el.dataset.id),
+  'cat-edit': el => { if (!catClickSuppressed()) categoryEditSheet(el.dataset.kind, el.dataset.cat); },
+  'cat-archive': el => archiveCategory(el.dataset.kind, el.dataset.cat),
+  'cat-move': el => moveCategoryBy(el.dataset.kind, +el.dataset.i, +el.dataset.d),
+  'cat-new': el => newCategory(el.dataset.kind),
   'edit-tx': el => E.txEditor('expense', el.dataset.id),
   // confirmar pede confirmação e oferece Desfazer logo depois (a mesma operação, de novo, volta ao que era)
   'toggle-paid': async el => {
@@ -251,14 +271,20 @@ const ACTIONS = {
       { action: 'Desfazer', onAction: () => ctx.replace(Ops.togglePaid(ctx.state, id, ctx.today)) });
   },
   'add-choice': () => E.addChoiceSheet(),
-  'cats-fold': el => {
-    S.catsOpen.on = !S.catsOpen.on;
-    const body = $('#catsBody');
-    if (body) body.hidden = !S.catsOpen.on;
-    el.setAttribute('aria-expanded', S.catsOpen.on);
-    el.querySelector('span').textContent = S.catsOpen.on ? 'Minimizar' : 'Maximizar';
-  },
   'new-goal': () => E.goalEditor(), 'edit-goal': el => E.goalEditor(el.dataset.id),
+  // despesas compartilhadas (Meu dinheiro, botão + e menu ⋯)
+  'shared-list': () => sharedListSheet(), 'shared-new': () => sharedEditor(),
+  // boas-vindas (Ajustes › Sobre › Ver apresentação)
+  welcome: () => openWelcome(),
+  // backup automático (Ajustes › Dados)
+  'ab-enable': () => autoBackupEnable(), 'ab-now': () => autoBackupRun(() => AutoBackup.backupNow(true), 'Cópia gravada'),
+  'ab-folder': () => autoBackupRun(() => AutoBackup.changeFolder(), 'Pasta trocada. A cópia de hoje foi gravada nela.'),
+  'ab-password': async () => { const pw = await askBackupPassword('Trocar senha', 'A nova senha vale para as próximas cópias. As antigas continuam abrindo com a senha antiga.'); if (pw) autoBackupRun(() => AutoBackup.setPassword(pw), 'Senha trocada. A cópia de hoje já usa a nova senha.'); },
+  'ab-permit': () => autoBackupRun(() => AutoBackup.backupNow(true), 'Acesso à pasta permitido. Cópia gravada.'),
+  'ab-disable': async () => {
+    if (!await ask('Desligar o backup automático', 'As cópias já gravadas continuam na pasta. O Finan+ esquece a pasta e a senha.', { ok: 'Desligar', danger: true })) return;
+    await AutoBackup.disable(); toast('Backup automático desligado');
+  },
   'new-account': () => E.accountEditor(), 'edit-account': el => E.accountEditor(el.dataset.id),
   'new-card': () => E.cardEditor(), 'edit-card': el => E.cardEditor(el.dataset.id),
   'pay-invoice': el => E.payInvoiceEditor(el.dataset.id),
@@ -315,21 +341,13 @@ const ACTIONS = {
   'notify-now': () => checkNotifications(true),
   'rename-cat': el => E.renameCategory(el.dataset.kind, el.dataset.cat),
   'delete-cat': el => E.deleteCategory(el.dataset.kind, el.dataset.cat),
-  fold: el => {
-    const id = el.dataset.id;
-    if (S.openFolds.has(id)) S.openFolds.delete(id); else S.openFolds.add(id);
-    const sec = $(`#fold-${id}`), open = S.openFolds.has(id);
-    sec.classList.toggle('open', open);
-    el.setAttribute('aria-expanded', open);
-    sec.querySelector('.foldBody').hidden = !open;
-    sec.querySelector('.foldBtn').innerHTML = icon(open ? 'remove' : 'add', 20);
-  },
   search: () => ctx.go('moves', { focus: 'search' }),
   menu: () => { const m = $('#menu'); m.hidden = !m.hidden; if (!m.hidden) m.querySelector('button')?.focus(); },
   shortcuts: () => E.shortcutsDialog(),
   whatsnew: () => E.whatsNew(),
-  about: () => ctx.go('prefs', { fold: 'sobre' }),
+  about: () => ctx.go('prefs', { page: 'sobre' }),
 };
+ctx.actions = ACTIONS;
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -381,7 +399,7 @@ const SWIPE_TABS = ['home', 'moves', 'money', 'reports', 'prefs'];
 let swipe = null;
 document.addEventListener('touchstart', e => {
   swipe = null;
-  if (ctx.cols !== 1 || e.touches.length !== 1 || ctx.locked || ctx.problem || dialogOpen()) return;
+  if (ctx.cols !== 1 || e.touches.length !== 1 || ctx.locked || ctx.problem || ctx.welcome || dialogOpen()) return;
   const t = e.target;
   if (!t.closest?.('#main') || t.closest('input, select, textarea, .hscroll, details')) return;
   swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now(), cal: !!t.closest('.calCard') };
@@ -415,7 +433,7 @@ document.addEventListener('pointerdown', e => {
 // mas em uma aba comum alguns (Ctrl+N, Ctrl+1…) são do próprio navegador: no app instalado, todos funcionam.
 const SIMPLE = { n: 'n', r: 'N', m: 'm', '/': 'f', k: 'k', h: 'h', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '?': '/' };
 document.addEventListener('keydown', e => {
-  if (ctx.locked || ctx.problem || !ctx.state) return;
+  if (ctx.locked || ctx.problem || !ctx.state || ctx.welcome) return;
   if (dialogOpen()) return; // com uma janela aberta, os atalhos esperam
   const mod = e.ctrlKey || e.metaKey;
   if (e.altKey) return;
@@ -497,6 +515,7 @@ function showLock() {
       launchParams();
       flushPending();
       checkNotifications();
+      afterReady();
       return;
     }
     updateDevice(d => Throttle.fail(d));
@@ -548,7 +567,8 @@ function showProblem(message) {
     const file = await E.pickFile('application/json,.json');
     if (!file) return;
     let n;
-    try { n = parseBackup(await file.text()); } catch { notice('Não foi possível restaurar', 'Arquivo de backup inválido ou danificado.'); return; }
+    try { n = await E.readBackupFile(file); } catch { notice('Não foi possível restaurar', 'Arquivo de backup inválido ou danificado.'); return; }
+    if (!n) return;
     await fresh(n.state); toast('Backup restaurado');
   };
 }
@@ -560,7 +580,7 @@ async function wipeAll() {
   await ctx.store.wipe();
   wipeDevice();
   ctx.device = loadDevice();
-  S.openFolds.clear();
+  ctx.page.money = null; ctx.page.prefs = null;
   ctx.state = newState();
   await persist();
   ctx.go('home');
@@ -608,6 +628,7 @@ function dayTick() {
   const [s, n] = Finance.generateRecurring(ctx.state, t);
   if (n > 0) ctx.replace(s); else render();
   checkNotifications();
+  autoBackupTick();
 }
 
 // ================================================================== início
@@ -615,6 +636,7 @@ async function boot() {
   ctx.device = loadDevice();
   ctx.remote = env.remote = REMOTE;
   if (ctx.device.themeCache) applyTheme(ctx.device.themeCache);
+  applyGlass();
   if (REMOTE) {
     // modo remoto: nada de cache/service worker (os arquivos e os dados vêm sempre do celular)
     navigator.serviceWorker?.getRegistrations?.().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
@@ -641,14 +663,15 @@ async function boot() {
 let started = false;
 function afterOpen(r) {
   if (r.legacyPin && !loadDevice().pinHash) updateDevice({ pinHash: r.legacyPin });
-  const [g, n] = Finance.generateRecurring(r.state, ctx.today);
+  const [g0, n] = Finance.generateRecurring(r.state, ctx.today);
+  const g = migrated(g0);
   ctx.state = g;
-  if (n > 0 || r.status === 'new' || r.migrated) persist();
+  if (n > 0 || r.status === 'new' || r.migrated || g !== g0) persist();
   ctx.view = viewFromHash();
   if (ctx.device.pinHash) { ctx.locked = true; applyTheme(ctx.state.theme); showLock(); }
-  else { render(); launchParams(); }
-  if (r.migrated && r.migrated !== 'finanplus_plain') pending.push(['Bem-vindo ao Finan+', 'Seus dados do “Minhas Finanças” foram trazidos para o Finan+' + (env.encrypted ? ' e agora ficam criptografados neste aparelho.' : '.') + (r.dropped ? `\n${r.dropped} item(ns) inválido(s) foram ignorados.` : '')]);
-  else if (r.dropped) pending.push(['Itens ignorados', `${r.dropped} item(ns) inválido(s) nos dados salvos foram ignorados ao abrir. Se notar algo faltando, restaure um backup JSON recente (Ajustes › Dados).`]);
+  else { render(); launchParams(); afterReady(); }
+  if (r.migrated && r.migrated !== 'finanplus_plain') pending.push(['Bem-vindo ao Finan+', 'Seus dados do “Minhas Finanças” foram trazidos para o Finan+' + (env.encrypted ? ' e agora ficam criptografados neste aparelho.' : '.') + (r.dropped ? `\n${r.dropped === 1 ? '1 item inválido foi ignorado.' : `${r.dropped} itens inválidos foram ignorados.`}` : '')]);
+  else if (r.dropped) pending.push(['Itens ignorados', `${r.dropped === 1 ? '1 item inválido nos dados salvos foi ignorado' : `${r.dropped} itens inválidos nos dados salvos foram ignorados`} ao abrir. Se notar algo faltando, restaure um backup JSON recente (Ajustes › Dados).`]);
   if (!env.encrypted) toast('Este navegador não permite criptografar os dados. Eles ficam só neste aparelho.', 5000);
   flushPending();
   checkNotifications();
@@ -659,7 +682,63 @@ function afterOpen(r) {
   setInterval(() => { dayTick(); autoLockCheck(); }, 15000);
   if (REMOTE) setInterval(pollRemote, 4000);
   setInterval(() => checkNotifications(), 5 * 60000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { dayTick(); autoLockCheck(); checkNotifications(); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { dayTick(); autoLockCheck(); checkNotifications(); autoBackupTick(); } });
+}
+
+/** dados abertos e desbloqueados: boas-vindas na primeira abertura e a cópia do dia do backup automático */
+function afterReady() {
+  if (shouldShowWelcome(ctx.device, ctx.state, REMOTE)) openWelcome();
+  else if (!ctx.device.welcomeSeen) updateDevice({ welcomeSeen: true }); // quem já tinha dados não vê sozinho
+  autoBackupTick();
+}
+
+// ================================================================== boas-vindas
+function openWelcome() {
+  if (ctx.welcome || ctx.locked || ctx.problem) return;
+  closeDialogs();
+  ctx.welcome = true;
+  $('#shell').inert = true;
+  showWelcome($('#welcome'), restore => {
+    ctx.welcome = false;
+    $('#shell').inert = false;
+    updateDevice({ welcomeSeen: true });
+    if (restore) { ctx.go('prefs', { page: 'dados' }); setTimeout(() => $('[data-act="restore"]')?.focus(), 50); toast('Toque em Restaurar e escolha o arquivo de backup.', 5000); }
+    else { render(); $('#main')?.focus({ preventScroll: true }); }
+  });
+}
+
+// ================================================================== backup automático (BACKUP-AUTOMATICO.md)
+let backupWarned = '';
+async function autoBackupTick() {
+  try {
+    const err = await AutoBackup.maybeRun();
+    if (ctx.view === 'prefs') render();
+    // um aviso por dia, sem valores
+    if (err && backupWarned !== ctx.today) { backupWarned = ctx.today; toast('Backup automático: a cópia de hoje não foi gravada. Veja em Ajustes › Dados.', 6000); }
+  } catch (e) { console.warn('backup automático', e); }
+}
+async function askBackupPassword(title, message) {
+  const pw = await promptDlg(title, message || `Use pelo menos ${BackupCrypto.MIN_PASSWORD} caracteres. Guarde essa senha fora deste aparelho: sem ela, nenhuma cópia pode ser aberta, e o Finan+ não consegue recuperá-la.`, { label: 'Senha do backup', type: 'password', max: 128 }, { ok: 'Continuar' });
+  if (pw == null) return null;
+  if (pw.length < BackupCrypto.MIN_PASSWORD) { notice('Senha curta', `Use pelo menos ${BackupCrypto.MIN_PASSWORD} caracteres.`); return null; }
+  const again = await promptDlg('Repita a senha', 'Digite a mesma senha de novo.', { label: 'Repita a senha', type: 'password', max: 128 }, { ok: 'Escolher pasta' });
+  if (again == null) return null;
+  if (again !== pw) { notice('Senhas diferentes', 'As senhas não são iguais. Nada foi alterado.'); return null; }
+  return pw;
+}
+async function autoBackupEnable() {
+  const why = AutoBackup.unavailable();
+  if (why) return notice('Backup automático', why);
+  const pw = await askBackupPassword('Backup automático');
+  if (!pw) return;
+  autoBackupRun(() => AutoBackup.enable(pw), 'A primeira cópia foi gravada. As próximas são feitas uma vez por dia, quando o Finan+ estiver aberto. Para restaurar: Ajustes › Dados › Restaurar, escolha o arquivo e digite a senha.', 'Backup automático ligado');
+}
+async function autoBackupRun(fn, okMsg, okTitle = 'Backup automático') {
+  let err;
+  try { err = await fn(); } catch (e) { err = 'O navegador não permitiu usar essa pasta. Escolha outra (por exemplo, Documentos). (' + (e?.message || e) + ')'; }
+  render();
+  if (err === 'cancel') return;
+  if (err) notice('Não foi possível gravar', err); else notice(okTitle, okMsg);
 }
 
 // ================================================================== modo remoto (dados no celular)

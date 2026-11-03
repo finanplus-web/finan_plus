@@ -85,7 +85,8 @@ export class RemoteStore {
 
   /** grava no celular (em fila: gravações nunca se sobrepõem) */
   save(state) {
-    const data = JSON.parse(toJson(state));
+    // "shared" vai sempre: sem o campo, o celular mantém as despesas compartilhadas dele (RemoteSave.keepShared)
+    const data = JSON.parse(toJson(state, undefined, { alwaysShared: true }));
     const job = this.queue.then(async () => {
       try {
         const j = await this.#call('PUT', '/api/remote/state', { rev: this.rev, data });

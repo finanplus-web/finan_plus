@@ -11,7 +11,11 @@ export const MAX_CHART_MONTHS = 24;
 const sum = l => l.reduce((n, t) => n + t.value, 0);
 const cmp = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 
-export function buildReport(s, from, to, today) {
+/**
+ * [accumulate]: opção "Acumular saldo entre os meses"; preenche carried (saldo das contas no dia anterior ao período),
+ * accumulated (ao fim do período) e months[].accumulated (ao fim de cada mês). Desligada, ficam null.
+ */
+export function buildReport(s, from, to, today, accumulate = false) {
   if (to < from) throw new Error('período inválido');
   void today;
   const days = dayNum(to) - dayNum(from) + 1;
@@ -43,7 +47,8 @@ export function buildReport(s, from, to, today) {
   for (let m = ymOf(from); m <= ymOf(to); m++) {
     const l = done.filter(t => ymOf(t.date) === m);
     const income = sum(l.filter(t => t.kind === 'income')), expense = sum(l.filter(t => t.kind === 'expense'));
-    months.push({ ym: m, income, expense, balance: income - expense });
+    months.push({ ym: m, income, expense, balance: income - expense,
+      accumulated: accumulate ? Finance.balanceAt(s, to < ymLast(m) ? to : ymLast(m)) : null });
   }
   const income = sum(inc), expense = sum(exp);
   return {
@@ -58,6 +63,8 @@ export function buildReport(s, from, to, today) {
     accounts: s.accounts.map(a => [a.name, Finance.accountBalance(s, a)]),
     goals: s.goals.map(g => ({ name: g.name, saved: g.saved, target: g.target, deadline: g.deadline,
       percent: g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0 })),
+    carried: accumulate ? Finance.balanceAt(s, addDays(from, -1)) : null,
+    accumulated: accumulate ? Finance.balanceAt(s, to) : null,
   };
 }
 
@@ -71,7 +78,8 @@ function one(v) {
 /** valor curto para eixos: "R$ 950", "R$ 1,2 mil", "R$ 3,4 mi" */
 export function compact(c) {
   const r = Math.abs(c) / 100;
-  const s = r < 1000 ? 'R$ ' + Math.round(r) : r < 1e6 ? `R$ ${one(r / 1000)} mil` : `R$ ${one(r / 1e6)} mi`;
+  // a faixa é decidida depois de arredondar: 999,60 virava "R$ 1000" e 999.999,96 "R$ 1000 mil"
+  const s = Math.round(r) < 1000 ? 'R$ ' + Math.round(r) : Math.round(r / 100) < 10000 ? `R$ ${one(r / 1000)} mil` : `R$ ${one(r / 1e6)} mi`;
   return c < 0 ? '-' + s : s;
 }
 /** escala "bonita" para o eixo: 0, passo, 2·passo… até cobrir max */

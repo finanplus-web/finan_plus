@@ -50,11 +50,11 @@ export const fullDate = s => { const n = MONTHS[+s.slice(5, 7) - 1]; return `${s
 
 // ------------------------------------------------------------------ dinheiro
 export const Money = {
-  /** "R$ 1.234,56" / "-R$ 0,50" — formatação própria, não depende do idioma do navegador */
+  /** "R$ 1.234,56" / "− R$ 0,50" (sinal de menos tipográfico, U+2212) — formatação própria, não depende do idioma do navegador */
   format(c) {
     const neg = c < 0, a = Math.abs(c);
     const reais = String(Math.floor(a / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return (neg ? '-' : '') + 'R$ ' + reais + ',' + pad2(a % 100);
+    return (neg ? '− ' : '') + 'R$ ' + reais + ',' + pad2(a % 100);
   },
   /** valor para campo de edição: "1500,50" */
   input(c) { const a = Math.abs(c); return (c < 0 ? '-' : '') + Math.floor(a / 100) + ',' + pad2(a % 100); },
@@ -62,10 +62,12 @@ export const Money = {
   fromReais: d => Math.round(d * 100),
   /** centavos → "12.50" para o JSON */
   reaisJson(c) { const a = Math.abs(c); return (c < 0 ? '-' : '') + Math.floor(a / 100) + '.' + pad2(a % 100); },
-  /** Aceita "1.500,50", "1500,50", "1500.50", "1,500.25", "R$ 2.000", "-50". Devolve centavos ou null. */
+  /** Aceita "1.500,50", "1500,50", "1500.50", "1,500.25", "R$ 2.000", "-50", "− R$ 0,50".
+   *  "0.500" é decimal (R$ 0,50): milhar não começa com zero. Devolve centavos ou null. */
   parse(input) {
-    let s = String(input ?? '').replace(/R\$/g, '').replace(/\s/g, '');
+    let s = String(input ?? '').replace(/R\$/gi, '').replace(/\s/g, '');
     if (!s) return null;
+    if (s.startsWith('−')) s = '-' + s.slice(1);
     const neg = s.startsWith('-');
     if (neg || s.startsWith('+')) s = s.slice(1);
     if (!s || !/^[\d.,]+$/.test(s)) return null;
@@ -79,7 +81,7 @@ export const Money = {
     } else if (lc >= 0) {
       if (count(s, ',') > 1) return null;
       s = s.replace(',', '.');
-    } else if (ld >= 0 && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+    } else if (ld >= 0 && /^[1-9]\d{0,2}(\.\d{3})+$/.test(s)) {
       s = s.split('.').join('');
     }
     if (count(s, '.') > 1) return null;
@@ -100,7 +102,9 @@ export const Money = {
 // ------------------------------------------------------------------ modelo
 export const MAIN_ACCOUNT = 'main';
 export const CARD_PAYMENT_CAT = 'Pagamento de fatura';
-export const DEFAULT_EXPENSE = ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Educação', 'Outros'];
+export const DEFAULT_EXPENSE = ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Educação', 'Dívidas', 'Outros'];
+/** categoria dos lançamentos de reserva para meta (não aparece na lista de categorias) */
+export const GOAL_CAT = 'Metas';
 export const DEFAULT_INCOME = ['Salário', 'Extra', 'Investimentos', 'Outros'];
 export const AUTOLOCK_OPTIONS = [0, 1, 5, 15, 30];
 export const THEMES = [
@@ -125,22 +129,31 @@ export function tx(o) {
     recurringId: o.recurringId ?? '', groupId: o.groupId ?? '', parcelN: o.parcelN ?? 0, parcelTotal: o.parcelTotal ?? 0,
     /** data prevista preservada quando um lançamento pendente é realizado em outro dia (null = não há) */
     scheduledDate: o.scheduledDate ?? null,
+    /** Reserva para meta: dinheiro que saiu da conta para esta meta (despesa) ou voltou dela (receita).
+     *  Mexe no saldo da conta, mas não é gasto nem ganho: fica fora de despesas, limites e assistente. */
+    goalId: o.goalId ?? '',
   };
 }
-export const isFlow = t => !t.cardPayment;
+/** receita ou despesa de verdade (ficam de fora: pagamento de fatura e reserva para meta) */
+export const isFlow = t => !t.cardPayment && !t.goalId;
 export const isCard = t => !!t.cardId;
+export const isGoal = t => !!t.goalId;
 
 export function newState(over = {}) {
   return {
     txs: [], goals: [], accounts: [{ id: MAIN_ACCOUNT, name: 'Conta principal', initial: 0 }], cards: [], recurring: [],
     cats: { expense: [...DEFAULT_EXPENSE], income: [...DEFAULT_INCOME] },
-    limits: new Map(), privacy: false, autoLock: 0, theme: 'auto', ...over,
+    limits: new Map(), privacy: false, autoLock: 0, theme: 'auto',
+    /** despesas compartilhadas (shared.js): quem pagou, quem divide e quem já devolveu */
+    shared: [], ...over,
   };
 }
+const cloneShared = e => ({ ...e, people: e.people.map(p => ({ ...p })), payments: e.payments.map(p => ({ ...p })) });
 export const clone = s => ({
   ...s, txs: s.txs.map(t => ({ ...t })), goals: s.goals.map(g => ({ ...g })), accounts: s.accounts.map(a => ({ ...a })),
   cards: s.cards.map(c => ({ ...c })), recurring: s.recurring.map(r => ({ ...r })),
   cats: { expense: [...s.cats.expense], income: [...s.cats.income] }, limits: new Map(s.limits),
+  shared: (s.shared ?? []).map(cloneShared),
 });
 export const account = (s, id) => s.accounts.find(a => a.id === id);
 export const card = (s, id) => s.cards.find(c => c.id === id);
@@ -148,7 +161,7 @@ const sumOf = l => l.reduce((n, t) => n + t.value, 0);
 
 /** Quantidades máximas aceitas num backup externo; o app também não deixa criar além delas,
  *  para que todo backup gerado por ele possa ser restaurado (iguais ao app Android, AppState.Limits). */
-export const LIMITS = { txs: 50_000, accounts: 100, cards: 100, recurring: 1_000, goals: 1_000, categoriesPerKind: 500 };
+export const LIMITS = { txs: 50_000, accounts: 100, cards: 100, recurring: 1_000, goals: 1_000, shared: 1_000, categoriesPerKind: 500 };
 
 /** Valores e somas cabem no maior inteiro exato do JavaScript (em centavos). */
 export function hasSafeMoneyTotals(s) {
@@ -168,6 +181,7 @@ export function growthError(s, next) {
   if (grew(s.cards.length, next.cards.length, LIMITS.cards)) return `Limite de ${LIMITS.cards} cartões atingido.`;
   if (grew(s.recurring.length, next.recurring.length, LIMITS.recurring)) return `Limite de ${LIMITS.recurring.toLocaleString('pt-BR')} recorrências atingido.`;
   if (grew(s.goals.length, next.goals.length, LIMITS.goals)) return `Limite de ${LIMITS.goals.toLocaleString('pt-BR')} metas atingido.`;
+  if (grew((s.shared ?? []).length, (next.shared ?? []).length, LIMITS.shared)) return `Limite de ${LIMITS.shared.toLocaleString('pt-BR')} despesas compartilhadas atingido.`;
   if (['expense', 'income'].some(k => grew(s.cats[k].length, next.cats[k].length, LIMITS.categoriesPerKind))) return `Limite de ${LIMITS.categoriesPerKind} categorias atingido.`;
   return null;
 }
@@ -237,6 +251,32 @@ export const Finance = {
     for (const t of Projection.between(s, today, until, today)) if (!isCard(t)) c += t.kind === 'income' ? t.value : -t.value;
     return c;
   },
+  /**
+   * Saldo das contas ao fim do dia [until], só com o realizado: saldo inicial das contas + lançamentos pagos
+   * fora do cartão até essa data (mesma regra de accountBalance, olhando só até [until]). É o saldo "acumulado"
+   * da opção "Acumular saldo entre os meses".
+   */
+  balanceAt(s, until) {
+    const ids = new Set(s.accounts.map(a => a.id));
+    let c = s.accounts.reduce((n, a) => n + a.initial, 0);
+    for (const t of s.txs) {
+      if (isCard(t) || !t.paid || !ids.has(t.accountId) || t.date > until) continue;
+      c += t.kind === 'income' ? t.value : -t.value;
+    }
+    return c;
+  },
+  /**
+   * Saldo previsto ao fim do dia [until], acumulado desde o saldo inicial: balanceAt + pendências fora do cartão
+   * até lá − faturas em aberto que vencem até lá + recorrências previstas (só com [withProjection]).
+   * De hoje em diante coincide com futureBalance.
+   */
+  forecastAt(s, until, today, withProjection = true) {
+    let c = Finance.balanceAt(s, until);
+    for (const t of s.txs) { if (isCard(t) || t.paid || t.date > until) continue; c += t.kind === 'income' ? t.value : -t.value; }
+    for (const cd of s.cards) for (const inv of Finance.cardStatus(s, cd, today).invoices) if (inv.open > 0 && inv.due <= until) c -= inv.open;
+    if (withProjection) for (const t of Projection.between(s, today, until, today)) if (!isCard(t)) c += t.kind === 'income' ? t.value : -t.value;
+    return c;
+  },
 
   // ---- recorrências
   /** Gera os lançamentos até o mês de [today], recuperando até 24 meses. Nunca antes do início. Devolve [estado, n]. */
@@ -288,6 +328,12 @@ export const Finance = {
   // ---- resumos
   flow(list) { const r = list.filter(t => isFlow(t) && t.paid); return { income: sumOf(r.filter(t => t.kind === 'income')), expense: sumOf(r.filter(t => t.kind === 'expense')) }; },
   monthFlow: (s, ym) => Finance.flow(s.txs.filter(t => ymOf(t.date) === ym)),
+  /** reservas para metas: quanto saiu das contas para metas (saved) e quanto voltou delas (withdrawn); net = saved − withdrawn */
+  goalMoves(list) {
+    const r = list.filter(t => isGoal(t) && t.paid);
+    const saved = sumOf(r.filter(t => t.kind === 'expense')), withdrawn = sumOf(r.filter(t => t.kind === 'income'));
+    return { saved, withdrawn, net: saved - withdrawn };
+  },
   /** despesas do mês por categoria, incluindo pendentes (para limites) */
   budgetUsage(s, ym) {
     const m = new Map();
@@ -334,7 +380,7 @@ export const Csv = {
   build(s) {
     const head = ['data', 'tipo', 'categoria', 'descricao', 'valor', 'situacao', 'conta', 'cartao'];
     const rows = [...s.txs].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0).map(t => [
-      Csv.cell(t.date), Csv.cell(t.kind === 'income' ? 'receita' : 'despesa'), Csv.cell(t.category), Csv.cell(t.desc),
+      Csv.cell(t.date), Csv.cell(isGoal(t) ? (t.kind === 'expense' ? 'reserva para meta' : 'retirada de meta') : t.kind === 'income' ? 'receita' : 'despesa'), Csv.cell(t.category), Csv.cell(t.desc),
       Csv.cell(Money.input(t.value)), Csv.cell(t.paid ? 'realizado' : 'pendente'),
       Csv.cell(isCard(t) ? '' : account(s, t.accountId)?.name ?? ''), Csv.cell(card(s, t.cardId || t.cardPayment)?.name ?? ''),
     ].join(';'));
@@ -367,6 +413,13 @@ const intOf = s => { const t = String(s ?? '').trim(); return /^[+-]?\d{1,9}$/.t
 const catsOf = (s, k) => s.cats[k];
 const withCats = (s, k, list) => ({ ...s, cats: { ...s.cats, [k]: list } });
 
+/** Lançamento de reserva: [moved] > 0 sai da conta para a meta; < 0 volta da meta para a conta. Sempre realizado. */
+function goalTx(goalName, goalId, moved, accountId, date, prefix = null) {
+  const label = prefix ?? (moved > 0 ? 'Meta' : 'Retirada da meta');
+  return tx({ id: newId(), kind: moved > 0 ? 'expense' : 'income', value: Math.abs(moved), date,
+    desc: [...`${label} › ${goalName}`].slice(0, 200).join(''), category: GOAL_CAT, paid: true, accountId, goalId });
+}
+
 export const Ops = {
   /** d: {kind, desc, value, category, date, paid, accountId, cardId, reps, repsMode:'TOTAL'|'EACH', recurring} */
   /** Novos lançamentos só vêm como realizados por padrão quando a data é hoje. */
@@ -387,6 +440,7 @@ export const Ops = {
     if (editId != null) {
       const t = s.txs.find(x => x.id === editId);
       if (!t) return err('Lançamento não encontrado.');
+      if (isGoal(t)) return err('Este lançamento é de uma meta. Para mudar o valor, guarde ou retire pela meta; ou exclua o lançamento.', 'Lançamento de meta');
       let upd;
       if (t.cardPayment) upd = { ...t, desc, value, category, date: d.date, accountId, paid: true };
       else {
@@ -408,13 +462,18 @@ export const Ops = {
         const instPaid = isC || (i === 0 && !!d.paid);
         return { ...base, id: newId(), value: v, date: i === 0 ? entryDate : plusMonths(d.date, i), paid: instPaid,
           scheduledDate: i === 0 && instPaid ? scheduledDate : null,
-          desc: `${[...desc].slice(0, 200 - ` (${i + 1}/${n})`.length).join('').trimEnd()} (${i + 1}/${n})`, groupId: group, parcelN: i + 1, parcelTotal: n };
+          desc: Ops.parcelDesc(desc, i + 1, n), groupId: group, parcelN: i + 1, parcelTotal: n };
       });
     } else added = [base];
     let rec = s.recurring;
-    if (d.recurring) rec = [...rec, { id: newId(), kind: d.kind, desc, value, category, accountId, cardId, day: dom(d.date), active: true, start: d.date, last: ymOf(d.date) }];
+    // a recorrência guarda até 120 caracteres (o limite lido de volta do arquivo); sem cortar aqui, o fim se perdia na próxima abertura
+    if (d.recurring) rec = [...rec, { id: newId(), kind: d.kind, desc: [...desc].slice(0, Ops.REC_DESC_MAX).join('').trimEnd(), value, category, accountId, cardId, day: dom(d.date), active: true, start: d.date, last: ymOf(d.date) }];
     return okGrow(s, { ...s, txs: [...s.txs, ...added], recurring: rec });
   },
+  TX_DESC_MAX: 200,
+  REC_DESC_MAX: 120,
+  /** "Notebook (3/10)": corta a descrição antes do sufixo para o total caber em TX_DESC_MAX */
+  parcelDesc(desc, n, total) { const suffix = ` (${n}/${total})`; return [...desc].slice(0, Ops.TX_DESC_MAX - suffix.length).join('').trimEnd() + suffix; },
   laterParcels(s, id) {
     const t = s.txs.find(x => x.id === id);
     if (!t || !t.groupId) return [];
@@ -422,7 +481,13 @@ export const Ops = {
   },
   deleteTx(s, id, withLater) {
     const ids = new Set([id, ...(withLater ? Ops.laterParcels(s, id).map(x => x.id) : [])]);
-    return { ...s, txs: s.txs.filter(x => !ids.has(x.id)) };
+    // excluir uma reserva para meta desfaz o valor na meta (guardado volta a diminuir; retirada volta a somar)
+    let goals = s.goals;
+    for (const t of s.txs) {
+      if (!ids.has(t.id) || !isGoal(t)) continue;
+      goals = goals.map(g => g.id !== t.goalId ? g : { ...g, saved: Math.max(0, t.kind === 'expense' ? g.saved - t.value : g.saved + t.value) });
+    }
+    return { ...s, txs: s.txs.filter(x => !ids.has(x.id)), goals };
   },
   /** Compra no cartão e pagamento de fatura não alternam pago/pendente: desmarcar um pagamento de fatura reabria
    *  a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes (igual ao app Android 1.1.1). */
@@ -434,7 +499,12 @@ export const Ops = {
     return { ...x, paid: true, scheduledDate: x.date !== today ? x.date : null, date: today };
   }) }),
 
-  saveGoal(s, id, name, target, move, deadline, monthly) {
+  /**
+   * [move]: quanto guardar (positivo) ou retirar (negativo) agora. Com [fromAccount], o valor sai da conta [accountId]
+   * (ou volta para ela) num lançamento de reserva para meta, que não conta como despesa nem receita.
+   * Sem [fromAccount], só o valor guardado na meta muda (como antes da 1.7.0 do Android).
+   */
+  saveGoal(s, id, name, target, move, deadline, monthly, fromAccount = false, accountId = '', today = todayStr()) {
     const n = clean(name, 60), t = Money.parse(target), m = blank(monthly) ? 0 : Money.parse(monthly);
     if (!n) return err('Informe o nome da meta.');
     if (t == null || t <= 0) return err('Informe um valor de meta maior que zero. Ex.: 1500,50');
@@ -443,11 +513,40 @@ export const Ops = {
     if (mv == null) return err('Valor a guardar inválido.');
     if (deadline && !validDate(deadline)) return err('Informe um prazo válido ou deixe em branco.');
     if (id == null) return okGrow(s, { ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m }] });
-    const saved = Math.max(0, (s.goals.find(g => g.id === id)?.saved ?? 0) + mv);
+    const old = s.goals.find(g => g.id === id);
+    if (!old) return err('Meta não encontrada.');
+    const sum = old.saved + mv;
+    if (!Number.isSafeInteger(sum)) return err('O valor guardado excede o limite seguro.', 'Limite financeiro excedido');
+    const saved = Math.max(0, sum);
     if (saved > MAX_ABS_CENTS) return err('O valor guardado excede o limite seguro.', 'Limite financeiro excedido');
-    return ok({ ...s, goals: s.goals.map(g => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m, saved } : g) });
+    const goals = s.goals.map(g => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m, saved } : g);
+    // o que mudou de fato (uma retirada maior que o guardado para no zero)
+    const moved = saved - old.saved;
+    if (!fromAccount || moved === 0) return ok({ ...s, goals });
+    const acc = account(s, accountId) ? accountId : s.accounts[0].id;
+    return okGrow(s, { ...s, goals, txs: [...s.txs, goalTx(n, id, moved, acc, today)] });
   },
-  deleteGoal: (s, id) => ({ ...s, goals: s.goals.filter(g => g.id !== id) }),
+  /** Quanto desta meta saiu das contas pelo Finan+ e ainda não voltou (o que volta ao excluir a meta). */
+  goalFromAccounts(s, id) {
+    const g = s.goals.find(x => x.id === id);
+    if (!g) return 0;
+    const net = s.txs.filter(t => t.goalId === id).reduce((n, t) => n + (t.kind === 'expense' ? t.value : -t.value), 0);
+    return Math.min(Math.max(net, 0), g.saved);
+  },
+  /** Exclui a meta. O que saiu das contas para ela volta para a conta do último depósito (lançamento
+   *  "Meta excluída › nome"); os lançamentos antigos ficam no histórico. */
+  deleteGoal(s, id, today = todayStr()) {
+    const g = s.goals.find(x => x.id === id);
+    if (!g) return s;
+    const back = Ops.goalFromAccounts(s, id);
+    const rest = { ...s, goals: s.goals.filter(x => x.id !== id) };
+    if (back <= 0) return rest;
+    // a conta do depósito mais recente (maxByOrNull: no empate de data, o primeiro)
+    let last = null;
+    for (const t of s.txs) if (t.goalId === id && t.kind === 'expense' && (!last || t.date > last.date)) last = t;
+    const acc = last && account(s, last.accountId) ? last.accountId : s.accounts[0].id;
+    return { ...rest, txs: [...rest.txs, goalTx(g.name, id, -back, acc, today, 'Meta excluída')] };
+  },
 
   saveAccount(s, id, name, initial) {
     const n = clean(name, 40), ini = blank(initial) ? 0 : Money.parse(initial);
@@ -606,13 +705,17 @@ export function normalize(raw, { enforceLimits = true } = {}) {
   if (!isObj(raw)) throw new BackupError('Formato inválido');
   if (!Array.isArray(raw.txs)) throw new BackupError('Backup sem lista de lançamentos');
   // limites de quantidade só para arquivos de fora; os dados do próprio app sempre abrem
-  const tooMany = (list, max, what) => { if (enforceLimits && Array.isArray(list) && list.length > max) throw new BackupError(`Muitos ${what} no backup`); };
-  tooMany(raw.txs, LIMITS.txs, 'lançamentos'); tooMany(raw.accounts, LIMITS.accounts, 'contas');
-  tooMany(raw.cards, LIMITS.cards, 'cartões'); tooMany(raw.recurring, LIMITS.recurring, 'recorrências'); tooMany(raw.goals, LIMITS.goals, 'metas');
-  if (isObj(raw.cats)) for (const k of ['income', 'expense']) tooMany(raw.cats[k], LIMITS.categoriesPerKind, 'categorias');
-  const d = { txs: 0, goals: 0, accounts: 0, cards: 0, recurring: 0 };
+  const tooMany = (list, max, what) => { if (enforceLimits && Array.isArray(list) && list.length > max) throw new BackupError(`${what} no backup`); };
+  tooMany(raw.txs, LIMITS.txs, 'Muitos lançamentos'); tooMany(raw.accounts, LIMITS.accounts, 'Muitas contas');
+  tooMany(raw.cards, LIMITS.cards, 'Muitos cartões'); tooMany(raw.recurring, LIMITS.recurring, 'Muitas recorrências'); tooMany(raw.goals, LIMITS.goals, 'Muitas metas');
+  tooMany(raw.shared, LIMITS.shared, 'Muitas despesas compartilhadas');
+  if (isObj(raw.cats)) for (const k of ['income', 'expense']) tooMany(raw.cats[k], LIMITS.categoriesPerKind, 'Muitas categorias');
+  const d = { txs: 0, goals: 0, accounts: 0, cards: 0, recurring: 0, shared: 0 };
   const used = new Set();
   const idFor = v => { let id = safeId(v); if (!id || used.has(id)) id = newId(); used.add(id); return id; };
+  // id original do arquivo → id usado aqui (quando o original é inválido ou repetido, as referências acompanham a troca)
+  const accMap = new Map(), cardMap = new Map();
+  const rawId = v => typeof v === 'number' && Number.isFinite(v) ? numToString(v) : typeof v === 'string' ? v.trim() : '';
 
   const cats = { expense: [...DEFAULT_EXPENSE], income: [...DEFAULT_INCOME] };
   if (isObj(raw.cats)) for (const k of ['income', 'expense']) {
@@ -626,19 +729,23 @@ export function normalize(raw, { enforceLimits = true } = {}) {
   const accounts = [];
   if (Array.isArray(raw.accounts)) for (const x of raw.accounts) {
     if (!isObj(x) || !str(x.name, 40)) { d.accounts++; continue; }
-    accounts.push({ id: idFor(x.id), name: str(x.name, 40), initial: cents(x.initial) });
+    const id = idFor(x.id), r = rawId(x.id);
+    if (r && !accMap.has(r)) accMap.set(r, id);
+    accounts.push({ id, name: str(x.name, 40), initial: cents(x.initial) });
   }
   if (!accounts.length) { used.add(MAIN_ACCOUNT); accounts.push({ id: MAIN_ACCOUNT, name: 'Conta principal', initial: 0 }); }
   const accIds = new Set(accounts.map(a => a.id)), firstAcc = accounts[0].id;
-  const accOf = v => { const s = str(v, 48); return accIds.has(s) ? s : firstAcc; };
+  const accOf = v => { const r = rawId(v); return accMap.get(r) ?? (accIds.has(r) ? r : firstAcc); };
 
   const cards = [];
   if (Array.isArray(raw.cards)) for (const x of raw.cards) {
     if (!isObj(x) || !str(x.name, 40)) { d.cards++; continue; }
-    cards.push({ id: idFor(x.id), name: str(x.name, 40), limit: Math.max(0, cents(x.limit)), close: intIn(x.close, 1, 31, 5), due: intIn(x.due, 1, 31, 12) });
+    const id = idFor(x.id), r = rawId(x.id);
+    if (r && !cardMap.has(r)) cardMap.set(r, id);
+    cards.push({ id, name: str(x.name, 40), limit: Math.max(0, cents(x.limit)), close: intIn(x.close, 1, 31, 5), due: intIn(x.due, 1, 31, 12) });
   }
   const cardIds = new Set(cards.map(c => c.id));
-  const cardOf = v => { const s = str(v, 48); return cardIds.has(s) ? s : ''; };
+  const cardOf = v => { const r = rawId(v); return !r ? '' : cardMap.get(r) ?? (cardIds.has(r) ? r : ''); };
   const kindOf = v => v === 'income' || v === 'expense' ? v : null;
 
   const recurring = [];
@@ -660,11 +767,13 @@ export function normalize(raw, { enforceLimits = true } = {}) {
     const pTotal = p ? intIn(p.total, 1, 120, 0) : 0, pN = p ? intIn(p.n, 1, 120, 0) : 0;
     const okP = pTotal > 0 && pN >= 1 && pN <= pTotal;
     const paid = cardId ? true : o.paid !== false;
-    const scheduledDate = paid && !cardId && !cardPayment ? parseDate(o.scheduledDate) : null;
+    // reserva para meta: nunca no cartão nem junto com pagamento de fatura; sempre realizada
+    const goalId = !cardId && !cardPayment ? safeId(o.goalId) : '';
+    const scheduledDate = paid && !cardId && !cardPayment && !goalId ? parseDate(o.scheduledDate) : null;
     txs.push(tx({ id: idFor(o.id), kind, value, date, desc: str(o.desc, 200) || 'Sem descrição',
-      category: str(o.category, 40) || (cardPayment ? CARD_PAYMENT_CAT : 'Outros'),
-      paid, accountId: accOf(o.accountId), cardId, cardPayment,
-      recurringId: safeId(o.recurringId), groupId: safeId(o.groupId), parcelN: okP ? pN : 0, parcelTotal: okP ? pTotal : 0, scheduledDate }));
+      category: str(o.category, 40) || (cardPayment ? CARD_PAYMENT_CAT : goalId ? GOAL_CAT : 'Outros'),
+      paid: paid || !!goalId, accountId: accOf(o.accountId), cardId, cardPayment,
+      recurringId: safeId(o.recurringId), groupId: safeId(o.groupId), parcelN: okP ? pN : 0, parcelTotal: okP ? pTotal : 0, scheduledDate, goalId }));
   }
 
   const goals = [];
@@ -674,13 +783,64 @@ export function normalize(raw, { enforceLimits = true } = {}) {
     goals.push({ id: idFor(g.id), name: str(g.name, 60), target, saved: Math.max(0, cents(g.saved)), deadline: parseDate(g.deadline), monthly: Math.max(0, cents(g.monthly)) });
   }
 
+  // despesas compartilhadas (sem o campo, nenhuma)
+  const shared = [];
+  if (Array.isArray(raw.shared)) for (const x of raw.shared) { const e = normalizeShared(isObj(x) ? x : null, idFor); if (e) shared.push(e); else d.shared++; }
+
   const limits = new Map();
   if (isObj(raw.limits)) for (const [k, v] of Object.entries(raw.limits)) { const c = [...k.trim()].slice(0, 40).join(''), n = cents(v); if (c && n > 0) limits.set(c, n); }
 
   const al = num(raw.autoLock), autoLock = al != null && AUTOLOCK_OPTIONS.includes(Math.round(al)) ? Math.round(al) : 0;
-  const state = { txs, goals, accounts, cards, recurring, cats, limits, privacy: raw.privacy === true, autoLock, theme: themeOf(raw.theme) };
+  const state = { txs, goals, accounts, cards, recurring, cats, limits, privacy: raw.privacy === true, autoLock, theme: themeOf(raw.theme), shared };
   if (!hasSafeMoneyTotals(state)) throw new BackupError('O total dos valores excede o limite seguro');
-  return { state, dropped: d, droppedTotal: d.txs + d.goals + d.accounts + d.cards + d.recurring };
+  const bv = num(raw.backupVersion), version = bv != null && bv >= 0 && bv <= 2147483647 ? Math.round(bv) : null;
+  return { state, dropped: d, droppedTotal: d.txs + d.goals + d.accounts + d.cards + d.recurring + d.shared,
+    /** backupVersion do arquivo (null se ausente); newer = feito por uma versão mais nova do Finan+ */
+    version, newer: (version ?? 0) > BACKUP_VERSION };
+}
+
+/** Limites das despesas compartilhadas (iguais a core/Shared.kt do Android). */
+export const SHARED_LIMITS = { NAME_MAX: 60, PERSON_MAX: 40, NOTE_MAX: 500, PEOPLE_MAX: 50, PAYMENTS_MAX: 500 };
+
+/**
+ * Uma despesa compartilhada do backup. Inválida (null): sem nome, total, data, participantes ou pagador, ou partes
+ * que não somam o total. Pagamentos inválidos, de quem não deve ou acima da parte são descartados.
+ */
+function normalizeShared(o, idFor) {
+  if (!o) return null;
+  const L = SHARED_LIMITS;
+  const name = str(o.name, L.NAME_MAX), total = cents(o.total), date = parseDate(o.date);
+  if (!name || total <= 0 || !date) return null;
+  if (!Array.isArray(o.people)) return null;
+  const idMap = new Map(), people = [];
+  for (const x of o.people.slice(0, L.PEOPLE_MAX)) {
+    if (!isObj(x)) return null;
+    const pn = str(x.name, L.PERSON_MAX), share = cents(x.share);
+    if (!pn || share < 0) return null;
+    const id = idFor(x.id), k = str(x.id, 48);
+    if (!idMap.has(k)) idMap.set(k, id);
+    people.push({ id, name: pn, share });
+  }
+  if (people.length < 2 || people.reduce((a, p) => a + p.share, 0) !== total) return null;
+  const payerId = idMap.get(str(o.payer, 48));
+  if (payerId == null) return null;
+  const receipt = safeId(o.receipt);
+  const e = { id: idFor(o.id), name, total, date, payerId, people, split: o.split === 'custom' ? 'custom' : 'equal',
+    note: str(o.note, L.NOTE_MAX), receipt, receiptType: receipt ? str(o.receiptType, 60) : '', payments: [] };
+  // pagamentos: só de quem deve, e no máximo até a parte de cada um (quem pagou não deve nada)
+  const left = new Map(people.map(p => [p.id, p.id === payerId ? 0 : p.share]));
+  for (const x of Array.isArray(o.payments) ? o.payments.slice(0, L.PAYMENTS_MAX) : []) {
+    if (!isObj(x)) continue;
+    const pid = idMap.get(str(x.person, 48));
+    if (pid == null) continue;
+    const v = cents(x.value), pd = parseDate(x.date);
+    if (!pd) continue;
+    const max = left.get(pid) ?? 0;
+    if (v <= 0 || v > max) continue;
+    left.set(pid, max - v);
+    e.payments.push({ id: idFor(x.id), personId: pid, value: v, date: pd });
+  }
+  return e;
 }
 
 /** Lê o texto de um backup. Recusa arquivos grandes demais e aninhamento excessivo. */
@@ -701,8 +861,12 @@ export function parseBackup(text, opts) {
   return normalize(raw, opts);
 }
 
-/** Serializa no formato do Finan+ (valores em reais com 2 casas). [meta] = bloco _backup dos arquivos exportados. */
-export function toJson(s, meta) {
+/**
+ * Serializa no formato do Finan+ (valores em reais com 2 casas). [meta] = bloco _backup dos arquivos exportados.
+ * "shared" só aparece quando há despesas compartilhadas (como no Android); com [opts.alwaysShared] vai sempre
+ * (gravação pelo acesso pela rede: sem o campo, o celular manteria as despesas que o navegador excluiu).
+ */
+export function toJson(s, meta, opts = {}) {
   const R = c => `\u0000R${Money.reaisJson(c)}\u0000`;
   const o = {
     txs: s.txs.map(t => {
@@ -712,6 +876,7 @@ export function toJson(s, meta) {
       if (t.groupId) x.groupId = t.groupId;
       if (t.parcelTotal > 0) x.parcel = { n: t.parcelN, total: t.parcelTotal };
       if (t.scheduledDate) x.scheduledDate = t.scheduledDate;
+      if (t.goalId) x.goalId = t.goalId;
       return x;
     }),
     goals: s.goals.map(g => ({ id: g.id, name: g.name, target: R(g.target), saved: R(g.saved), deadline: g.deadline || '', monthly: R(g.monthly) })),
@@ -721,8 +886,17 @@ export function toJson(s, meta) {
       cardId: r.cardId, day: r.day, active: r.active, start: r.start || '', last: r.last != null ? ymStr(r.last) : '' })),
     cats: { expense: s.cats.expense, income: s.cats.income },
     limits: Object.fromEntries([...s.limits].map(([k, v]) => [k, R(v)])),
-    privacy: s.privacy, autoLock: s.autoLock, theme: s.theme, backupVersion: BACKUP_VERSION,
+    privacy: s.privacy, autoLock: s.autoLock, theme: s.theme,
   };
+  const shared = s.shared ?? [];
+  if (shared.length || opts.alwaysShared) o.shared = shared.map(e => {
+    const x = { id: e.id, name: e.name, total: R(e.total), date: e.date, payer: e.payerId, split: e.split, note: e.note,
+      people: e.people.map(p => ({ id: p.id, name: p.name, share: R(p.share) })),
+      payments: e.payments.map(p => ({ id: p.id, person: p.personId, value: R(p.value), date: p.date })) };
+    if (e.receipt) { x.receipt = e.receipt; x.receiptType = e.receiptType; }
+    return x;
+  });
+  o.backupVersion = BACKUP_VERSION;
   if (meta) o._backup = meta;
   return JSON.stringify(o).replace(/"\\u0000R(-?\d+\.\d{2})\\u0000"/g, '$1');
 }
