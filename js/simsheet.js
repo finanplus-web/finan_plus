@@ -6,7 +6,7 @@
 import { Money, Finance } from './core.js';
 import { Simulator } from './simulator.js';
 import { icon } from './icons.js';
-import { esc, attr, openSheet, closeSheet, field, moneyInput, input, btn } from './ui.js';
+import { esc, attr, openSheet, closeSheet, field, moneyInput, input, btn, stepper, bindStepper, backLink } from './ui.js';
 import { ctx, hidden } from './ctx.js';
 import { goalEditor } from './editors.js';
 
@@ -20,7 +20,7 @@ const TITLES = { save: 'E se eu economizar…?', buy: 'Quanto tempo para comprar
 
 // o que foi digitado vale enquanto a folha está aberta (trocar de pergunta não apaga); abrir de novo em Relatórios zera
 let st = null;
-const fresh = () => ({ inc: '', exp: '', adjust: null, save: { per: '200,00', months: '12' }, buy: { what: '', price: '', have: '', per: '' }, income: { pct: '-15' }, debt: { sel: null, pay: {} } });
+const fresh = () => ({ inc: '', exp: '', adjust: null, save: { per: '200,00', months: 12 }, buy: { what: '', price: '', have: '', per: '' }, income: { pct: '-15' }, debt: { sel: null, pay: {} } });
 
 const m = c => hidden() ? 'R$ ••••' : Money.format(c);
 const plural = (n, one, many) => n === 1 ? `1 ${one}` : `${n} ${many}`;
@@ -28,7 +28,7 @@ const line = (l, v, cls = '') => `<div class="simLine"><span>${esc(l)}</span><b 
 const result = (big, sentence, cls = 'accent') => `<small class="eyebrow">Resultado</small><div class="simBig ${cls}">${esc(big)}</div>${sentence ? `<p class="simSentence">${esc(sentence)}</p>` : ''}`;
 const whyText = t => `<p class="simWhy">${esc(t)}</p>`;
 const msg = t => `<p class="muted">${esc(t)}</p>`;
-const safe = `<div class="simSafe">${icon('shield', 16)}<span>Só simulação: seus dados não mudam</span></div>`;
+const safe = `<div class="simSafe">${icon('shield', 16)}<span>Simulação: seus dados não mudam</span></div>`;
 
 function base() {
   const auto = Simulator.base(ctx.state, ctx.today);
@@ -40,10 +40,9 @@ function base() {
 export function simulatorSheet(scen = null, reset = true) {
   if (reset || !st) st = fresh();
   const cur = SCEN.find(x => x[0] === scen);
-  const back = cur ? `<button type="button" class="btn link simBack" data-sim="home">${icon('chevron-left', 20)}<span>E se…?</span></button>` : '';
-  const body = `<div class="simWrap">${back}${cur ? '' : '<p class="muted">Teste decisões antes de tomá-las.</p>'}${safe}
+  const body = `<div class="simWrap">${cur ? '' : '<p class="muted">Teste decisões antes de tomá-las.</p>'}${safe}
     ${cur ? `<form class="simForm" novalidate>${formFor(scen)}</form><div class="simBox" id="simOut" aria-live="polite"></div><div id="simGoal"></div>` : homeBody()}</div>`;
-  const d = openSheet({ title: cur ? TITLES[scen] : 'E se…?', body });
+  const d = openSheet({ title: cur ? TITLES[scen] : 'E se…?', body, back: cur ? { label: 'E se…?', onClick: () => simulatorSheet(null, false) } : null });
   const inner = d.querySelector('.sheetInner') || d;
   inner.addEventListener('click', e => {
     const b = e.target.closest('[data-sim]');
@@ -54,6 +53,13 @@ export function simulatorSheet(scen = null, reset = true) {
     else if (a === 'adjust') { st.adjust = !adjustOpen(); simulatorSheet(null, false); }
     else if (a === 'debt') { st.debt.sel = b.dataset.id; simulatorSheet('debt', false); }
     else if (a === 'goal') { const g = goalFor(scen); if (g) { closeSheet(); goalEditor(null, g); } }
+    else if (a === 'retry') {
+      // plano que não fecha: sugere o que sobra por mês (ou limpa) e volta ao campo
+      const { base: b } = base();
+      st.save.per = b.left > 0 ? Money.input(b.left) : '';
+      const per = inner.querySelector('[name=per]'); if (per) { per.value = st.save.per; per.focus(); per.select?.(); }
+      update(inner, scen);
+    }
   });
   inner.addEventListener('input', e => {
     const el = e.target;
@@ -63,6 +69,7 @@ export function simulatorSheet(scen = null, reset = true) {
     update(inner, scen);
   });
   inner.addEventListener('submit', e => e.preventDefault());
+  bindStepper(inner, 'months', v => v === 1 ? '1 mês' : `${v} meses`, v => { st.save.months = v; update(inner, scen); });
   if (cur) update(inner, scen);
   return d;
 }
@@ -72,7 +79,7 @@ const adjustOpen = () => st.adjust ?? Simulator.base(ctx.state, ctx.today).month
 function baseCard() {
   const { auto, base: b } = base();
   const mo = n => n === 1 ? 'mês' : 'meses';
-  return `<small class="eyebrow">${auto.months > 0 ? `Sua base · média dos últimos ${auto.months} ${mo(auto.months)}` : 'Sua base'}</small>
+  return `<small class="eyebrow">${auto.months > 1 ? `Sua base · média dos últimos ${auto.months} meses` : auto.months === 1 ? 'Sua base · média do último mês' : 'Sua base'}</small>
     ${auto.months === 0 && b.income === 0 && b.expense === 0 ? '<p class="muted small">Ainda não há meses completos com valores realizados. Informe abaixo quanto entra e sai num mês típico.</p>' : ''}
     <div class="simBase"><div><small>Entra</small><b class="green">${esc(m(b.income))}</b></div><div><small>Sai</small><b class="red">${esc(m(b.expense))}</b></div><div><small>Sobra</small><b class="${b.left < 0 ? 'red' : 'accent'}">${esc(m(b.left))}</b></div></div>
     ${auto.months >= 1 && auto.months <= 2 ? `<small class="muted">Pouco histórico: a média usa só ${auto.months} ${mo(auto.months)}. Os resultados são aproximados.</small>` : ''}`;
@@ -91,7 +98,7 @@ function homeBody() {
 
 // ------------------------------------------------------------------ formulários
 function formFor(scen) {
-  if (scen === 'save') return field('Guardar por mês (R$)', moneyInput('per', st.save.per)) + field('Por quantos meses', input('months', st.save.months, { inputmode: 'numeric', max: 3 }));
+  if (scen === 'save') return field('Guardar por mês (R$)', moneyInput('per', st.save.per)) + stepper('months', 'Por quantos meses', st.save.months, 1, 600, v => v === 1 ? '1 mês' : `${v} meses`);
   if (scen === 'buy') return field('O que', input('what', st.buy.what, { placeholder: 'Ex.: Computador', max: 40 }))
     + `<div class="row2">${field('Preço (R$)', moneyInput('price', st.buy.price))}${field('Já tenho (R$)', moneyInput('have', st.buy.have))}</div>`
     + field('Guardar por mês (R$)', moneyInput('per', st.buy.per)) + '<small class="muted" id="simShare"></small>';
@@ -114,16 +121,18 @@ function update(inner, scen) {
   const out = inner.querySelector('#simOut'), goal = inner.querySelector('#simGoal');
   const { base: b } = base();
   let html = '', canGoal = false;
+  let over = false;
   if (scen === 'save') {
-    const v = posMoney(st.save.per), n = int(st.save.months, 1, 600);
-    if (v == null || n == null) html = msg('Informe o valor por mês e por quantos meses.');
+    const v = posMoney(st.save.per), n = st.save.months;
+    if (v == null) html = msg('Informe quanto guardar por mês.');
     else {
       const r = Simulator.save(b, v, n);
-      html = result(m(r.total), `juntados em ${plural(n, 'mês', 'meses')}.`) + line('Sobra por mês hoje', m(b.left))
-        + line(`Sobra por mês guardando ${m(v)}`, m(r.newLeft), r.newLeft < 0 ? 'red' : '')
-        + (r.overLeft ? '<p class="red small">Esse valor é maior do que sobra por mês: faltaria dinheiro para as despesas de sempre.</p>' : '')
+      over = r.overLeft;
+      html = `<small class="eyebrow">${esc(`Em ${plural(n, 'mês', 'meses')} você juntaria`)}</small><div class="simBig goalTxt num">${esc(m(r.total))}</div>`
         + [6, 12, 24].filter(k => k !== n).map(k => line(`Em ${k} meses`, m(v * k))).join('')
-        + whyText(`Conta: ${m(v)} × ${n} meses. Não considera rendimento: o Finan+ não sabe quanto o dinheiro guardado renderia.`);
+        + line('Sobra por mês guardando', m(r.newLeft), r.newLeft < 0 ? 'red' : '')
+        + (r.overLeft ? `<div class="simAlert" role="note">${icon('warning', 20)}<p>${esc((b.left < 0 ? 'Hoje já sai mais do que entra. ' : 'Esse valor é maior do que sobra por mês. ') + `Para guardar ${m(v)}, seria preciso reduzir ${m(v - b.left)} nas saídas do mês.`)}</p></div>` : '')
+        + whyText('Não considera rendimento do dinheiro guardado.');
     }
     canGoal = v != null;
   } else if (scen === 'buy') {
@@ -174,12 +183,15 @@ function update(inner, scen) {
     }
   }
   out.innerHTML = html;
-  goal.innerHTML = canGoal ? btn('Transformar em meta', { cls: 'primary wide', icon: 'flag' }).replace('<button ', '<button data-sim="goal" ') : '';
+  // plano que não fecha: a ação principal é testar outro valor; virar meta fica como ação secundária
+  goal.innerHTML = !canGoal ? '' : over ? btn('Testar outro valor', { cls: 'primary wide' }).replace('<button ', '<button data-sim="retry" ')
+    + btn('Transformar em meta mesmo assim', { cls: 'link wide' }).replace('<button ', '<button data-sim="goal" ')
+    : btn('Transformar em meta', { cls: 'primary wide', icon: 'flag' }).replace('<button ', '<button data-sim="goal" ');
 }
 
 /** valores iniciais da meta a partir da simulação aberta */
 function goalFor(scen) {
-  if (scen === 'save') { const v = posMoney(st.save.per); if (v == null) return null; return { name: 'Reserva', target: v * (int(st.save.months, 1, 600) ?? 12), monthly: v }; }
+  if (scen === 'save') { const v = posMoney(st.save.per); if (v == null) return null; return { name: 'Reserva', target: v * st.save.months, monthly: v }; }
   if (scen === 'buy') { const pr = posMoney(st.buy.price), pm = Money.parse(st.buy.per) ?? 0; if (pr == null || pm <= 0) return null; return { name: st.buy.what.trim() || 'Compra', target: pr, monthly: pm }; }
   return null;
 }

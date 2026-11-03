@@ -16,7 +16,7 @@ import { MonthCalendar } from './calendar.js';
 import { renderSharedPdf } from './sharedpdf.js';
 import { sharedImageBlob, shareText } from './sharedimage.js';
 import { icon } from './icons.js';
-import { esc, attr, openSheet, closeSheet, notice, ask, toast, field, input, moneyInput, select, btn } from './ui.js';
+import { esc, attr, openSheet, closeSheet, notice, ask, toast, field, input, moneyInput, select, btn, backLink, dangerText, selectField } from './ui.js';
 import { ctx, money, hidden, APP_VERSION } from './ctx.js';
 
 /** "Eu" e "Você" são a própria pessoa: o texto fala com "você" (nunca "pago por Eu") */
@@ -131,19 +131,19 @@ export function sharedEditor(id = null) {
       <div id="shRows" role="group" aria-labelledby="shPeopleHead"></div>
       ${btn('Adicionar participante', { id: 'shAdd', cls: 'soft small', icon: 'add', iconSize: 18 })}
       <small class="muted shHint" id="shHint" aria-live="polite"></small>
-      ${field('Quem pagou', '<select name="payer" id="shPayer"></select>')}</div>
+      <div id="shPayerWrap"></div></div>
     <div class="formCard">${field('Observação (opcional)', `<textarea name="note" rows="2" maxlength="${Shared.NOTE_MAX}" placeholder="Ex.: compra do churrasco">${esc(old?.note ?? '')}</textarea>`)}
       <p class="infoBox">${icon('attach-file', 18)}<span>${old?.receipt
         ? 'Esta despesa tem uma nota ou comprovante anexado no Finan+ Android. Ele continua lá; no navegador não dá para abrir nem trocar o anexo.'
         : 'No Finan+ web não dá para anexar a nota fiscal ou o comprovante: o arquivo ficaria fora da criptografia dos dados. Para anexar, use o Finan+ Android.'}</span></p></div>
     <div class="sheetActions">${old ? btn('Excluir despesa', { act: 'sheet-delete', cls: 'danger' }) : ''}${btn(old ? 'Salvar alterações' : 'Salvar despesa', { submit: true, cls: 'primary' })}</div></form>`;
   const d = openSheet({ title: old ? 'Editar despesa' : 'Nova despesa compartilhada', subtitle: 'Quem pagou, quem divide e quanto cada um deve.', body });
-  const f = d.querySelector('#shForm'), rowsBox = d.querySelector('#shRows'), payerSel = d.querySelector('#shPayer'), hint = d.querySelector('#shHint');
+  const f = d.querySelector('#shForm'), rowsBox = d.querySelector('#shRows'), payerBox = d.querySelector('#shPayerWrap'), hint = d.querySelector('#shHint');
 
   const equal = () => { const t = Money.parse(f.total.value); return st.split === SPLIT.EQUAL && t != null && t > 0 ? Shared.equalShares(t, st.rows.length) : []; };
   const renderPayer = () => {
     if (!st.rows.some(r => r.id === st.payer)) st.payer = st.rows[0].id;
-    payerSel.innerHTML = st.rows.map((r, i) => `<option value="${attr(r.id)}"${r.id === st.payer ? ' selected' : ''}>${esc(r.name.trim() || `Pessoa ${i + 1}`)}</option>`).join('');
+    payerBox.innerHTML = selectField('payer', 'Quem pagou', st.rows.map((r, i) => [r.id, r.name.trim() || `Pessoa ${i + 1}`, 'group']), st.payer);
   };
   const renderHint = () => {
     const t = Money.parse(f.total.value), eq = equal();
@@ -180,7 +180,7 @@ export function sharedEditor(id = null) {
     st.rows.push({ id: `n${++seq}`, name: '', share: '' });
     renderRows(st.rows.length - 1);
   };
-  payerSel.onchange = () => { st.payer = payerSel.value; };
+  payerBox.addEventListener('change', e => { if (e.target.name === 'payer') st.payer = e.target.value; });
   f.total.oninput = renderHint;
   renderRows();
 
@@ -216,7 +216,7 @@ async function confirmDelete(e) {
 export function sharedDetail(id) {
   const e = find(id);
   if (!e) return notice('Despesa não encontrada', 'Ela pode ter sido excluída.');
-  const d = openSheet({ title: e.name, subtitle: detailSub(e), body: detailBody(e) });
+  const d = openSheet({ title: e.name, subtitle: detailSub(e), body: detailBody(e), back: { label: 'Despesas compartilhadas', onClick: () => sharedListSheet() } });
   bindDetail(d, id);
 }
 
@@ -244,7 +244,7 @@ function detailBody(e) {
     return `<div class="sharedPerson">
       <div class="sharedPersonTop"><span class="avatar${ps.remaining > 0 ? ' warn' : ''}" aria-hidden="true">${esc(initial)}</span>
         <span class="meta"><b>${esc(mine ? 'Você' : ps.person.name)}</b><small>${esc(sub)}</small></span><span class="statePill ${cls}">${esc(label)}</span></div>
-      ${!ps.isPayer && ps.remaining > 0 ? `<div class="sharedPersonActs">${btn('Registrar pagamento', { cls: 'soft', data: { pay: ps.person.id }, label: `Registrar pagamento de ${mine ? 'você' : ps.person.name}` })}
+      ${!ps.isPayer && ps.remaining > 0 ? `<div class="sharedPersonActs">${btn('Registrar', { cls: 'soft', data: { pay: ps.person.id }, label: `Registrar pagamento de ${mine ? 'você' : ps.person.name}` })}
         ${btn('Quitar', { cls: 'primary', icon: 'check', iconSize: 18, data: { settle: ps.person.id }, label: `Quitar a parte de ${mine ? 'você' : ps.person.name}` })}</div>` : ''}</div>`;
   }).join('');
 
@@ -263,10 +263,9 @@ function detailBody(e) {
     ${note}
     <h4 class="subhead">Cobrar</h4><section class="glass sharedBox">
       <p class="muted small">Envie a parte de cada pessoa e o que falta. Os valores aparecem mesmo com “Ocultar valores” ligado.</p>
-      <div class="btnGrid">${btn('Compartilhar como imagem', { id: 'shImg', icon: 'share', iconSize: 18 })}${btn('Comprovante em PDF', { id: 'shPdf', icon: 'picture-as-pdf', iconSize: 18 })}</div>
+      <div class="btnGrid">${btn('Imagem', { id: 'shImg', icon: 'share', iconSize: 18, label: 'Compartilhar como imagem' })}${btn('PDF', { id: 'shPdf', icon: 'receipt-long', iconSize: 18, label: 'Comprovante em PDF' })}</div>
       <small class="muted">Sem a opção de compartilhar do aparelho, o arquivo é baixado na pasta de downloads do navegador.</small></section>
-    <div class="sheetActions">${btn('Excluir', { act: 'sheet-delete', cls: 'danger' })}${btn('Editar despesa', { id: 'shEdit', cls: 'primary', icon: 'edit', iconSize: 18 })}</div>
-    ${btn('Despesas compartilhadas', { id: 'shBack', cls: 'link back', icon: 'arrow-back', iconSize: 18 })}`;
+    <div class="footLinks">${btn('Editar despesa', { id: 'shEdit', cls: 'link' })}${dangerText('Excluir', { act: 'sheet-delete' })}</div>`;
 }
 
 function bindDetail(d, id) {
@@ -288,7 +287,6 @@ function bindDetail(d, id) {
     ctx.replace(Shared.deletePayment(ctx.state, id, pay.id)); toast('Pagamento excluído'); again();
   });
   d.querySelector('#shEdit').onclick = () => sharedEditor(id);
-  d.querySelector('#shBack').onclick = () => sharedListSheet();
   d.querySelector('[data-act="sheet-delete"]').onclick = () => confirmDelete(find(id) ?? e);
   const busyBtn = (b, fn) => async () => {
     if (b.disabled) return;

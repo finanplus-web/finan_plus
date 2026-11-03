@@ -192,7 +192,8 @@ test('lançamentos: reserva para meta fica fora do total do dia, numa linha "em 
     assert.match(mixed, /− R\$ 25,00/); assert.match(mixed, /R\$ 100,00 em metas/);
     const row = txRow(reserve, { noDate: true });
     assert.match(row, /Guardado na meta/);
-    assert.match(row, /<span class="amount">R\$ 100,00<\/span>/); // sem o sinal de menos
+    // 1.11 (REDESIGN-COERENCIA.md): a reserva sai do saldo, com "−", no âmbar das metas (substitui a regra "sem sinal" da 1.9)
+    assert.match(row, /<span class="amount num goalTxt">− R\$ 100,00<\/span>/);
     assert.doesNotMatch(row, /data-act="toggle-paid"/);
     ctx.state = { ...s, privacy: true };
     assert.equal(dayTotalHtml(Period.dayTotal([reserve])), '');
@@ -203,7 +204,7 @@ test('lançamentos: reserva para meta fica fora do total do dia, numa linha "em 
   withDevice({}, () => {
     ctx.state = s2; ctx.today = day;
     assert.match(dayTotalHtml(Period.dayTotal([back])), /R\$ 40,00 retirados de metas/);
-    assert.match(txRow(back, { noDate: true }), /\+R\$ 40,00/);
+    assert.match(txRow(back, { noDate: true }), /class="amount num green">\+ R\$ 40,00/);
   });
   assert.equal(Money.format(Finance.goalMoves(s2.txs).net), 'R$ 60,00');
 });

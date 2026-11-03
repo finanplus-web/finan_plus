@@ -20,6 +20,8 @@ import { isRemote, RemoteStore, pairFlow, getToken, setToken } from './remote.js
 import { TxForm } from './txform.js';
 import { sharedListSheet, sharedEditor } from './sharedview.js';
 import { showWelcome, shouldShowWelcome } from './welcome.js';
+import { MONEY_PAGES, cardDetailSheet, bindCategories, archiveCategory, categoryEditSheet, newCategory, moveCategoryBy, catClickSuppressed } from './moneyscreens.js';
+import { closePicker } from './ui.js';
 import * as AutoBackup from './autobackup.js';
 import { BackupCrypto } from './backupcrypto.js';
 
@@ -105,25 +107,33 @@ mq2.addEventListener?.('change', () => render());
 mq3.addEventListener?.('change', () => render());
 
 // ================================================================== navegação
+// páginas de Meu dinheiro e Ajustes no endereço (#meu-dinheiro/contas, #ajustes/dados): o Voltar do navegador funciona
+const PAGES = { money: MONEY_PAGES, prefs: S.PREF_PAGES };
 ctx.go = (view, o = {}) => {
   if (!VIEWS[view]) view = 'home';
-  if (o.fold) S.openFolds.add(o.fold);
-  const h = '#' + VIEWS[view];
+  let page = o.page ?? o.fold ?? null;
+  if (page && !(PAGES[view] || []).includes(page)) page = null;
+  if (PAGES[view]) ctx.page[view] = page || null;
+  const h = '#' + VIEWS[view] + (page ? '/' + page : '');
   if (location.hash !== h) { history.pushState(null, '', view === 'home' ? location.pathname + location.search : h); }
-  showView(view, o);
+  showView(view, { ...o, page });
 };
-function viewFromHash() { return HASH_TO_VIEW[location.hash.slice(1)] || 'home'; }
-window.addEventListener('popstate', () => { closeSheet(); showView(viewFromHash()); });
+function viewFromHash() {
+  const [v, page] = location.hash.slice(1).split('/');
+  const view = HASH_TO_VIEW[v] || 'home';
+  if (PAGES[view]) ctx.page[view] = page && PAGES[view].includes(page) ? page : null;
+  return view;
+}
+window.addEventListener('popstate', () => { closeSheet(); showView(viewFromHash(), { pageNav: true }); });
 
 function showView(view, o = {}) {
-  const changed = ctx.view !== view;
+  const changed = ctx.view !== view || o.page !== undefined || o.pageNav;
   ctx.view = view;
   render();
   if (changed) window.scrollTo({ top: 0 });
-  if (o.fold) $(`#fold-${o.fold}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   if (o.focus === 'ask') $('#askInput')?.focus();
   if (o.focus === 'search') $('#q')?.focus();
-  if (changed && !o.focus) $('#main')?.focus({ preventScroll: true });
+  if (changed && !o.focus) ($('.activeView .pageH') || $('#main'))?.focus({ preventScroll: true });
 }
 
 ctx.openMoves = (q = '', from = '', to = '', kind = '', st = '') => {
@@ -184,29 +194,14 @@ function bindView() {
     const form = $('#askForm');
     if (form) form.onsubmit = e => { e.preventDefault(); askQuestion($('#askInput').value); };
   }
-  if (ctx.view === 'money') {
-    const cf = $('#catForm');
-    if (cf) cf.onsubmit = e => {
-      e.preventDefault();
-      ctx.catKind = $('#newCatKind').value;
-      const r = OpsAddCategory(ctx.catKind, $('#newCat').value);
-      if (r) { $('#newCat')?.focus(); toast('Categoria adicionada'); }
-    };
-  }
+  if (ctx.view === 'money' && ctx.page.money === 'categorias') bindCategories($('#moneyView'));
   if (ctx.view === 'prefs') {
     $$('#prefsView input[type=checkbox][role=switch]').forEach(i => i.onchange = () => onSwitch(i));
-    const keep = $('#abKeep');
+    const keep = $('#prefsView input[name=abKeep]');
     if (keep) keep.onchange = () => AutoBackup.setKeep(parseInt(keep.value, 10));
     if ($('#abPermit')) AutoBackup.needsPermission().then(n => { const b = $('#abPermit'); if (b) b.hidden = !n; }).catch(() => {});
-    const al = $('#autoLockSel');
+    const al = $('#prefsView input[name=autoLock]');
     if (al) al.onchange = () => ctx.replace({ ...ctx.state, autoLock: parseInt(al.value, 10) || 0 });
-    const cf = $('#catForm');
-    if (cf) cf.onsubmit = e => {
-      e.preventDefault();
-      ctx.catKind = $('#newCatKind').value;
-      const r = OpsAddCategory(ctx.catKind, $('#newCat').value);
-      if (r) { $('#newCat')?.focus(); toast('Categoria adicionada'); }
-    };
     $$('details.license').forEach(d => d.addEventListener('toggle', async () => {
       const pre = d.querySelector('pre');
       if (!d.open || pre.dataset.loaded) return;
@@ -251,7 +246,16 @@ async function onSwitch(i) {
 
 // ================================================================== ações (data-act)
 const ACTIONS = {
-  'new-tx': el => E.txEditor(el.dataset.kind || 'expense', null, el.dataset.date || null),
+  'new-tx': el => E.txEditor(el.dataset.kind || 'expense', null, el.dataset.date || null, { category: el.dataset.category || undefined }),
+  // páginas de Meu dinheiro e Ajustes (‹ volta com page vazio)
+  page: el => ctx.go(el.dataset.view, { page: el.dataset.page || null }),
+  'forecast-info': () => S.forecastInfo(), 'summary-info': () => S.summaryInfo(),
+  'all-categories': () => S.allCategoriesSheet(), 'month-detail': el => S.monthDetailSheet(el.dataset.ym),
+  'card-detail': el => cardDetailSheet(el.dataset.id),
+  'cat-edit': el => { if (!catClickSuppressed()) categoryEditSheet(el.dataset.kind, el.dataset.cat); },
+  'cat-archive': el => archiveCategory(el.dataset.kind, el.dataset.cat),
+  'cat-move': el => moveCategoryBy(el.dataset.kind, +el.dataset.i, +el.dataset.d),
+  'cat-new': el => newCategory(el.dataset.kind),
   'edit-tx': el => E.txEditor('expense', el.dataset.id),
   // confirmar pede confirmação e oferece Desfazer logo depois (a mesma operação, de novo, volta ao que era)
   'toggle-paid': async el => {
@@ -267,13 +271,6 @@ const ACTIONS = {
       { action: 'Desfazer', onAction: () => ctx.replace(Ops.togglePaid(ctx.state, id, ctx.today)) });
   },
   'add-choice': () => E.addChoiceSheet(),
-  'cats-fold': el => {
-    S.catsOpen.on = !S.catsOpen.on;
-    const body = $('#catsBody');
-    if (body) body.hidden = !S.catsOpen.on;
-    el.setAttribute('aria-expanded', S.catsOpen.on);
-    el.querySelector('span').textContent = S.catsOpen.on ? 'Minimizar' : 'Maximizar';
-  },
   'new-goal': () => E.goalEditor(), 'edit-goal': el => E.goalEditor(el.dataset.id),
   // despesas compartilhadas (Meu dinheiro, botão + e menu ⋯)
   'shared-list': () => sharedListSheet(), 'shared-new': () => sharedEditor(),
@@ -344,21 +341,13 @@ const ACTIONS = {
   'notify-now': () => checkNotifications(true),
   'rename-cat': el => E.renameCategory(el.dataset.kind, el.dataset.cat),
   'delete-cat': el => E.deleteCategory(el.dataset.kind, el.dataset.cat),
-  fold: el => {
-    const id = el.dataset.id;
-    if (S.openFolds.has(id)) S.openFolds.delete(id); else S.openFolds.add(id);
-    const sec = $(`#fold-${id}`), open = S.openFolds.has(id);
-    sec.classList.toggle('open', open);
-    el.setAttribute('aria-expanded', open);
-    sec.querySelector('.foldBody').hidden = !open;
-    sec.querySelector('.foldBtn').innerHTML = icon(open ? 'remove' : 'add', 20);
-  },
   search: () => ctx.go('moves', { focus: 'search' }),
   menu: () => { const m = $('#menu'); m.hidden = !m.hidden; if (!m.hidden) m.querySelector('button')?.focus(); },
   shortcuts: () => E.shortcutsDialog(),
   whatsnew: () => E.whatsNew(),
-  about: () => ctx.go('prefs', { fold: 'sobre' }),
+  about: () => ctx.go('prefs', { page: 'sobre' }),
 };
+ctx.actions = ACTIONS;
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -591,7 +580,7 @@ async function wipeAll() {
   await ctx.store.wipe();
   wipeDevice();
   ctx.device = loadDevice();
-  S.openFolds.clear();
+  ctx.page.money = null; ctx.page.prefs = null;
   ctx.state = newState();
   await persist();
   ctx.go('home');
@@ -681,8 +670,8 @@ function afterOpen(r) {
   ctx.view = viewFromHash();
   if (ctx.device.pinHash) { ctx.locked = true; applyTheme(ctx.state.theme); showLock(); }
   else { render(); launchParams(); afterReady(); }
-  if (r.migrated && r.migrated !== 'finanplus_plain') pending.push(['Bem-vindo ao Finan+', 'Seus dados do “Minhas Finanças” foram trazidos para o Finan+' + (env.encrypted ? ' e agora ficam criptografados neste aparelho.' : '.') + (r.dropped ? `\n${r.dropped} item(ns) inválido(s) foram ignorados.` : '')]);
-  else if (r.dropped) pending.push(['Itens ignorados', `${r.dropped} item(ns) inválido(s) nos dados salvos foram ignorados ao abrir. Se notar algo faltando, restaure um backup JSON recente (Ajustes › Dados).`]);
+  if (r.migrated && r.migrated !== 'finanplus_plain') pending.push(['Bem-vindo ao Finan+', 'Seus dados do “Minhas Finanças” foram trazidos para o Finan+' + (env.encrypted ? ' e agora ficam criptografados neste aparelho.' : '.') + (r.dropped ? `\n${r.dropped === 1 ? '1 item inválido foi ignorado.' : `${r.dropped} itens inválidos foram ignorados.`}` : '')]);
+  else if (r.dropped) pending.push(['Itens ignorados', `${r.dropped === 1 ? '1 item inválido nos dados salvos foi ignorado' : `${r.dropped} itens inválidos nos dados salvos foram ignorados`} ao abrir. Se notar algo faltando, restaure um backup JSON recente (Ajustes › Dados).`]);
   if (!env.encrypted) toast('Este navegador não permite criptografar os dados. Eles ficam só neste aparelho.', 5000);
   flushPending();
   checkNotifications();
@@ -713,7 +702,7 @@ function openWelcome() {
     ctx.welcome = false;
     $('#shell').inert = false;
     updateDevice({ welcomeSeen: true });
-    if (restore) { ctx.go('prefs', { fold: 'dados' }); setTimeout(() => $('[data-act="restore"]')?.focus(), 50); toast('Toque em Restaurar e escolha o arquivo de backup.', 5000); }
+    if (restore) { ctx.go('prefs', { page: 'dados' }); setTimeout(() => $('[data-act="restore"]')?.focus(), 50); toast('Toque em Restaurar e escolha o arquivo de backup.', 5000); }
     else { render(); $('#main')?.focus({ preventScroll: true }); }
   });
 }
