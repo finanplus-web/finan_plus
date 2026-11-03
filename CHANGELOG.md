@@ -1,6 +1,22 @@
 # Changelog — Finan+ web (PWA)
 
-## Em desenvolvimento — Paridade com o Android 1.7 a 1.9 (interface)
+## 1.5.0 — Mesmo visual e regras do Android 1.11.0 (03/11/2026)
+
+Traz para o Finan+ web tudo o que entrou no app Android da 1.7.0 à 1.11.0. Também é a cópia que o celular serve no **acesso pela rede**.
+
+### Resumo para quem usa
+
+- **Um número, um nome, uma regra:** Início, Lançamentos (lista e calendário), Resumo e a barra lateral usam o mesmo cálculo de A receber, A pagar, Reservado para metas e Previsto (sem descontar a meta já guardada de novo; atrasados no "A pagar"; aportes planejados que faltam no mês).
+- **Início** com saldo e previsto num cartão (conta no botão "info"), "Falta receber"/"Falta pagar" com o próximo valor, um aviso só do Assistente e próximos vencimentos agrupados por data.
+- **Resumo** com selo do mês, resultado com o previsto e o guardado em metas, fluxo "Entrou" / "Saiu ou foi para o cartão", até 5 categorias com "Outras" e evolução só dos meses com dados.
+- **Nova tela de lançamento:** valor em destaque, categorias e data em chips, "Mais opções" recolhido com resumo e Desfazer ao salvar; seletor de categoria em folha com busca.
+- **Meu dinheiro** com resumo, alerta de meta fora do prazo e páginas próprias: Contas e cartões (fatura dentro de cada cartão, uso do limite), Dívidas, Limites, Metas e Categorias (arrastar para ordenar, arquivar com Desfazer).
+- **Ajustes** em listas que abrem páginas, com "Cálculo do saldo" no lugar de "Lançamentos".
+- **Reserva para meta**, **despesas compartilhadas** (PDF e imagem), **saldo acumulado entre os meses**, **efeito vidro**, **boas-vindas** e **backup automático** criptografado (Chrome e Edge no computador).
+- Plurais corretos, sinal de menos tipográfico, ícones por conceito e cores próprias para metas (âmbar) e cartão (lilás). Cartão de Crédito e Limite Especial deixam de ser categorias; Empréstimo vira Dívidas.
+- **Backup:** agora preserva `goalId` (reservas para meta) e `shared` (despesas compartilhadas) do Android; antes, exportar pelo Finan+ web e restaurar no celular perdia esses dados.
+
+## Detalhes — Paridade com o Android 1.7 a 1.9 (interface)
 
 As regras já tinham vindo do Android (núcleo em `core.js`, `shared.js`, `report.js`, `pdf.js`, `calendar.js`); agora a interface.
 
