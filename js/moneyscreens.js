@@ -82,7 +82,8 @@ function accountsPage() {
         ${r.invoice ? btn('Pagar fatura', { act: 'pay-invoice', data: { id: c.id }, cls: c.id === firstDue ? 'primary' : 'soft' }) : ''}</div></article>`;
   }).join('');
   const accounts = `<section class="section">${groupHead('Contas', btn('Conta', { act: 'new-account', cls: 'pill', icon: 'add', iconSize: 18, label: 'Adicionar conta' }))}
-    <div class="list">${accRows || '<p class="muted small">Adicione uma conta para acompanhar seu saldo.</p>'}</div></section>`;
+    <div class="list">${accRows || '<p class="muted small">Adicione uma conta para acompanhar seu saldo.</p>'}</div>
+    ${s.accounts.length >= 2 ? `<div class="sheetActions">${btn('Transferir entre contas', { act: 'new-transfer', icon: 'transfer', iconSize: 18 })}</div>` : ''}</section>`;
   const cardsSec = `<section class="section">${groupHead('Cartões', btn('Cartão', { act: 'new-card', cls: 'pill', icon: 'add', iconSize: 18, label: 'Adicionar cartão' }))}
     <div class="list">${cardCards || '<p class="muted small">Adicione um cartão para acompanhar faturas e vencimentos.</p>'}</div></section>`;
   return pageHead('Contas e cartões') + cols2(accounts, cardsSec);

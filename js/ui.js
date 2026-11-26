@@ -179,7 +179,7 @@ export function bindStepper(root, name, fmt, onChange) {
 export const dangerText = (label, o = {}) => `<button type="button" class="dangerText"${o.act ? ` data-act="${o.act}"` : ''}${o.id ? ` id="${o.id}"` : ''}>${esc(label)}</button>`;
 
 /** quadrado arredondado com o ícone na cor do tom: exp (vermelho), inc (verde), goal (âmbar), card (lilás), neutral, accent */
-export const toneTile = (ic, tone = 'accent', size = 42) => `<span class="toneTile t-${tone}" style="--ts:${size}px" aria-hidden="true">${icon(ic, Math.round(size * 0.5))}</span>`;
+export const toneTile = (ic, tone = 'accent', size = 42) => `<span class="toneTile t-${tone}" style="--ts:${size}px" aria-hidden="true">${icon(ic, Math.round(size * 0.5), 'duo')}</span>`;
 
 /**
  * Seletor em folha (no lugar do <select> nativo): botão com o valor e um campo escondido [name] (que recebe

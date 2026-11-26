@@ -285,7 +285,7 @@ const ACTIONS = {
     if (!await ask('Desligar o backup automático', 'As cópias já gravadas continuam na pasta. O Finan+ esquece a pasta e a senha.', { ok: 'Desligar', danger: true })) return;
     await AutoBackup.disable(); toast('Backup automático desligado');
   },
-  'new-account': () => E.accountEditor(), 'edit-account': el => E.accountEditor(el.dataset.id),
+  'new-transfer': el => E.transferEditor(null, { fromId: el.dataset.from }), 'new-account': () => E.accountEditor(), 'edit-account': el => E.accountEditor(el.dataset.id),
   'new-card': () => E.cardEditor(), 'edit-card': el => E.cardEditor(el.dataset.id),
   'pay-invoice': el => E.payInvoiceEditor(el.dataset.id),
   'new-recurring': () => E.recurringEditor(), 'edit-recurring': el => E.recurringEditor(el.dataset.id),

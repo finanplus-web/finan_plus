@@ -105,6 +105,8 @@ export const CARD_PAYMENT_CAT = 'Pagamento de fatura';
 export const DEFAULT_EXPENSE = ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Educação', 'Dívidas', 'Outros'];
 /** categoria dos lançamentos de reserva para meta (não aparece na lista de categorias) */
 export const GOAL_CAT = 'Metas';
+/** categoria dos dois lados de uma transferência entre contas (não aparece na lista de categorias) */
+export const TRANSFER_CAT = 'Transferência';
 export const DEFAULT_INCOME = ['Salário', 'Extra', 'Investimentos', 'Outros'];
 export const AUTOLOCK_OPTIONS = [0, 1, 5, 15, 30];
 export const THEMES = [
@@ -132,12 +134,47 @@ export function tx(o) {
     /** Reserva para meta: dinheiro que saiu da conta para esta meta (despesa) ou voltou dela (receita).
      *  Mexe no saldo da conta, mas não é gasto nem ganho: fica fora de despesas, limites e assistente. */
     goalId: o.goalId ?? '',
+    /** Transferência entre contas (Android 1.13): os dois lados (saída da origem e entrada no destino) têm o mesmo
+     *  transferId. Mexe no saldo de cada conta, mas o total não muda (TRANSFERENCIAS.md do Android). */
+    transferId: o.transferId ?? '',
   };
 }
-/** receita ou despesa de verdade (ficam de fora: pagamento de fatura e reserva para meta) */
-export const isFlow = t => !t.cardPayment && !t.goalId;
+/** receita ou despesa de verdade (ficam de fora: pagamento de fatura, reserva para meta e transferência) */
+export const isFlow = t => !t.cardPayment && !t.goalId && !t.transferId;
 export const isCard = t => !!t.cardId;
 export const isGoal = t => !!t.goalId;
+export const isTransfer = t => !!t.transferId;
+
+/**
+ * Transferência entre contas (tradução de core/Transfers.kt do Android 1.13). Dois lançamentos com o mesmo transferId:
+ * uma saída (despesa) na conta de origem e uma entrada (receita) na de destino, mesmo valor e data, sempre realizados.
+ */
+export const Transfers = {
+  /** os dois lados ({ out, into }) ou null se não existe ou está incompleta */
+  legs(s, transferId) {
+    if (!transferId) return null;
+    const g = s.txs.filter(t => t.transferId === transferId);
+    if (g.length !== 2) return null;
+    const out = g.find(t => t.kind === 'expense'), into = g.find(t => t.kind === 'income');
+    return out && into ? { out, into, id: transferId, value: out.value, date: out.date, fromId: out.accountId, toId: into.accountId } : null;
+  },
+  legsOf: (s, t) => isTransfer(t) ? Transfers.legs(s, t.transferId) : null,
+  /** um sai e outro entra, mesmo valor e data, contas diferentes, fora do cartão, de fatura e de meta */
+  valid: (a, b) => a.kind !== b.kind && a.value === b.value && a.date === b.date && a.accountId !== b.accountId &&
+    a.paid && b.paid && !a.cardId && !b.cardId && !a.cardPayment && !b.cardPayment && !a.goalId && !b.goalId,
+  /** backup ou gravação pela rede: um lado sozinho ou um par que não combina vira lançamento comum */
+  sanitize(txs) {
+    if (!txs.some(isTransfer)) return txs;
+    const groups = new Map();
+    for (const t of txs) if (isTransfer(t)) { if (!groups.has(t.transferId)) groups.set(t.transferId, []); groups.get(t.transferId).push(t); }
+    const ok = new Set([...groups].filter(([, g]) => g.length === 2 && Transfers.valid(g[0], g[1])).map(([k]) => k));
+    return txs.map(t => isTransfer(t) && !ok.has(t.transferId) ? { ...t, transferId: '' } : t);
+  },
+  /** "Conta principal → Poupança" (conta que não existe mais vira "Conta") */
+  route: (s, l) => `${account(s, l.fromId)?.name ?? 'Conta'} → ${account(s, l.toId)?.name ?? 'Conta'}`,
+  /** descrição dos dois lados: o que a pessoa escreveu ou, sem nada, "Transferência" */
+  desc: text => [...String(text ?? '').trim()].slice(0, 200).join('') || TRANSFER_CAT,
+};
 
 export function newState(over = {}) {
   return {
@@ -380,7 +417,7 @@ export const Csv = {
   build(s) {
     const head = ['data', 'tipo', 'categoria', 'descricao', 'valor', 'situacao', 'conta', 'cartao'];
     const rows = [...s.txs].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0).map(t => [
-      Csv.cell(t.date), Csv.cell(isGoal(t) ? (t.kind === 'expense' ? 'reserva para meta' : 'retirada de meta') : t.kind === 'income' ? 'receita' : 'despesa'), Csv.cell(t.category), Csv.cell(t.desc),
+      Csv.cell(t.date), Csv.cell(isGoal(t) ? (t.kind === 'expense' ? 'reserva para meta' : 'retirada de meta') : isTransfer(t) ? (t.kind === 'expense' ? 'transferência enviada' : 'transferência recebida') : t.kind === 'income' ? 'receita' : 'despesa'), Csv.cell(t.category), Csv.cell(t.desc),
       Csv.cell(Money.input(t.value)), Csv.cell(t.paid ? 'realizado' : 'pendente'),
       Csv.cell(isCard(t) ? '' : account(s, t.accountId)?.name ?? ''), Csv.cell(card(s, t.cardId || t.cardPayment)?.name ?? ''),
     ].join(';'));
@@ -441,6 +478,7 @@ export const Ops = {
       const t = s.txs.find(x => x.id === editId);
       if (!t) return err('Lançamento não encontrado.');
       if (isGoal(t)) return err('Este lançamento é de uma meta. Para mudar o valor, guarde ou retire pela meta; ou exclua o lançamento.', 'Lançamento de meta');
+      if (isTransfer(t)) return err('Este lançamento é uma transferência entre contas. Edite pela própria transferência.', 'Transferência');
       let upd;
       if (t.cardPayment) upd = { ...t, desc, value, category, date: d.date, accountId, paid: true };
       else {
@@ -481,6 +519,9 @@ export const Ops = {
   },
   deleteTx(s, id, withLater) {
     const ids = new Set([id, ...(withLater ? Ops.laterParcels(s, id).map(x => x.id) : [])]);
+    // transferência: os dois lados saem juntos (um lado sozinho mexeria no saldo de uma conta só)
+    const tr = s.txs.find(x => x.id === id);
+    if (tr && isTransfer(tr)) for (const x of s.txs) if (x.transferId === tr.transferId) ids.add(x.id);
     // excluir uma reserva para meta desfaz o valor na meta (guardado volta a diminuir; retirada volta a somar)
     let goals = s.goals;
     for (const t of s.txs) {
@@ -488,6 +529,29 @@ export const Ops = {
       goals = goals.map(g => g.id !== t.goalId ? g : { ...g, saved: Math.max(0, t.kind === 'expense' ? g.saved - t.value : g.saved + t.value) });
     }
     return { ...s, txs: s.txs.filter(x => !ids.has(x.id)), goals };
+  },
+  /**
+   * Cria ou edita ([transferId]) uma transferência: sai de [fromId] e entra em [toId], com o mesmo valor e data,
+   * sempre realizada (transferência futura não existe: o saldo mudaria antes da hora). Não é receita nem despesa.
+   */
+  saveTransfer(s, transferId, fromId, toId, value, date, desc, today = todayStr()) {
+    if (s.accounts.length < 2) return err('Cadastre outra conta em Meu dinheiro para transferir entre elas.', 'Uma conta só');
+    const v = Money.parse(value);
+    if (v == null || v <= 0) return err('Informe um valor maior que zero. Ex.: 250,00', 'Valor inválido');
+    if (!validDate(date)) return err('Informe uma data válida.', 'Data inválida');
+    if (date > today) return err('A transferência entra no saldo na hora. Lance no dia em que ela acontecer.', 'Data no futuro');
+    if (!account(s, fromId) || !account(s, toId)) return err('Escolha a conta de origem e a de destino.', 'Conta não encontrada');
+    if (fromId === toId) return err('A conta de origem e a de destino precisam ser diferentes.', 'Mesma conta');
+    const text = Transfers.desc(desc);
+    if (transferId != null) {
+      const l = Transfers.legs(s, transferId);
+      if (!l) return err('Transferência não encontrada.');
+      const out = { ...l.out, value: v, date, desc: text, accountId: fromId }, into = { ...l.into, value: v, date, desc: text, accountId: toId };
+      return ok({ ...s, txs: s.txs.map(x => x.id === out.id ? out : x.id === into.id ? into : x) });
+    }
+    const tid = newId();
+    const leg = (kind, accountId) => tx({ id: newId(), kind, value: v, date, desc: text, category: TRANSFER_CAT, paid: true, accountId, transferId: tid });
+    return okGrow(s, { ...s, txs: [...s.txs, leg('expense', fromId), leg('income', toId)] });
   },
   /** Compra no cartão e pagamento de fatura não alternam pago/pendente: desmarcar um pagamento de fatura reabria
    *  a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes (igual ao app Android 1.1.1). */
@@ -769,11 +833,13 @@ export function normalize(raw, { enforceLimits = true } = {}) {
     const paid = cardId ? true : o.paid !== false;
     // reserva para meta: nunca no cartão nem junto com pagamento de fatura; sempre realizada
     const goalId = !cardId && !cardPayment ? safeId(o.goalId) : '';
-    const scheduledDate = paid && !cardId && !cardPayment && !goalId ? parseDate(o.scheduledDate) : null;
+    // transferência entre contas (Android 1.13): nunca no cartão, em fatura ou meta; sempre realizada
+    const transferId = !cardId && !cardPayment && !goalId ? safeId(o.transferId) : '';
+    const scheduledDate = paid && !cardId && !cardPayment && !goalId && !transferId ? parseDate(o.scheduledDate) : null;
     txs.push(tx({ id: idFor(o.id), kind, value, date, desc: str(o.desc, 200) || 'Sem descrição',
-      category: str(o.category, 40) || (cardPayment ? CARD_PAYMENT_CAT : goalId ? GOAL_CAT : 'Outros'),
-      paid: paid || !!goalId, accountId: accOf(o.accountId), cardId, cardPayment,
-      recurringId: safeId(o.recurringId), groupId: safeId(o.groupId), parcelN: okP ? pN : 0, parcelTotal: okP ? pTotal : 0, scheduledDate, goalId }));
+      category: str(o.category, 40) || (cardPayment ? CARD_PAYMENT_CAT : goalId ? GOAL_CAT : transferId ? TRANSFER_CAT : 'Outros'),
+      paid: paid || !!goalId || !!transferId, accountId: accOf(o.accountId), cardId, cardPayment,
+      recurringId: safeId(o.recurringId), groupId: safeId(o.groupId), parcelN: okP ? pN : 0, parcelTotal: okP ? pTotal : 0, scheduledDate, goalId, transferId }));
   }
 
   const goals = [];
@@ -791,7 +857,8 @@ export function normalize(raw, { enforceLimits = true } = {}) {
   if (isObj(raw.limits)) for (const [k, v] of Object.entries(raw.limits)) { const c = [...k.trim()].slice(0, 40).join(''), n = cents(v); if (c && n > 0) limits.set(c, n); }
 
   const al = num(raw.autoLock), autoLock = al != null && AUTOLOCK_OPTIONS.includes(Math.round(al)) ? Math.round(al) : 0;
-  const state = { txs, goals, accounts, cards, recurring, cats, limits, privacy: raw.privacy === true, autoLock, theme: themeOf(raw.theme), shared };
+  // transferência com um lado só ou lados que não combinam vira lançamento comum (Transfers.sanitize)
+  const state = { txs: Transfers.sanitize(txs), goals, accounts, cards, recurring, cats, limits, privacy: raw.privacy === true, autoLock, theme: themeOf(raw.theme), shared };
   if (!hasSafeMoneyTotals(state)) throw new BackupError('O total dos valores excede o limite seguro');
   const bv = num(raw.backupVersion), version = bv != null && bv >= 0 && bv <= 2147483647 ? Math.round(bv) : null;
   return { state, dropped: d, droppedTotal: d.txs + d.goals + d.accounts + d.cards + d.recurring + d.shared,
@@ -877,6 +944,7 @@ export function toJson(s, meta, opts = {}) {
       if (t.parcelTotal > 0) x.parcel = { n: t.parcelN, total: t.parcelTotal };
       if (t.scheduledDate) x.scheduledDate = t.scheduledDate;
       if (t.goalId) x.goalId = t.goalId;
+      if (t.transferId) x.transferId = t.transferId;
       return x;
     }),
     goals: s.goals.map(g => ({ id: g.id, name: g.name, target: R(g.target), saved: R(g.saved), deadline: g.deadline || '', monthly: R(g.monthly) })),

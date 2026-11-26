@@ -11,7 +11,7 @@
 //   mês e recorrências previstas. Compras no cartão entram pela fatura.
 // - Reservado para metas: aportes mensais planejados que ainda não foram feitos no mês.
 // - Saldo atual: Finance.currentBalance. Previsto no fim do mês: saldo atual + a receber − a pagar − reservado para metas.
-import { Finance, Projection, isCard, isGoal, ymOf, ymFirst, ymLast } from './core.js';
+import { Finance, Projection, isCard, isGoal, isTransfer, ymOf, ymFirst, ymLast } from './core.js';
 
 export const Totals = {
   /** quando o mês está em relação a hoje */
@@ -59,6 +59,7 @@ export const Totals = {
     let realizedIn = 0, realizedOut = 0, goalsSaved = 0;
     for (const t of s.txs) {
       if (!t.paid || isCard(t) || !ids.has(t.accountId) || ymOf(t.date) !== ym) continue;
+      if (isTransfer(t)) continue; // transferência entre contas: não é entrada nem saída do mês
       if (isGoal(t)) goalsSaved += t.kind === 'expense' ? t.value : -t.value;
       else if (t.kind === 'income') realizedIn += t.value;
       else realizedOut += t.value;

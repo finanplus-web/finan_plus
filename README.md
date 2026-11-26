@@ -103,7 +103,7 @@ js/simulator.js           contas do simulador "E se…?" e comparação dos Rela
 js/simsheet.js            folha do simulador
 js/editors.js             editores e diálogos (lançamento, meta, conta, cartão, fatura…)
 js/ui.js, js/ctx.js       utilidades de interface e estado compartilhado
-js/icons.js               ícones Material Symbols embutidos
+js/icons.js               ícones Phosphor embutidos (gerado por tools/phosphor-icons.mjs)
 js/app.bundle.js          GERADO: todos os módulos num arquivo (é o que o index.html carrega)
 js/embedded-data.js       GERADO: dicionário e licenças embutidos
 sw.js, manifest.webmanifest   funcionamento offline e instalação
@@ -124,6 +124,6 @@ Finan+ — Copyright (C) 2026 Juscelino Be.
 
 Software livre sob a **GNU GPL v3 ou posterior** (`GPL-3.0-or-later`). O texto completo está em `LICENSE` e dentro do app, em *Ajustes › Sobre*. Todos os arquivos de código trazem o aviso de copyright e `SPDX-License-Identifier: GPL-3.0-or-later`.
 
-Ícone do app (F+): desenho próprio do Finan+, GPL-3.0-or-later, com as fontes em vetor em [`docs/icone/`](docs/icone/). Ícones da interface: Material Symbols Rounded, © Google, Licença Apache 2.0 (compatível com a GPL v3). Detalhes em `third_party/material-symbols/`. Larguras das fontes padrão do PDF: métricas AFM públicas da Adobe, ver `third_party/adobe-core14-metrics/`. Leitura de faturas em PDF: Mozilla PDF.js, Licença Apache 2.0, ver `third_party/pdfjs/`.
+Ícone do app (F+): desenho próprio do Finan+, GPL-3.0-or-later, com as fontes em vetor em [`docs/icone/`](docs/icone/). Ícones da interface: Phosphor Icons, licença MIT (compatível com a GPL v3), os mesmos do app Android e do Linux. Detalhes em `third_party/phosphor/`.
 
 Finan+ é um projeto independente idealizado e desenvolvido por Juscelino Be, com auxílio de inteligência artificial na implementação, revisão e evolução do código.

@@ -3,13 +3,13 @@
 //
 // Editores (folhas): lançamento, meta, conta, cartão, pagamento de fatura, recorrência e limite;
 // relatório em PDF; categorias; PIN; atalhos. Validações e mensagens vêm de Ops (core.js).
-import { Ops, Finance, Money, account, card, brDate, brMonthLabel, toJson, BACKUP_VERSION, Csv, parseBackup, BackupError, newState, ymOf, CARD_PAYMENT_CAT, isGoal } from './core.js';
+import { Ops, Finance, Money, account, card, brDate, brMonthLabel, toJson, BACKUP_VERSION, Csv, parseBackup, BackupError, newState, ymOf, CARD_PAYMENT_CAT, isGoal, isTransfer, Transfers } from './core.js';
 import { Categorizer } from './assist.js';
 import { buildReport, preset, PRESETS, reportFileName } from './report.js';
 import { renderPdf } from './pdf.js';
 import { hashPin, verifyPin, pinValidFormat } from './store.js';
 import { icon } from './icons.js';
-import { esc, attr, openSheet, closeSheet, notice, confirmDlg, ask, promptDlg, field, input, moneyInput, select, check, btn, formData, toast, why, selectField, setSelectOptions, segmented, bindSegmented, dangerText } from './ui.js';
+import { esc, attr, openSheet, closeSheet, notice, confirmDlg, ask, promptDlg, field, input, moneyInput, select, check, btn, formData, toast, why, selectField, setSelectOptions, setSelectValue, segmented, bindSegmented, dangerText } from './ui.js';
 import { ctx, money, APP_VERSION, catIcon } from './ctx.js';
 import { billImportSheet, cardHasBillPassword, forgetBillPassword } from './billsheet.js';
 import { sharedEditor } from './sharedview.js';
@@ -51,9 +51,11 @@ export function addChoiceSheet() {
     ${row('tx', 'expense', 'arrow-downward', 'out', 'Despesa', 'Dinheiro que saiu')}
     ${row('tx', 'income', 'arrow-upward', 'in', 'Receita', 'Dinheiro que entrou')}
     ${row('recurring', '', 'repeat', '', 'Nova recorrência', 'Configure uma movimentação que se repete')}
+    ${row('transfer', '', 'transfer', '', 'Transferência entre contas', 'Mova dinheiro de uma conta para outra')}
     ${row('shared', '', 'group', '', 'Despesa compartilhada', 'Divida uma conta e veja quem já pagou')}</div>` });
   d.querySelectorAll('[data-choice]').forEach(b => b.onclick = () => {
-    if (b.dataset.choice === 'recurring') recurringEditor(); else if (b.dataset.choice === 'shared') sharedEditor(); else txEditor(b.dataset.kind);
+    const c = b.dataset.choice;
+    if (c === 'recurring') recurringEditor(); else if (c === 'shared') sharedEditor(); else if (c === 'transfer') transferEditor(); else txEditor(b.dataset.kind);
   });
 }
 
@@ -63,7 +65,8 @@ export function addChoiceSheet() {
 export function txEditor(kind = 'expense', id = null, date = null, o = {}) {
   const s = ctx.state, t = id ? s.txs.find(x => x.id === id) : null;
   if (id && !t) return;
-  if (t && isGoal(t)) return goalMoveView(t); // reserva para meta: não se edita aqui (o valor muda pela meta)
+  if (t && isGoal(t)) return goalMoveView(t);
+  if (t && isTransfer(t)) return transferEditor(t.transferId); // os dois lados se editam juntos // reserva para meta: não se edita aqui (o valor muda pela meta)
   // receitas e despesas comuns: a tela de lançamento do Android 1.11 (txscreen.js); pagamento de fatura fica aqui
   if (usesTxScreen(t)) return txScreen(kind, t, { date, category: o.category });
   const isPayment = !!t?.cardPayment;
@@ -266,6 +269,39 @@ export function goalMoveView(t) {
         : `O valor guardado na meta aumenta ${money(t.value)} e sai de novo do saldo da conta.`;
     if (!await ask('Excluir lançamento', what, { ok: 'Excluir', danger: true })) return;
     ctx.replace(Ops.deleteTx(ctx.state, t.id, false)); closeSheet(); toast('Lançamento excluído');
+  });
+}
+
+// ------------------------------------------------------------------ transferência entre contas (Android 1.13)
+/** Mover dinheiro de uma conta para outra: dois lançamentos ligados (sai de uma, entra na outra), sempre realizados,
+ *  que não contam como receita nem despesa (resumo, limites, relatórios e assistente). Excluir apaga os dois lados. */
+export function transferEditor(transferId = null, o = {}) {
+  const s = ctx.state, l = transferId ? Transfers.legs(s, transferId) : null;
+  if (transferId && !l) return notice('Transferência', 'Transferência não encontrada.');
+  if (!l && s.accounts.length < 2) return notice('Uma conta só', 'Cadastre outra conta em Meu dinheiro para transferir entre elas.');
+  const from = l?.fromId ?? o.fromId ?? s.accounts[0].id;
+  const to = l?.toId ?? (s.accounts.find(a => a.id !== from) ?? s.accounts[1]).id;
+  const desc = l && l.out.desc !== 'Transferência' ? l.out.desc : '';
+  const body = `<form id="trForm" novalidate>
+    <div class="formCard valueCard">${field('Valor (R$)', moneyInput('value', l ? Money.input(l.value) : ''))}</div>
+    <div class="formCard transferAccounts">
+      ${selectField('fromId', 'De', accOpts(s), from, { title: 'Conta de origem' })}
+      <div class="transferSwap">${btn('', { id: 'trSwap', icon: 'swap-horiz', label: 'Inverter as contas', cls: 'icon small' })}</div>
+      ${selectField('toId', 'Para', accOpts(s), to, { title: 'Conta de destino' })}
+    </div>
+    <div class="formCard">${field('Data', input('date', l?.date ?? today(), { type: 'date', required: true }))}
+      ${field('Descrição (opcional)', input('desc', desc, { max: 200, placeholder: 'Transferência' }))}</div>
+    <p class="infoBox">${icon('info', 18)}<span>O valor sai de uma conta e entra na outra. Não conta como receita nem despesa, nem nos limites, relatórios ou no assistente.</span></p>
+    ${actions(l ? 'Salvar' : 'Transferir', l ? 'Excluir transferência' : null)}</form>`;
+  const d = openSheet({ title: l ? 'Editar transferência' : 'Transferência entre contas', subtitle: l ? Transfers.route(s, l) : 'Mova dinheiro entre as suas contas.', body });
+  d.querySelector('#trSwap').onclick = () => {
+    const f = d.querySelector('input[name="fromId"]').value, t = d.querySelector('input[name="toId"]').value;
+    setSelectValue(d, 'fromId', t, false); setSelectValue(d, 'toId', f, false);
+  };
+  guard(d.querySelector('#trForm'), v => apply(Ops.saveTransfer(ctx.state, l?.id ?? null, v.fromId, v.toId, v.value, v.date, v.desc, today()), l ? 'Transferência salva' : 'Transferência registrada'));
+  onDelete(d, async () => {
+    if (!await ask('Excluir transferência', `Os dois lados (${Transfers.route(ctx.state, l)}, ${money(l.value)}) serão excluídos e os saldos voltam ao que eram.`, { ok: 'Excluir', danger: true })) return;
+    ctx.replace(Ops.deleteTx(ctx.state, l.out.id, false)); closeSheet(); toast('Transferência excluída');
   });
 }
 
