@@ -1,6 +1,6 @@
 # Changelog — Finan+ web (PWA)
 
-## Próxima versão — Paridade com o Android 1.12 e 1.13 (ainda não publicada)
+## 1.6.0 — Transferência entre contas e ícones Phosphor, como no Android 1.12 e 1.13 (26/11/2026)
 
 ### Resumo para quem usa
 
