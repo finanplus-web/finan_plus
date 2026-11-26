@@ -4,7 +4,7 @@
 // Calendário da aba Lançamentos e período da Lista: tradução de core/MonthCalendar.kt e core/Period.kt
 // do Finan+ Android, com as mesmas regras e os mesmos testes (tests/calendar.test.mjs).
 // Datas são textos "AAAA-MM-DD"; meses (ym) são inteiros ano*12 + mês-1, como no core.js.
-import { Finance, Money, MONTHS, isCard, isGoal, isFlow, ymOf, ymFirst, ymLast, ymLen, ymDay, weekday, Projection } from './core.js';
+import { Finance, Money, MONTHS, isCard, isGoal, isTransfer, isFlow, ymOf, ymFirst, ymLast, ymLen, ymDay, weekday, Projection } from './core.js';
 
 const WEEKDAYS = { 1: 'segunda-feira', 2: 'terça-feira', 3: 'quarta-feira', 4: 'quinta-feira', 5: 'sexta-feira', 6: 'sábado', 7: 'domingo' };
 const capFirst = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -54,6 +54,7 @@ export const MonthCalendar = {
       const marks = new Set();
       for (const t of txs) {
         if (isCard(t)) marks.add('card'); // compra no cartão: só na fatura
+        else if (isTransfer(t)) {} // transferência entre contas: o total não muda (aparece só na lista do dia)
         else if (isGoal(t)) { if (t.kind === 'income') { income += t.value; goals -= t.value; } else { expense += t.value; goals += t.value; } marks.add('goal'); }
         else if (t.kind === 'income') { income += t.value; hasFlow = true; marks.add('income'); }
         else { expense += t.value; hasFlow = true; marks.add(t.cardPayment ? 'card' : 'expense'); }
@@ -168,7 +169,7 @@ export const Period = {
   dayTotal(txs) {
     let net = 0, goals = 0, hasFlow = false;
     for (const t of txs) {
-      if (isCard(t)) continue;
+      if (isCard(t) || isTransfer(t)) continue; // transferência: sai de uma conta e entra na outra
       if (isGoal(t)) goals += t.kind === 'expense' ? t.value : -t.value;
       else { hasFlow = true; net += t.kind === 'income' ? t.value : -t.value; }
     }

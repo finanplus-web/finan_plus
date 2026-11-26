@@ -5,7 +5,7 @@
 // Cada tela só gera HTML; os cliques passam por data-act (tratados em app.js).
 // No computador as telas se dividem em 2 ou 3 colunas (ctx.cols); no celular, uma.
 import {
-  Finance, isCard, isFlow, isGoal, isProjected, Projection, ymOf, ymFirst, ymLast, ymLen, addDays, brDate, brDayMonth, brMonthLabel, brMonthYear, fullDate,
+  Finance, isCard, isFlow, isGoal, isTransfer, Transfers, isProjected, Projection, ymOf, ymFirst, ymLast, ymLen, addDays, brDate, brDayMonth, brMonthLabel, brMonthYear, fullDate,
   MONTHS, MONTHS_SHORT, THEMES, dom, themeLabel, AUTOLOCK_OPTIONS, account, card, CARD_PAYMENT_CAT, Money,
 } from './core.js';
 import { Insights, Ask, ASK_EXAMPLES, Categorizer, Text, INSIGHT_LABELS } from './assist.js';
@@ -50,8 +50,8 @@ function prevMonthEnd(s, ym) {
   return s.txs.some(t => t.date < first) ? Finance.balanceAt(s, ymLast(ym - 1)) : null;
 }
 /** tipo do lançamento → tom do ícone: exp (vermelho), inc (verde), goal (âmbar), card (lilás), neutral */
-export const txTone = (t, neutral = false) => neutral ? 'neutral' : isGoal(t) ? 'goal' : isCard(t) || t.cardPayment ? 'card' : t.kind === 'income' ? 'inc' : 'exp';
-const txIcon = t => isGoal(t) ? 'flag' : t.cardPayment ? 'credit-card' : catIcon(TxForm.displayCategory(t.category));
+export const txTone = (t, neutral = false) => neutral || isTransfer(t) ? 'neutral' : isGoal(t) ? 'goal' : isCard(t) || t.cardPayment ? 'card' : t.kind === 'income' ? 'inc' : 'exp';
+const txIcon = t => isGoal(t) ? 'flag' : isTransfer(t) ? 'transfer' : t.cardPayment ? 'credit-card' : catIcon(TxForm.displayCategory(t.category));
 
 export function homeView() {
   const s = ctx.state, today = ctx.today, ym = ymOf(today);
@@ -291,25 +291,29 @@ export function dayTotalHtml(t) {
 
 /** linha de lançamento (Root.kt TxRow, 1.11); o: { noDate } quando o dia já aparece no título (lista por dia e calendário) */
 export function txRow(t, o = {}) {
-  const s = ctx.state, goalT = isGoal(t), payment = !!t.cardPayment, cardT = isCard(t), prev = isProjected(t);
+  const s = ctx.state, goalT = isGoal(t), payment = !!t.cardPayment, cardT = isCard(t), prev = isProjected(t), trT = isTransfer(t);
   const late = !t.paid && !cardT && t.date < ctx.today;
-  const statusTxt = prev ? 'Prevista · recorrência' : goalT ? (t.kind === 'expense' ? 'Guardado na meta' : 'Retirado da meta') : payment ? 'Pagamento de fatura' : cardT ? 'No cartão'
+  // transferência entre contas (Android 1.13): cada lado diz para onde foi ou de onde veio, em cor neutra
+  const legs = trT ? Transfers.legsOf(s, t) : null;
+  const trTxt = !trT ? '' : !legs ? 'Transferência' : t.kind === 'expense' ? `Enviada para ${account(s, legs.toId)?.name ?? 'Conta'}` : `Recebida de ${account(s, legs.fromId)?.name ?? 'Conta'}`;
+  const statusTxt = prev ? 'Prevista · recorrência' : goalT ? (t.kind === 'expense' ? 'Guardado na meta' : 'Retirado da meta') : trT ? trTxt : payment ? 'Pagamento de fatura' : cardT ? 'No cartão'
     : !t.paid ? (late ? (t.kind === 'income' ? 'Vencida · a receber' : 'Vencida · a pagar') : (t.kind === 'income' ? 'A receber' : 'A pagar'))
     : t.kind === 'income' ? 'Recebida' : 'Paga';
-  const stCls = goalT ? 'goalTxt' : late ? 'red' : cardT ? 'cardTxt' : t.paid && !prev ? 'green' : 'muted';
+  const stCls = goalT ? 'goalTxt' : trT ? 'muted' : late ? 'red' : cardT ? 'cardTxt' : t.paid && !prev ? 'green' : 'muted';
   const when = [o.noDate ? '' : brDate(t.date), t.paid && t.scheduledDate ? `previsto ${brDate(t.scheduledDate)}` : ''].filter(Boolean).join(' · ');
   // a conta só aparece quando existe mais de uma; o cartão aparece sempre (é a forma de pagamento)
   const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ''}` : s.accounts.length > 1 ? account(s, t.accountId)?.name ?? 'Conta' : null;
   const sub = [Words.ordinal(TxForm.displayCategory(t.category)), where].filter(Boolean).join(' · ');
   const toggle = prev ? `<span class="chk ghost" title="Previsto: o lançamento é criado quando o mês chegar">${icon('repeat', 18)}</span>`
     : goalT ? `<span class="chk ghost" title="${t.kind === 'expense' ? 'Guardado na meta' : 'Retirado da meta'}">${icon('flag', 18)}</span>`
+    : trT ? `<span class="chk ghost" title="Transferência entre contas: não conta como receita nem despesa">${icon('transfer', 18)}</span>`
     : cardT || payment ? `<span class="chk ghost" title="${payment ? 'Pagamento de fatura' : 'Compra no cartão'}">${icon('credit-card', 18)}</span>`
       : `<button type="button" class="chk${t.paid ? ' on' : ''}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-label="${t.paid ? `Desfazer confirmação: ${t.kind === 'income' ? 'recebido' : 'pago'}` : (t.kind === 'income' ? 'Marcar como recebido' : 'Marcar como pago')}: ${attr(t.desc)}">${icon('check', 16)}</button>`;
   // 1.11: a reserva para meta sai do saldo ("−", no âmbar das metas); a retirada volta ("+", em verde)
-  const what = goalT ? (t.kind === 'expense' ? 'guardado na meta' : 'retirado da meta') : t.kind === 'income' ? 'receita' : 'despesa';
+  const what = goalT ? (t.kind === 'expense' ? 'guardado na meta' : 'retirado da meta') : trT ? (t.kind === 'expense' ? 'transferência enviada' : 'transferência recebida') : t.kind === 'income' ? 'receita' : 'despesa';
   const sign = t.kind === 'expense' ? '−' : '+';
-  const amtCls = goalT && t.kind === 'expense' ? 'goalTxt' : t.kind === 'expense' ? 'red' : 'green';
-  return `<div class="tx ${t.kind}${goalT ? ' goalMove' : ''}${t.paid ? '' : ' pending'}${payment ? ' payment' : ''}${prev ? ' projected' : ''}" data-act="${prev ? 'edit-recurring' : 'edit-tx'}" data-id="${attr(prev ? t.recurringId : t.id)}" role="button" tabindex="0" aria-label="${attr(Words.ordinal(t.desc))}, ${prev ? 'previsto, ' : ''}${what}${goalT ? ',' : ' de'} ${attr(money(t.value))} em ${brDate(t.date)}">
+  const amtCls = trT ? '' : goalT && t.kind === 'expense' ? 'goalTxt' : t.kind === 'expense' ? 'red' : 'green';
+  return `<div class="tx ${t.kind}${goalT ? ' goalMove' : ''}${trT ? ' transfer' : ''}${t.paid ? '' : ' pending'}${payment ? ' payment' : ''}${prev ? ' projected' : ''}" data-act="${prev ? 'edit-recurring' : 'edit-tx'}" data-id="${attr(prev ? t.recurringId : t.id)}" role="button" tabindex="0" aria-label="${attr(Words.ordinal(t.desc))}, ${prev ? 'previsto, ' : ''}${what}${goalT ? ',' : ' de'} ${attr(money(t.value))} em ${brDate(t.date)}">
     ${toneTile(txIcon(t), txTone(t, prev), 42)}<span class="meta"><b class="txName">${esc(Words.ordinal(t.desc))}</b>${sub ? `<small>${esc(sub)}</small>` : ''}<small class="txStatus ${stCls}">${esc(statusTxt)}${when ? ` · ${esc(when)}` : ''}</small></span>
     <span class="amount num ${amtCls}">${sign} ${money(t.value)}</span>${toggle}</div>`;
 }
@@ -635,8 +639,10 @@ Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo so
 
 Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA GARANTIA, nem mesmo a garantia implícita de COMERCIABILIDADE ou de ADEQUAÇÃO A UMA FINALIDADE ESPECÍFICA. Veja a licença completa para mais detalhes.</p>
     <details class="license" data-src="licenca/LICENSE.txt"><summary>${icon('expand-more', 18)}Ver licença completa (GNU GPL v3)</summary><pre class="licenseText">Carregando…</pre></details>
-    <p class="muted">Ícones: Material Symbols, © Google, sob a Licença Apache 2.0 (compatível com a GPL v3).</p>
-    <details class="license" data-src="licenca/APACHE-2.0.txt"><summary>${icon('expand-more', 18)}Ver licença dos ícones (Apache 2.0)</summary><pre class="licenseText">Carregando…</pre></details>
+    <p class="muted">Ícones: Phosphor Icons, © Phosphor Icons, sob a licença MIT (compatível com a GPL v3).</p>
+    <details class="license" data-src="licenca/PHOSPHOR-MIT.txt"><summary>${icon('expand-more', 18)}Ver licença dos ícones (MIT)</summary><pre class="licenseText">Carregando…</pre></details>
+    <p class="muted">Leitura de faturas em PDF: PDF.js da Mozilla, sob a Licença Apache 2.0.</p>
+    <details class="license" data-src="licenca/APACHE-2.0.txt"><summary>${icon('expand-more', 18)}Ver licença do PDF.js (Apache 2.0)</summary><pre class="licenseText">Carregando…</pre></details>
     <h4 class="subhead">Código-fonte e outras versões</h4>
     <p class="muted">O código do Finan+ é aberto. Aqui estão o repositório desta versão web e a versão para computadores Linux, com os mesmos recursos e backup compatível.</p>
     <div class="linkList">
@@ -682,7 +688,7 @@ export function topbarHtml() {
     ${ctx.device.pinHash ? btn('', { act: 'lock', cls: 'icon', icon: 'lock', label: 'Bloquear agora (Ctrl+L)' }) : ''}
     <div class="menuWrap">${btn('', { act: 'menu', cls: 'icon', icon: 'more-horiz', label: 'Mais opções', id: 'menuBtn' })}
       <div class="menu glass" id="menu" role="menu" hidden>
-        ${[['shared-list', 'Despesas compartilhadas', 'group', ''], ['pdf', 'Relatório em PDF', 'picture-as-pdf', 'Ctrl+P'], ['csv', 'Exportar CSV', 'table-view', 'Ctrl+E'], ['backup', 'Salvar backup JSON', 'download', 'Ctrl+S'], ['restore', 'Restaurar backup', 'upload', 'Ctrl+O'], ['shortcuts', 'Atalhos de teclado', 'keyboard', 'Ctrl+/'], ['about', 'Sobre o Finan+', 'info', '']]
+        ${[['new-transfer', 'Transferência entre contas', 'transfer', ''], ['shared-list', 'Despesas compartilhadas', 'group', ''], ['pdf', 'Relatório em PDF', 'picture-as-pdf', 'Ctrl+P'], ['csv', 'Exportar CSV', 'table-view', 'Ctrl+E'], ['backup', 'Salvar backup JSON', 'download', 'Ctrl+S'], ['restore', 'Restaurar backup', 'upload', 'Ctrl+O'], ['shortcuts', 'Atalhos de teclado', 'keyboard', 'Ctrl+/'], ['about', 'Sobre o Finan+', 'info', '']]
           .map(([a, l, ic, k]) => `<button type="button" role="menuitem" data-act="${a}">${icon(ic, 18)}<span>${l}</span>${k ? `<kbd>${k}</kbd>` : ''}</button>`).join('')}
       </div></div></div>`;
 }

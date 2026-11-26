@@ -202,7 +202,7 @@ export const Insights = {
     const exp = expenses(s);
     const curExp = exp.filter(t => t.paid && inMonthUntil(t, ym, day));
     const prevExp = exp.filter(t => t.paid && inMonthUntil(t, prev, prevDay));
-    const curInc = s.txs.filter(t => t.kind === 'income' && t.paid && inMonthUntil(t, ym, day));
+    const curInc = s.txs.filter(t => t.kind === 'income' && !t.transferId && t.paid && inMonthUntil(t, ym, day));
     const spent = sum(curExp), before = sum(prevExp), income = sum(curInc);
     const lines = [];
     // as 2 frases mais úteis vão para o Início (highlights), na ordem: atraso, a pagar, gasto, a receber, entrou
@@ -225,13 +225,13 @@ export const Insights = {
     if (topCat != null && spent > 0) lines.push(`A maior categoria é ${topCat}: ${money(topV)} (${pct(topV * 100 / spent)} das despesas).`);
     const pending = exp.filter(t => !t.paid && !isCard(t) && ymOf(t.date) === ym && t.date >= today);
     if (pending.length) lines.push(hl.pending = `Ainda faltam ${money(sum(pending))} em ${plural(pending.length, 'conta', 'contas')} a pagar até o fim do mês.`);
-    const toReceive = s.txs.filter(t => t.kind === 'income' && !t.paid && ymOf(t.date) === ym);
+    const toReceive = s.txs.filter(t => t.kind === 'income' && !t.transferId && !t.paid && ymOf(t.date) === ym);
     if (toReceive.length) lines.push(hl.receive = `A receber neste mês: ${money(sum(toReceive))} em ${plural(toReceive.length, 'lançamento', 'lançamentos')}.`);
     const late = exp.filter(t => !t.paid && !isCard(t) && t.date < today);
     if (late.length) lines.push(hl.late = `${plural(late.length, 'conta está', 'contas estão')} em atraso (${money(sum(late))}).`);
     if (day <= 7) {
       const pe = sum(exp.filter(t => t.paid && ymOf(t.date) === prev));
-      const pi = sum(s.txs.filter(t => t.kind === 'income' && t.paid && ymOf(t.date) === prev));
+      const pi = sum(s.txs.filter(t => t.kind === 'income' && !t.transferId && t.paid && ymOf(t.date) === prev));
       if (pe > 0 || pi > 0) lines.push(`Fechamento de ${brMonth(prev)}: receitas ${money(pi)}, despesas ${money(pe)}, saldo ${money(pi - pe)}.`);
     }
     return {
@@ -360,7 +360,7 @@ export const Insights = {
   overIncome(s, today, money) {
     const ym = ymOf(today), day = dom(today), len = ymLen(ym);
     if (day < PACE_MIN_DAY || day >= len) return null;
-    const income = sum(s.txs.filter(t => t.kind === 'income' && ymOf(t.date) === ym));
+    const income = sum(s.txs.filter(t => t.kind === 'income' && !t.transferId && ymOf(t.date) === ym));
     if (income <= 0) return null;
     const p = Insights.project(expenses(s), today, PACE_MIN_COUNT);
     if (!p.enough || p.projected <= income) return null;

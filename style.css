@@ -1090,3 +1090,8 @@ textarea{resize:vertical}
 .usageLine small:last-child{white-space:nowrap}
 .assistCard{margin-top:14px}
 @media (min-width:900px){.moneyTop:not(.withAlert){grid-template-columns:minmax(0,1fr)}.moneyTop:not(.withAlert) .moneySum{max-width:none}.cols .assistCard{margin-top:0}}
+/* transferência entre contas (Android 1.13): valor e situação em cor neutra; De / inverter / Para */
+.tx.transfer .amount{color:var(--text)}
+.transferAccounts{display:grid;gap:4px}
+.transferSwap{display:flex;justify-content:center;margin:-4px 0}
+.transferSwap .ic{transform:rotate(90deg)}

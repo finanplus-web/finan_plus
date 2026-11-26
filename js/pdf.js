@@ -6,7 +6,7 @@
 // Layout idêntico ao do app Android (export/PdfReport.kt) e da versão Linux (pdf_render.c).
 // Os números vêm de buildReport() (report.js, testado). O layout roda duas vezes: a primeira só
 // conta as páginas (para o rodapé "Página n de N"), a segunda desenha.
-import { Money, MONTHS, brDate, brMonthYear, ymMonth, ymYear, pad2, isFlow, isCard, isGoal, account, card, addDays } from './core.js';
+import { Money, MONTHS, brDate, brMonthYear, ymMonth, ymYear, pad2, isFlow, isCard, isGoal, isTransfer, account, card, addDays } from './core.js';
 import { Words } from './words.js';
 import { compact, niceStep, TOP, MAX_CHART_MONTHS } from './report.js';
 import { HELVETICA, HELVETICA_BOLD } from './pdf-metrics.js';
@@ -399,7 +399,7 @@ function txTable(pen, r, s) {
     const base = pen.y + 11.5, payment = !isFlow(t);
     let x = M + 6;
     const where = isCard(t) ? 'Cartão ' + (card(s, t.cardId)?.name ?? '') : account(s, t.accountId)?.name ?? '';
-    const status = isGoal(t) ? (t.kind === 'expense' ? 'Meta' : 'Da meta') : payment ? 'Pag. fatura' : isCard(t) ? 'Cartão' : t.paid ? (t.kind === 'income' ? 'Recebido' : 'Pago') : (t.kind === 'income' ? 'A receber' : 'A pagar');
+    const status = isGoal(t) ? (t.kind === 'expense' ? 'Meta' : 'Da meta') : isTransfer(t) ? 'Transf.' : payment ? 'Pag. fatura' : isCard(t) ? 'Cartão' : t.paid ? (t.kind === 'income' ? 'Recebido' : 'Pago') : (t.kind === 'income' ? 'A receber' : 'A pagar');
     pen.text(brDate(t.date), x, base, 8, MUTED); x += cols[0][1];
     pen.text(t.desc, x, base, 8.5, payment ? MUTED : INK, { maxW: cols[1][1] - 8 }); x += cols[1][1];
     pen.text(t.category, x, base, 8, MUTED, { maxW: cols[2][1] - 8 }); x += cols[2][1];

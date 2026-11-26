@@ -1,5 +1,20 @@
 # Changelog — Finan+ web (PWA)
 
+## 1.6.0 — Transferência entre contas e ícones Phosphor, como no Android 1.12 e 1.13 (26/11/2026)
+
+### Resumo para quem usa
+
+- **Transferência entre contas** (Android 1.13): mova dinheiro de uma conta para outra pelo **+** (Adicionar movimentação), pelo menu **⋯** ou pelo botão **Transferir entre contas** em Meu dinheiro › Contas e cartões. Cada conta muda de saldo, mas o total não; a transferência **não conta como receita nem despesa** (Resumo, limites, calendário, relatórios e Assistente). Na lista aparece em cor neutra, com "Enviada para…" / "Recebida de…". Editar ou excluir um lado mexe nos dois. A data não pode ser futura.
+- **Ícones Phosphor** (Android 1.12): os mesmos desenhos do app Android e do Finan+ para Linux, com peso Duotone nos ícones dentro de quadradinhos. Licença MIT (`third_party/phosphor/`, `licenca/PHOSPHOR-MIT.txt`); saem os Material Symbols.
+
+### Detalhes
+
+- `core.js`: campo `transferId`, `Transfers` (legs, sanitize, route) e `Ops.saveTransfer` com as mesmas validações e mensagens do Android. `isFlow` exclui transferências; `saveTx` recusa editar um lado pelo formulário comum; `deleteTx` apaga os dois lados.
+- **Backup:** grava e lê `transferId`. Um lado sozinho ou um par que não combina vira lançamento comum, como no Android. Antes, restaurar no Finan+ web um backup do Android com transferências contava os dois lados como receita e despesa.
+- CSV marca "transferência enviada" / "transferência recebida"; PDF mostra "Transf." na situação.
+- `js/icons.js` é gerado por `tools/phosphor-icons.mjs` a partir de `tools/phosphor-map.txt`.
+- Testes: `tests/transfers.test.mjs` (mesmos casos de `TransferTest.kt`).
+
 ## 1.5.0 — Mesmo visual e regras do Android 1.11.0 (03/11/2026)
 
 Traz para o Finan+ web tudo o que entrou no app Android da 1.7.0 à 1.11.0. Também é a cópia que o celular serve no **acesso pela rede**.
